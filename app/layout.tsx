@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import Navbar from '@/components/Navbar'
+import Footer from '@/components/Footer'
 
 export const metadata: Metadata = {
   title: 'EcoTree — Every Impact, Verified.',
@@ -19,7 +21,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Navbar />
+        <div style={{ paddingTop: '80px' }}>
+          {children}
+        </div>
+        <Footer />
+      </body>
     </html>
   )
 }
