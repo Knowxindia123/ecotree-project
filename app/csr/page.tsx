@@ -176,7 +176,7 @@ export default function CSRPage() {
         {/* ── HERO ── */}
         <section className="csr-hero">
           <div className="csr-hero__img-wrap">
-            <img src="/forest-hero.jpeg" alt="Sunlight through forest — EcoTree CSR environmental impact" className="csr-hero__img" />
+            <img src="/forest-hero.jpg" alt="Sunlight through forest — EcoTree CSR environmental impact" className="csr-hero__img" />
             <div className="csr-hero__overlay" />
           </div>
           <div className="csr-container csr-hero__content">
