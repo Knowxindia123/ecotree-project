@@ -360,6 +360,11 @@ export default function ThankYouPage() {
     }
   }
 
+  const goPlantAnother = () => {
+    sessionStorage.removeItem('ecotree_ty')
+    window.location.href = '/donate'
+  }
+
   if (!data) {
     return (
       <main className="ty">
@@ -367,7 +372,10 @@ export default function ThankYouPage() {
           <div className="ty-loading__icon">🌱</div>
           <p>Loading your certificate...</p>
           <p style={{ fontSize: '0.85rem', color: '#5C7268', marginTop: '0.5rem' }}>
-            If this persists, <a href="/donate" style={{ color: '#52B788' }}>return to donate page</a>
+            If this persists,{' '}
+            <a href="/donate" style={{ color: '#52B788' }} onClick={() => sessionStorage.removeItem('ecotree_ty')}>
+              return to donate page
+            </a>
           </p>
         </div>
         <style>{`.ty{min-height:60vh;display:flex;align-items:center;justify-content:center;}.ty-loading{text-align:center;font-size:1rem;color:#5C7268;}.ty-loading__icon{font-size:3rem;margin-bottom:1rem;animation:pulse 1.5s ease-in-out infinite;}@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}`}</style>
@@ -560,9 +568,9 @@ export default function ThankYouPage() {
             <a href="/impact" className="ty-btn ty-btn--outline ty-btn--full">
               📊 View Live Impact Dashboard →
             </a>
-            <a href="/donate" className="ty-btn ty-btn--ghost ty-btn--full">
+            <button className="ty-btn ty-btn--ghost ty-btn--full" onClick={goPlantAnother}>
               🌱 Plant Another Tree
-            </a>
+            </button>
           </div>
         </div>
       </div>
