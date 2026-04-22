@@ -151,7 +151,7 @@ export default function DashboardClient() {
         .db-page { font-family:var(--font-body); background:#fff; overflow-x:hidden; }
 
         /* ── MAP HEADER (first thing user sees) ── */
-        .map-section { background:var(--clr-cream); padding:2rem 0 0; }
+        .map-section { background:var(--clr-cream); padding:2rem 0 0;overflow: hidden; }
         .map-header {
           background: var(--clr-dark-bg);
           background-image: radial-gradient(ellipse 70% 100% at 25% 50%, rgba(151,188,98,.07) 0%, transparent 65%);
