@@ -184,7 +184,7 @@ export default function MyTreeClient() {
         @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.75)}}
         .mt-hero__h1 {
           font-family:var(--font-display);
-          font-size:clamp(1.8rem,4vw,2.8rem);
+          font-size:clamp(1.2rem,2.5vw,1.8rem);
           font-weight:700; color:#fff; line-height:1.15; letter-spacing:-.02em;
         }
         .mt-hero__h1 em { font-style:italic; color:var(--clr-moss); }
