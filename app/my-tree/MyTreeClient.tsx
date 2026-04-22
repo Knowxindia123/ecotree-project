@@ -164,7 +164,7 @@ export default function MyTreeClient() {
         .mt-hero {
            background: var(--clr-dark-bg);
   background-image: radial-gradient(ellipse 60% 80% at 15% 50%, rgba(82,183,136,.1) 0%, transparent 65%);
-  padding: 1.25rem 1.5rem 1.25rem;
+  padding: 0.5rem 1.5rem;
         }
         .mt-hero__inner {
           max-width:1200px; margin:0 auto;
