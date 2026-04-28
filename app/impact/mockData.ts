@@ -22,11 +22,11 @@ export const currentStats = {
 
 // ── VIDEO PLACEHOLDERS (replace IDs when YouTube links ready) ─────────────────
 export const VIDEOS = {
-  trees:    "YOUTUBE_ID_1",
-  waste:    "YOUTUBE_ID_2",
-  water:    "YOUTUBE_ID_3",
-  skilling: "YOUTUBE_ID_4",
-  csr:      "YOUTUBE_ID_5",
+ trees:    "kFXrduVKU3Q",
+  waste:    "UcF3zj4u_G4",
+  water:    "jrTFYRCsuHY",
+  skilling: "hdSkPxZkBgo",
+  csr:      "8waJfVOJqP8",
 };
 
 // ── MILESTONE TIMELINE ────────────────────────────────────────────────────────
