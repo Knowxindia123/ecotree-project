@@ -215,7 +215,7 @@ export default function ImpactClient() {
           font-size:clamp(1.4rem,2.5vw,2rem);
           font-weight:700; color:#fff; margin-bottom:.5rem; letter-spacing:-.015em;
         }
-        .ip-progress__sub { font-size:.88rem; color:rgba(255,255,255,.45); margin-bottom:2rem; }
+        .ip-progress__sub { font-size:.92rem; color:rgba(255,255,255,.7); margin-bottom:2rem; font-weight:500; }
         .progress-grid {
           display:grid; grid-template-columns:repeat(5,1fr); gap:1rem;
         }
@@ -256,8 +256,8 @@ export default function ImpactClient() {
           font-weight:700; color:#1a1a1a; line-height:1.2; letter-spacing:-.02em; margin-bottom:.75rem;
         }
         .ip-h2--light { color:#fff; }
-        .ip-sub { font-size:.95rem; color:#6B7280; line-height:1.65; max-width:560px; margin-bottom:2.5rem; }
-        .ip-sub--light { color:rgba(255,255,255,.55); }
+        .ip-sub { font-size:1rem; color:#1a1a1a; line-height:1.7; max-width:560px; margin-bottom:2.5rem; font-weight:500; }
+        .ip-sub--light { color:rgba(255,255,255,.75); }
 
         /* ── S3: VIDEO BOXES ── */
         .video-box {
@@ -302,7 +302,7 @@ export default function ImpactClient() {
           font-size:clamp(1.4rem,2.5vw,2rem);
           font-weight:700; color:#1a1a1a; line-height:1.2; letter-spacing:-.015em; margin-bottom:.85rem;
         }
-        .vb-body { font-size:.95rem; color:#6B7280; line-height:1.7; margin-bottom:1.25rem; }
+        .vb-body { font-size:1rem; color:#1a1a1a; line-height:1.75; margin-bottom:1.25rem; font-weight:500; }
         .vb-stat {
           display:inline-flex; align-items:center; gap:.5rem;
           background:var(--clr-cream); border:1px solid #e5e7eb;
@@ -435,8 +435,8 @@ export default function ImpactClient() {
         .sdg-card:hover { box-shadow:0 6px 20px rgba(0,0,0,.08); transform:translateY(-2px); }
         .sdg-emoji { font-size:1.8rem; margin-bottom:.5rem; display:block; }
         .sdg-num   { font-family:var(--font-display); font-size:1.1rem; font-weight:700; color:var(--clr-primary); line-height:1; }
-        .sdg-title { font-size:.78rem; font-weight:600; color:#374151; margin:.3rem 0 .4rem; }
-        .sdg-desc  { font-size:.7rem; color:#9CA3AF; line-height:1.5; }
+        .sdg-title { font-size:.88rem; font-weight:700; color:#1a1a1a; margin:.3rem 0 .4rem; }
+        .sdg-desc  { font-size:.82rem; color:#374151; line-height:1.6; font-weight:500; }
 
         /* ── S7: IMPACT FACTS ── */
         .facts-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1.25rem; }
@@ -453,8 +453,8 @@ export default function ImpactClient() {
           font-weight:700; line-height:1; letter-spacing:-.02em;
           margin-bottom:.4rem;
         }
-        .fact-label { font-size:.88rem; font-weight:600; color:#374151; margin-bottom:.2rem; }
-        .fact-sub   { font-size:.75rem; color:#9CA3AF; }
+        .fact-label { font-size:.95rem; font-weight:700; color:#1a1a1a; margin-bottom:.2rem; }
+        .fact-sub   { font-size:.82rem; color:#374151; font-weight:500; }
 
         /* ── S8: PLEDGE ── */
         .pledge-box {
@@ -491,7 +491,7 @@ export default function ImpactClient() {
         .ip-faq-chevron { font-size:1rem; color:var(--clr-moss); flex-shrink:0; transition:transform .3s; }
         .ip-faq-chevron.open { transform:rotate(180deg); }
         .ip-faq-a {
-          font-size:.88rem; color:rgba(255,255,255,.6); line-height:1.65;
+          font-size:.92rem; color:rgba(255,255,255,.8); line-height:1.7;
           padding:0 1.25rem; max-height:0; overflow:hidden;
           transition:max-height .4s var(--ease-out), padding .3s;
         }
