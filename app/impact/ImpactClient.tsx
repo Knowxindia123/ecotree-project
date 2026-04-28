@@ -602,7 +602,7 @@ export default function ImpactClient() {
                 </div>
               ) : (
                 <iframe
-                  src={`https://www.youtube-nocookie.com/embed/${box.videoId}?autoplay=0&rel=0&modestbranding=1`}
+                  src={`https://www.youtube-nocookie.com/embed/${box.videoId}?autoplay=1&loop=1&mute=1&controls=0&rel=0&playlist=${box.videoId}&modestbranding=1`}
                   title={box.h3}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
