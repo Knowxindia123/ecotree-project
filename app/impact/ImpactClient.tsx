@@ -316,88 +316,111 @@ export default function ImpactClient() {
         }
         .vb-cta:hover { gap:.6rem; }
 
-        /* ── S4: TIMELINE ── */
-        .timeline-wrap { position:relative; max-width:700px; margin:0 auto; }
-        .timeline-spine {
-          position:absolute; left:50%; top:0; bottom:0;
-          width:2px; background:rgba(255,255,255,.1);
-          transform:translateX(-50%);
+        /* ── S4: TIMELINE (horizontal stepper) ── */
+        .timeline-wrap { position:relative; max-width:1100px; margin:0 auto; overflow-x:auto; padding-bottom:.5rem; }
+        .tl-stepper {
+          display:flex; align-items:flex-start; position:relative;
+          min-width:600px;
         }
-        .tl-row {
-          display:flex; align-items:center; gap:2rem;
-          position:relative; margin-bottom:2.5rem;
+        .tl-step { flex:1; display:flex; flex-direction:column; align-items:center; position:relative; }
+        .tl-step:not(:last-child)::after {
+          content:''; position:absolute;
+          top:18px; left:50%; width:100%; height:2px;
+          background:rgba(255,255,255,.12);
+          z-index:0;
         }
-        .tl-row:last-child { margin-bottom:0; }
-        .tl-left  { flex:1; text-align:right; }
-        .tl-right { flex:1; }
-        .tl-dot-wrap {
-          width:40px; height:40px; flex-shrink:0;
-          display:flex; align-items:center; justify-content:center;
-          z-index:1;
-        }
+        .tl-step:not(:last-child).done::after { background:var(--clr-accent); opacity:.5; }
+        .tl-dot-wrap { position:relative; z-index:1; margin-bottom:.75rem; }
         .tl-dot {
-          width:16px; height:16px; border-radius:50%;
-          border:2px solid rgba(255,255,255,.3);
+          width:36px; height:36px; border-radius:50%;
+          border:2px solid rgba(255,255,255,.25);
           background:var(--clr-dark-bg);
+          display:flex; align-items:center; justify-content:center;
+          font-size:.75rem; color:rgba(255,255,255,.3); font-weight:700;
           transition:all .3s;
         }
         .tl-dot--done {
-          background:var(--clr-accent);
-          border-color:var(--clr-accent);
-          box-shadow:0 0 0 6px rgba(82,183,136,.2);
+          background:var(--clr-accent); border-color:var(--clr-accent);
+          color:#fff; box-shadow:0 0 0 6px rgba(82,183,136,.2);
         }
         .tl-dot--goal {
           background:linear-gradient(135deg,#f59e0b,#d97706);
-          border-color:#f59e0b;
+          border-color:#f59e0b; color:#fff;
           box-shadow:0 0 0 8px rgba(245,158,11,.2);
-          width:22px; height:22px;
+          width:42px; height:42px; font-size:.9rem;
         }
-        .tl-quarter { font-size:.8rem; font-weight:700; color:var(--clr-moss); margin-bottom:.25rem; }
-        .tl-trees   { font-family:var(--font-display); font-size:1.1rem; font-weight:700; color:#fff; line-height:1.1; }
-        .tl-details { font-size:.75rem; color:rgba(255,255,255,.5); margin-top:.2rem; }
-        .tl-note    { font-size:.8rem; font-weight:600; color:rgba(255,255,255,.7); }
+        .tl-content { text-align:center; padding:0 .5rem; }
+        .tl-quarter { font-size:.72rem; font-weight:700; color:var(--clr-moss); margin-bottom:.3rem; letter-spacing:.05em; text-transform:uppercase; }
+        .tl-trees   { font-family:var(--font-display); font-size:1rem; font-weight:700; color:#fff; line-height:1.1; margin-bottom:.25rem; }
+        .tl-details { font-size:.7rem; color:rgba(255,255,255,.4); line-height:1.4; margin-bottom:.3rem; }
+        .tl-note    { font-size:.72rem; font-weight:600; color:rgba(255,255,255,.65); line-height:1.4; }
 
         /* ── S5: PILLARS ── */
         .pillar-tabs {
-          display:flex; gap:.5rem; background:rgba(0,0,0,.08);
-          border:1px solid #e5e7eb; border-radius:999px;
-          padding:4px; width:fit-content; margin-bottom:2.5rem;
+          display:flex; gap:.5rem; background:rgba(0,0,0,.06);
+          border:1px solid #d1d5db; border-radius:999px;
+          padding:5px; width:fit-content; margin-bottom:2.5rem;
         }
         .pillar-tab {
-          font-family:var(--font-body); font-size:.88rem; font-weight:600;
+          font-family:var(--font-body); font-size:1rem; font-weight:600;
           color:#6B7280; background:transparent; border:none;
-          border-radius:999px; padding:.5rem 1.25rem;
+          border-radius:999px; padding:.65rem 1.75rem;
           cursor:pointer; transition:all .25s var(--ease-out);
+          letter-spacing:.01em;
         }
-        .pillar-tab.active { color:#fff; background:var(--clr-primary); box-shadow:0 2px 10px rgba(44,95,45,.3); }
+        .pillar-tab:hover { color:#1a1a1a; background:rgba(0,0,0,.04); }
+        .pillar-tab.active {
+          color:#fff; background:var(--clr-primary);
+          box-shadow:0 4px 14px rgba(44,95,45,.35);
+          font-size:1rem;
+        }
         .pillar-grid { display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start; }
         @media(max-width:768px){ .pillar-grid{ grid-template-columns:1fr; } }
-        .pillar-left { display:flex; flex-direction:column; gap:1rem; }
+        .pillar-left { display:flex; flex-direction:column; gap:1.25rem; }
         .pillar-goal-box {
           background:var(--clr-primary); color:#fff;
-          border-radius:16px; padding:1.5rem;
+          border-radius:20px; padding:2rem;
+          border-left:5px solid var(--clr-moss);
         }
-        .pillar-goal-label { font-size:.7rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.5); margin-bottom:.5rem; }
-        .pillar-goal-text  { font-family:var(--font-display); font-size:1.1rem; font-weight:700; line-height:1.3; }
+        .pillar-goal-label {
+          font-size:.75rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+          color:var(--clr-moss); margin-bottom:.6rem;
+        }
+        .pillar-goal-text {
+          font-family:var(--font-display); font-size:1.35rem; font-weight:700;
+          line-height:1.3; color:#fff;
+        }
         .pillar-metric {
           display:inline-flex; align-items:center; gap:.5rem;
-          background:var(--clr-cream); border:1px solid #e5e7eb;
-          border-radius:999px; padding:.4rem 1rem;
-          font-size:.8rem; font-weight:600; color:var(--clr-primary); margin-top:.75rem;
+          background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2);
+          border-radius:999px; padding:.45rem 1.1rem;
+          font-size:.85rem; font-weight:600; color:#fff; margin-top:1rem;
         }
         .pillar-why-box {
-          background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:1.5rem;
+          background:#fff; border:1px solid #e5e7eb; border-radius:20px;
+          padding:2rem; border-left:4px solid var(--clr-accent);
         }
-        .pillar-why-label { font-size:.7rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--clr-accent); margin-bottom:.6rem; }
-        .pillar-why-text  { font-size:.9rem; color:#374151; line-height:1.7; }
-        .pillar-how-list  { display:flex; flex-direction:column; gap:.6rem; }
-        .pillar-how-item  {
-          display:flex; align-items:flex-start; gap:.75rem;
-          font-size:.88rem; color:#374151; line-height:1.5;
+        .pillar-why-label {
+          font-size:.75rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+          color:var(--clr-primary); margin-bottom:.75rem;
+        }
+        .pillar-why-text { font-size:1rem; color:#1a1a1a; line-height:1.75; }
+        .pillar-how-section {
+          background:#fff; border:1px solid #e5e7eb; border-radius:20px; padding:2rem;
+        }
+        .pillar-how-heading {
+          font-size:.75rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+          color:var(--clr-primary); margin-bottom:1.25rem;
+        }
+        .pillar-how-list { display:flex; flex-direction:column; gap:.85rem; }
+        .pillar-how-item {
+          display:flex; align-items:flex-start; gap:.85rem;
+          font-size:1rem; color:#1a1a1a; line-height:1.55; font-weight:500;
         }
         .pillar-how-dot {
-          width:8px; height:8px; border-radius:50%;
+          width:10px; height:10px; border-radius:50%;
           background:var(--clr-accent); flex-shrink:0; margin-top:5px;
+          box-shadow:0 0 0 3px rgba(82,183,136,.2);
         }
 
         /* ── S6: SDG ── */
@@ -605,22 +628,27 @@ export default function ImpactClient() {
               Our journey to 1,00,000 trees
             </h2>
             <div className="timeline-wrap">
-              <div className="timeline-spine" />
-              {milestones.map((m, i) => (
-                <div key={i} className="tl-row">
-                  <div className="tl-left">
-                    <div className="tl-quarter">{m.quarter}</div>
-                    <div className="tl-trees">{m.trees} trees</div>
-                    <div className="tl-details">{m.waste} waste · {m.water}</div>
+              <div className="tl-stepper">
+                {milestones.map((m, i) => (
+                  <div key={i} className={`tl-step${m.done?" done":""}`}>
+                    <div className="tl-dot-wrap">
+                      <div className={[
+                        "tl-dot",
+                        m.done ? "tl-dot--done" : "",
+                        i===milestones.length-1 ? "tl-dot--goal" : "",
+                      ].join(" ")}>
+                        {m.done ? "✓" : i===milestones.length-1 ? "★" : i+1}
+                      </div>
+                    </div>
+                    <div className="tl-content">
+                      <div className="tl-quarter">{m.quarter}</div>
+                      <div className="tl-trees">{m.trees}</div>
+                      <div className="tl-details">{m.waste} waste<br />{m.water}</div>
+                      <div className="tl-note">{m.note}</div>
+                    </div>
                   </div>
-                  <div className="tl-dot-wrap">
-                    <div className={`tl-dot${m.done?" tl-dot--done":""}${i===milestones.length-1?" tl-dot--goal":""}`} />
-                  </div>
-                  <div className="tl-right">
-                    <div className="tl-note">{m.note}</div>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -654,8 +682,8 @@ export default function ImpactClient() {
                   <p className="pillar-why-text">{pillars[activePillar].why}</p>
                 </div>
               </div>
-              <div>
-                <div className="pillar-why-label" style={{marginBottom:"1rem"}}>How we'll do it</div>
+              <div className="pillar-how-section">
+                <div className="pillar-how-heading">How we'll do it</div>
                 <div className="pillar-how-list">
                   {pillars[activePillar].how.map((h,i) => (
                     <div key={i} className="pillar-how-item">
