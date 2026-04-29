@@ -1,5 +1,4 @@
-import Navbar            from '@/components/Navbar'
-import Footer            from '@/components/Footer'
+
 import Hero              from '@/components/sections/Hero'
 import ImpactBar         from '@/components/sections/ImpactBar'
 import DashboardPreview  from '@/components/sections/DashboardPreview'
@@ -15,7 +14,7 @@ import FinalCTA          from '@/components/sections/FinalCTA'
 export default function HomePage() {
   return (
     <>
-      <Navbar />
+     
       <main>
         <Hero />
         <ImpactBar />
@@ -29,7 +28,7 @@ export default function HomePage() {
         <Testimonials />
         <FinalCTA />
       </main>
-      <Footer />
+      
     </>
   )
 }
