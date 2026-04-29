@@ -15,34 +15,44 @@ const columns = [
   {
     title: 'Explore',
     links: [
-      { href: '/trees',     label: 'Trees' },
+      { href: '/why-trees', label: 'Trees' },
       { href: '/waste',     label: 'Waste' },
       { href: '/water',     label: 'Water' },
       { href: '/dashboard', label: 'Live Dashboard' },
-      { href: '/impact',    label: 'Impact Map' },
+      { href: '/dashboard', label: 'Impact Map' },
     ],
   },
   {
     title: 'Get Involved',
     links: [
-      { href: '/donate',          label: 'Donate a Tree' },
-      { href: '/donate/occasion', label: 'Gift a Tree' },
-      { href: '/volunteer',       label: 'Volunteer' },
-      { href: '/events',          label: 'Events' },
-      { href: '/field',           label: 'Field Worker App' },
+      { href: '/donate',  label: 'Donate a Tree' },
+      { href: '/donate',  label: 'Gift a Tree' },
+      { href: '/contact', label: 'Volunteer' },
+      { href: '/contact', label: 'Events' },
+      { href: '/my-tree', label: 'Field Worker App' },
     ],
   },
   {
     title: 'CSR',
     links: [
-      { href: '/csr',             label: 'Why Partner' },
-      { href: '/csr/dashboard',   label: 'CSR Dashboard' },
-      { href: '/csr/reports',     label: 'ESG Reports' },
-      { href: '/csr/partner',     label: 'Become a Partner' },
-      { href: '/csr/case-studies',label: 'Case Studies' },
+      { href: '/csr',     label: 'Why Partner' },
+      { href: '/dashboard',label: 'CSR Dashboard' },
+      { href: '/csr',     label: 'ESG Reports' },
+      { href: '/contact', label: 'Become a Partner' },
+      { href: '/csr',     label: 'Case Studies' },
     ],
   },
   {
+    title: 'About',
+    links: [
+      { href: '/about',   label: 'Our Story' },
+      { href: '/about',   label: 'Team' },
+      { href: '/blog',    label: 'Blog' },
+      { href: '/about',   label: 'Technology' },
+      { href: '/contact', label: 'Contact Us' },
+    ],
+  },
+]
     title: 'About',
     links: [
       { href: '/about',            label: 'Our Story' },
