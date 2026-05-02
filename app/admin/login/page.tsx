@@ -35,7 +35,7 @@ export default function AdminLogin() {
 
     if (userData?.role !== 'ADMIN') {
       await supabase.auth.signOut()
-      setError('Access denied. Admin only.')
+     setError(`Access denied. Role found: ${userData?.role || 'NULL'} Email: ${email}`)
       setLoading(false)
       return
     }
