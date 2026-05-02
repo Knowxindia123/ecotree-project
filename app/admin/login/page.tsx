@@ -40,7 +40,7 @@ export default function AdminLogin() {
       return
     }
 
-    router.push('/admin/dashboard')
+    window.location.href = '/admin/dashboard'
   }
 
   return (
