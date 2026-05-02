@@ -52,7 +52,7 @@ export default function AdminLogin() {
       return
     }
 
-   setError('Login OK — redirecting...')
+   
 window.location.replace('https://ecotrees.org/admin/dashboard')
 
   } catch (err: any) {
