@@ -30,7 +30,7 @@ export default function AdminLogin() {
     const { data: userData } = await supabase
       .from('users')
       .select('role')
-      .eq('auth_id', data.user?.id)
+      .eq('email', email)
       .single()
 
     if (userData?.role !== 'ADMIN') {
