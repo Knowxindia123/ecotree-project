@@ -1,13 +1,26 @@
+import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
-  const url  = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  return NextResponse.json({
-    url_exists:  !!url,
-    key_exists:  !!key,
-    url_preview: url  ? url.substring(0, 30) + '...' : 'NOT FOUND',
-    key_preview: key  ? key.substring(0, 20) + '...' : 'NOT FOUND',
-  })
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+    const { data, error } = await supabase
+      .from('sites')
+      .select('*')
+    if (error) throw error
+    return NextResponse.json({
+      status: 'connected ✅',
+      message: 'Supabase is working!',
+      sites_count: data.length,
+      sites: data
+    })
+  } catch (error: any) {
+    return NextResponse.json({
+      status: 'error ❌',
+      message: error.message
+    }, { status: 500 })
+  }
 }
