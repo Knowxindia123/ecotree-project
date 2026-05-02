@@ -52,10 +52,8 @@ export default function AdminLogin() {
       return
     }
 
-    setError('Login OK — redirecting...')
-    setTimeout(() => {
-      window.location.href = '/admin/dashboard'
-    }, 1000)
+   setError('Login OK — redirecting...')
+window.location.replace('https://ecotrees.org/admin/dashboard')
 
   } catch (err: any) {
     setError('Caught error: ' + err.message)
