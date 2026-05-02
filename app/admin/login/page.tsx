@@ -10,38 +10,58 @@ export default function AdminLogin() {
   const [error, setError]     = useState('')
   const [loading, setLoading] = useState(false)
 
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+ async function handleLogin(e: React.FormEvent) {
+  e.preventDefault()
+  setLoading(true)
+  setError('')
 
+  try {
     const { data, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password
     })
 
     if (authError) {
-      setError(authError.message)
+      setError('Auth error: ' + authError.message)
       setLoading(false)
       return
     }
 
-    // Check if user has ADMIN role
-    const { data: userData } = await supabase
+    if (!data.user) {
+      setError('No user returned')
+      setLoading(false)
+      return
+    }
+
+    const { data: userData, error: dbError } = await supabase
       .from('users')
       .select('role')
       .eq('email', email)
       .single()
 
-    if (userData?.role !== 'ADMIN') {
-      await supabase.auth.signOut()
-     setError(`Access denied. Role found: ${userData?.role || 'NULL'} Email: ${email}`)
+    if (dbError) {
+      setError('DB error: ' + dbError.message)
       setLoading(false)
       return
     }
 
-    window.location.href = '/admin/dashboard'
+    if (userData?.role !== 'ADMIN') {
+      await supabase.auth.signOut()
+      setError('Not admin. Role: ' + userData?.role)
+      setLoading(false)
+      return
+    }
+
+    setError('Login OK — redirecting...')
+    setTimeout(() => {
+      window.location.href = '/admin/dashboard'
+    }, 1000)
+
+  } catch (err: any) {
+    setError('Caught error: ' + err.message)
+    setLoading(false)
   }
+}
 
   return (
     <div style={{
