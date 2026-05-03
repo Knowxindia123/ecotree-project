@@ -56,8 +56,11 @@ export default function FieldPlant() {
       .eq('id', assignmentId)
       .single()
 
-    setTask(assignment)
-    setTreeId(assignment?.trees?.tree_id || '')
+   const treeData = Array.isArray(assignment?.trees) ? assignment.trees[0] : assignment?.trees
+const siteData = Array.isArray(assignment?.sites) ? assignment.sites[0] : assignment?.sites
+const fixedAssignment = { ...assignment, trees: treeData, sites: siteData }
+setTask(fixedAssignment)
+setTreeId(treeData?.tree_id || '')
   }
 
   function captureGPS() {
