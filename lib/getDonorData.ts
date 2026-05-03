@@ -178,3 +178,17 @@ export async function getDonorData(email: string): Promise<{
 
   return { donor, myTrees, occasionTimeline }
 }
+export const SPECIES_EMOJI: Record<string, string> = {
+  Peepal:"🌳", Neem:"🌿", Mango:"🥭", Banyan:"🌴",
+  "Rain Tree":"🌲", Jamun:"🍇", Guava:"🍈",
+  Gulmohar:"🌸", "Custom tree":"🌱",
+}
+
+export const SPECIES_COLOR: Record<string, string> = {
+  Peepal:"#2C5F2D", Neem:"#40916C", Mango:"#b45309",
+  Banyan:"#7c3aed", "Rain Tree":"#1d4ed8", Jamun:"#6d28d9",
+  Guava:"#065f46", Gulmohar:"#be185d", "Custom tree":"#1A3C34",
+}
+
+export const HEALTH_COLOR = (h: number) =>
+  h >= 85 ? "#22c55e" : h >= 70 ? "#f59e0b" : "#ef4444"
