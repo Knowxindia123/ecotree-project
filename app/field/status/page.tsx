@@ -36,7 +36,7 @@ export default function FieldStatus() {
     const { data } = await supabase
       .from('tree_updates')
       .select('id, update_date, is_verified, verified_by, photo_url, trees(tree_id, species)')
-      eq('worker_id', userData?.id)
+     .eq('worker_id', userData?.id)
       .order('created_at', { ascending: false })
       .limit(20)
 
