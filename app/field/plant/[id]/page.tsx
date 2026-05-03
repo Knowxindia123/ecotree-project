@@ -56,12 +56,8 @@ export default function FieldPlant() {
       .eq('id', assignmentId)
       .single()
 
-   const treeData = Array.isArray(assignment?.trees) ? assignment.trees[0] : assignment?.trees
-const siteData = Array.isArray(assignment?.sites) ? assignment.sites[0] : assignment?.sites
-const fixedAssignment = { ...assignment, trees: treeData, sites: siteData }
-setTask(fixedAssignment)
-setTreeId(treeData?.tree_id || '')
-
+    setTask(assignment)
+    setTreeId(assignment?.trees?.tree_id || '')
   }
 
   function captureGPS() {
@@ -162,6 +158,12 @@ setTreeId(treeData?.tree_id || '')
         worker_id:     worker?.id,
         planting_date: new Date().toISOString().split('T')[0],
       }).eq('id', task?.trees?.id)
+
+      // Save QR code URL to trees table
+      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`https://ecotrees.org/tree/${treeId}`)}`
+      await supabase.from('trees')
+        .update({ qr_code_url: qrCodeUrl })
+        .eq('tree_id', treeId)
 
       // Update assignment status
       await supabase.from('assignments')
@@ -466,16 +468,24 @@ setTreeId(treeData?.tree_id || '')
         Photos uploaded. Admin will verify and donor will be notified.
       </div>
 
-      {/* QR Code placeholder */}
+      {/* QR Code — real */}
       <div style={{ background: 'white', borderRadius: '16px', padding: '1.25rem', width: '100%', maxWidth: '280px', textAlign: 'center' }}>
-        <div style={{ fontSize: '13px', fontWeight: 600, color: '#1A3C34', marginBottom: '8px' }}>Tree QR Code</div>
-        <div style={{
-          width: '120px', height: '120px', margin: '0 auto 10px',
-          background: 'repeating-linear-gradient(0deg,#1a1a1a 0px,#1a1a1a 4px,transparent 4px,transparent 8px),repeating-linear-gradient(90deg,#1a1a1a 0px,#1a1a1a 4px,transparent 4px,transparent 8px)',
-          borderRadius: '8px'
-        }} />
+        <div style={{ fontSize: '13px', fontWeight: 600, color: '#1A3C34', marginBottom: '8px' }}>🔗 Tree QR Code</div>
+        <img
+          src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`https://ecotrees.org/tree/${treeId}`)}`}
+          alt="Tree QR Code"
+          style={{ width: '160px', height: '160px', borderRadius: '8px', border: '1px solid #e5e7eb', margin: '0 auto 8px', display: 'block' }}
+        />
         <div style={{ fontSize: '12px', color: '#6B7280' }}>Print and tie to tree trunk</div>
-        <div style={{ fontSize: '11px', fontFamily: 'monospace', color: '#9ca3af', marginTop: '4px' }}>ecotrees.org/t/{treeId.slice(-6)}</div>
+        <div style={{ fontSize: '11px', fontFamily: 'monospace', color: '#9ca3af', marginTop: '4px' }}>ecotrees.org/tree/{treeId}</div>
+        <a
+          href={`https://ecotrees.org/tree/${treeId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: 'inline-block', marginTop: '8px', fontSize: '12px', color: '#1A3C34', fontWeight: 600, textDecoration: 'none' }}
+        >
+          View tree profile →
+        </a>
       </div>
 
       <button
