@@ -309,7 +309,4 @@ export default function AdminReview() {
       )}
     </div>
   )
-
- 
-  }
 }
