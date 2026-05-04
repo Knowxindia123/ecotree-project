@@ -4,61 +4,43 @@ import { useRouter } from "next/navigation";
 import Map, { Marker, Popup, NavigationControl } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { supabase } from "@/lib/supabase";
-import { getDonorData, HEALTH_COLOR, getOccasionIcon, getOccasionColor } from "@/lib/getDonorData";
+import { getDonorData, HEALTH_COLOR, SPECIES_EMOJI, SPECIES_COLOR, getOccasionIcon, getOccasionColor } from "@/lib/getDonorData";
 import type { DonorProfile, DonorTree } from "@/lib/getDonorData";
 
 type MapStyle = "light" | "satellite";
-
 const MAP_STYLES: Record<MapStyle, string> = {
   light:     "mapbox://styles/mapbox/light-v11",
   satellite: "mapbox://styles/mapbox/satellite-streets-v12",
-};
-
-const SPECIES_EMOJI: Record<string, string> = {
-  Peepal:"🌳", Neem:"🌿", Mango:"🥭", Banyan:"🌴",
-  "Rain Tree":"🌲", Jamun:"🍇", Guava:"🍈",
-  Gulmohar:"🌸", "Custom tree":"🌱",
-};
-
-const SPECIES_COLOR: Record<string, string> = {
-  Peepal:"#2C5F2D", Neem:"#40916C", Mango:"#b45309",
-  Banyan:"#7c3aed", "Rain Tree":"#1d4ed8", Jamun:"#6d28d9",
-  Guava:"#065f46", Gulmohar:"#be185d", "Custom tree":"#1A3C34",
 };
 
 export default function MyTreeClient() {
   const router = useRouter();
   const [mapStyle, setMapStyle] = useState<MapStyle>("light");
   const [popup,    setPopup]    = useState<any>(null);
-  const [openCard, setOpenCard] = useState<number | null>(null);
   const [copied,   setCopied]   = useState(false);
   const [loading,  setLoading]  = useState(true);
   const [uploading, setUploading] = useState(false);
-  const certRef    = useRef<HTMLDivElement>(null);
-  const photoRef   = useRef<HTMLInputElement>(null);
+  const certRef  = useRef<HTMLDivElement>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
 
-  const [donor,     setDonor]     = useState<DonorProfile | null>(null);
-  const [myTrees,   setMyTrees]   = useState<DonorTree[]>([]);
-  const [timeline,  setTimeline]  = useState<any[]>([]);
-  const [photoUrl,  setPhotoUrl]  = useState<string | null>(null);
+  const [donor,    setDonor]    = useState<DonorProfile | null>(null);
+  const [myTrees,  setMyTrees]  = useState<DonorTree[]>([]);
+  const [timeline, setTimeline] = useState<any[]>([]);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+
+  // Photo popup state
+  const [photoPopup, setPhotoPopup] = useState<{ url: string; label: string; treeId: string } | null>(null);
+  // Map popup state
+  const [mapPopup, setMapPopup] = useState<{ lat: number; lng: number; tree: DonorTree } | null>(null);
 
   useEffect(() => { init() }, []);
 
   async function init() {
     setLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      window.location.replace('/my-tree/login');
-      return;
-    }
-
+    if (!session) { window.location.replace('/my-tree/login'); return; }
     const { donor, myTrees, occasionTimeline } = await getDonorData(session.user.email!);
-
-    if (!donor) {
-      window.location.replace('/my-tree/login');
-      return;
-    }
-
+    if (!donor) { window.location.replace('/my-tree/login'); return; }
     setDonor(donor);
     setMyTrees(myTrees);
     setTimeline(occasionTimeline);
@@ -70,12 +52,8 @@ export default function MyTreeClient() {
     const file = e.target.files?.[0];
     if (!file || !donor) return;
     setUploading(true);
-
     const path = `donor-${donor.raw_id}-${Date.now()}.jpg`;
-    const { error } = await supabase.storage
-      .from('donor-photos')
-      .upload(path, file, { upsert: true });
-
+    const { error } = await supabase.storage.from('donor-photos').upload(path, file, { upsert: true });
     if (!error) {
       const { data } = supabase.storage.from('donor-photos').getPublicUrl(path);
       await supabase.from('donors').update({ photo_url: data.publicUrl }).eq('id', donor.raw_id);
@@ -94,62 +72,43 @@ export default function MyTreeClient() {
     const { jsPDF } = await import("jspdf");
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     const W = 297; const H = 210;
-    doc.setFillColor(247, 245, 240);
-    doc.rect(0, 0, W, H, "F");
-    doc.setDrawColor(201, 168, 76);
-    doc.setLineWidth(2);
-    doc.rect(8, 8, W - 16, H - 16);
-    doc.setLineWidth(0.5);
-    doc.rect(12, 12, W - 24, H - 24);
+    doc.setFillColor(247, 245, 240); doc.rect(0, 0, W, H, "F");
+    doc.setDrawColor(201, 168, 76); doc.setLineWidth(2); doc.rect(8, 8, W-16, H-16);
+    doc.setLineWidth(0.5); doc.rect(12, 12, W-24, H-24);
     const corners = [[14,14],[W-14,14],[14,H-14],[W-14,H-14]] as [number,number][];
-    doc.setFontSize(16);
-    doc.setTextColor(201, 168, 76);
+    doc.setFontSize(16); doc.setTextColor(201, 168, 76);
     corners.forEach(([x,y]) => doc.text("✦", x, y, { align:"center" }));
-    doc.setFontSize(11);
-    doc.setTextColor(151, 188, 98);
+    doc.setFontSize(11); doc.setTextColor(151, 188, 98);
     doc.text("ECOTREE IMPACT FOUNDATION", W/2, 30, { align:"center" });
-    doc.setFontSize(9);
-    doc.setTextColor(150, 130, 80);
+    doc.setFontSize(9); doc.setTextColor(150, 130, 80);
     doc.text("Every tree tracked. Every impact verified.", W/2, 38, { align:"center" });
-    doc.setDrawColor(201, 168, 76);
-    doc.setLineWidth(0.5);
-    doc.line(40, 42, W-40, 42);
-    doc.setFontSize(28);
-    doc.setTextColor(44, 95, 45);
+    doc.setDrawColor(201, 168, 76); doc.setLineWidth(0.5); doc.line(40, 42, W-40, 42);
+    doc.setFontSize(28); doc.setTextColor(44, 95, 45);
     doc.text("Certificate of Impact", W/2, 58, { align:"center" });
-    doc.setFontSize(11);
-    doc.setTextColor(80, 60, 20);
+    doc.setFontSize(11); doc.setTextColor(80, 60, 20);
     doc.text("This certifies that", W/2, 72, { align:"center" });
-    doc.setFontSize(26);
-    doc.setTextColor(180, 140, 40);
+    doc.setFontSize(26); doc.setTextColor(180, 140, 40);
     doc.text(donor.name, W/2, 88, { align:"center" });
-    doc.setFontSize(11);
-    doc.setTextColor(80, 60, 20);
+    doc.setFontSize(11); doc.setTextColor(80, 60, 20);
     doc.text(`has planted ${donor.total_trees} trees with EcoTree Impact Foundation`, W/2, 100, { align:"center" });
-    doc.text(`across Bangalore, Karnataka, India`, W/2, 108, { align:"center" });
+    doc.text("across Bangalore, Karnataka, India", W/2, 108, { align:"center" });
     doc.setFillColor(44, 95, 45);
     doc.roundedRect(40, 116, 65, 24, 3, 3, "F");
     doc.roundedRect(116, 116, 65, 24, 3, 3, "F");
     doc.roundedRect(192, 116, 65, 24, 3, 3, "F");
-    doc.setFontSize(14);
-    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14); doc.setTextColor(255, 255, 255);
     doc.text(`${donor.total_trees}`, 72, 126, { align:"center" });
     doc.text(`${donor.co2_kg} kg`, 148, 126, { align:"center" });
     doc.text(`${(donor.water_litres/1000).toFixed(1)}K L`, 224, 126, { align:"center" });
-    doc.setFontSize(8);
-    doc.setTextColor(216, 243, 220);
+    doc.setFontSize(8); doc.setTextColor(216, 243, 220);
     doc.text("Trees Planted", 72, 134, { align:"center" });
     doc.text("CO₂ Offset", 148, 134, { align:"center" });
     doc.text("Water Saved", 224, 134, { align:"center" });
-    doc.setDrawColor(201, 168, 76);
-    doc.setLineWidth(0.5);
-    doc.line(40, 148, W-40, 148);
-    doc.setFontSize(9);
-    doc.setTextColor(130, 100, 40);
+    doc.setDrawColor(201, 168, 76); doc.setLineWidth(0.5); doc.line(40, 148, W-40, 148);
+    doc.setFontSize(9); doc.setTextColor(130, 100, 40);
     doc.text(`Donor ID: ${donor.id}   |   Member since: ${donor.since}   |   Issued: ${new Date().toLocaleDateString('en-IN', {month:'long',year:'numeric'})}`, W/2, 156, { align:"center" });
     doc.text("ISFR Standard · GPS Verified · 80G Approved · Section 8 Company", W/2, 163, { align:"center" });
-    doc.setFontSize(8);
-    doc.setTextColor(151, 188, 98);
+    doc.setFontSize(8); doc.setTextColor(151, 188, 98);
     doc.text("ecotrees.org", W/2, 172, { align:"center" });
     doc.save(`EcoTree-Certificate-${donor.id}.pdf`);
   };
@@ -163,21 +122,13 @@ export default function MyTreeClient() {
 
   const shareWhatsApp = () => {
     if (!donor) return;
-    const text = encodeURIComponent(
-      `🌳 I've planted ${donor.total_trees} trees with EcoTree Impact Foundation!\n` +
-      `🌿 ${donor.co2_kg} kg CO₂ offset · Growing in Bangalore\n` +
-      `💚 Join me: https://ecotrees.org/ref/${donor.referral_code}`
-    );
+    const text = encodeURIComponent(`🌳 I've planted ${donor.total_trees} trees with EcoTree Impact Foundation!\n🌿 ${donor.co2_kg} kg CO₂ offset · Growing in Bangalore\n💚 Join me: https://ecotrees.org/ref/${donor.referral_code}`);
     window.open(`https://wa.me/?text=${text}`, "_blank");
   };
 
   const copyInstagram = () => {
     if (!donor) return;
-    navigator.clipboard.writeText(
-      `🌳 I've planted ${donor.total_trees} trees with @EcoTreeBangalore!\n` +
-      `🌿 ${donor.co2_kg} kg CO₂ offset · Growing in Bangalore 💚\n` +
-      `#EcoTree #PlantATree #Bangalore #GreenIndia #ClimateAction`
-    );
+    navigator.clipboard.writeText(`🌳 I've planted ${donor.total_trees} trees with @EcoTreeBangalore!\n🌿 ${donor.co2_kg} kg CO₂ offset · Growing in Bangalore 💚\n#EcoTree #PlantATree #Bangalore #GreenIndia #ClimateAction`);
     alert("Caption copied! Paste it in your Instagram post.");
   };
 
@@ -189,25 +140,20 @@ export default function MyTreeClient() {
       </div>
     </div>
   );
-
   if (!donor) return null;
 
   const treesWithGPS = myTrees.filter(t => t.lat && t.lng);
-  const centerLat = treesWithGPS.length > 0
-    ? treesWithGPS.reduce((s, t) => s + (t.lat || 0), 0) / treesWithGPS.length
-    : 12.9716;
-  const centerLng = treesWithGPS.length > 0
-    ? treesWithGPS.reduce((s, t) => s + (t.lng || 0), 0) / treesWithGPS.length
-    : 77.5946;
+  const centerLat = treesWithGPS.length > 0 ? treesWithGPS.reduce((s,t) => s+(t.lat||0), 0)/treesWithGPS.length : 12.9716;
+  const centerLng = treesWithGPS.length > 0 ? treesWithGPS.reduce((s,t) => s+(t.lng||0), 0)/treesWithGPS.length : 77.5946;
 
   return (
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,600;0,9..144,700;1,9..144,700&family=DM+Sans:wght@300;400;500;600&display=swap');
         :root {
-          --clr-primary:#2C5F2D; --clr-moss:#97BC62; --clr-accent:#52B788;
-          --clr-dark-bg:#1A3C34; --clr-cream:#F7F5F0; --clr-gold:#C9A84C;
-          --font-display:'Fraunces',Georgia,serif; --font-body:'DM Sans',system-ui,sans-serif;
+          --clr-primary:#2C5F2D;--clr-moss:#97BC62;--clr-accent:#52B788;
+          --clr-dark-bg:#1A3C34;--clr-cream:#F7F5F0;--clr-gold:#C9A84C;
+          --font-display:'Fraunces',Georgia,serif;--font-body:'DM Sans',system-ui,sans-serif;
           --ease-out:cubic-bezier(0.16,1,0.3,1);
         }
         .mt-page{font-family:var(--font-body);background:#fff;overflow-x:hidden;}
@@ -261,14 +207,14 @@ export default function MyTreeClient() {
         .tree-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;}
         @media(max-width:900px){.tree-grid{grid-template-columns:repeat(3,1fr);}}
         @media(max-width:600px){.tree-grid{grid-template-columns:repeat(2,1fr);}}
-        .tree-card{border:1px solid #e5e7eb;border-radius:16px;padding:1.25rem;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.05);cursor:pointer;transition:box-shadow .2s,transform .2s;}
+        .tree-card{border:1px solid #e5e7eb;border-radius:16px;padding:1.25rem;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.05);transition:box-shadow .2s,transform .2s;}
         .tree-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.1);transform:translateY(-2px);}
-        .tree-card__emoji{font-size:2rem;margin-bottom:.5rem;display:block;}
-        .tree-card__species{font-weight:700;font-size:.92rem;color:#1a1a1a;margin-bottom:2px;}
-        .tree-card__zone{font-size:.75rem;color:#6B7280;margin-bottom:.6rem;}
-        .tree-card__health-track{background:#f3f4f6;border-radius:999px;height:6px;overflow:hidden;margin-bottom:.35rem;}
-        .tree-card__health-fill{height:100%;border-radius:999px;}
-        .tree-card__health-val{font-size:.7rem;font-weight:600;}
+        .photo-thumb{border-radius:8px;overflow:hidden;aspect-ratio:4/3;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;font-size:1.5rem;transition:transform 0.15s;}
+        .photo-thumb:hover{transform:scale(1.03);}
+        .photo-thumb .lbl{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.55);color:white;font-size:10px;font-weight:600;padding:3px 6px;text-align:center;}
+        .photo-thumb .zoom{position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.5);color:white;border-radius:4px;font-size:10px;padding:2px 5px;}
+        .gps-btn{display:flex;align-items:center;gap:6px;padding:6px 8px;background:#f0fdf4;border-radius:6px;cursor:pointer;border:1px solid #86efac;transition:all 0.15s;width:100%;}
+        .gps-btn:hover{background:#dcfce7;border-color:#4ade80;}
         .tree-card__occasion{display:inline-flex;align-items:center;gap:.3rem;margin-top:.5rem;font-size:.7rem;font-weight:600;background:var(--clr-cream);color:#374151;padding:2px 8px;border-radius:999px;}
         .tree-card__date{font-size:.68rem;color:#9CA3AF;margin-top:.35rem;}
         .timeline{display:flex;flex-direction:column;gap:0;}
@@ -280,7 +226,7 @@ export default function MyTreeClient() {
         .tl-meta{font-size:.75rem;color:#6B7280;margin-top:2px;}
         .cert-preview{background:var(--clr-cream);border:2px solid var(--clr-gold);border-radius:20px;padding:3rem 2rem;text-align:center;position:relative;box-shadow:0 8px 40px rgba(201,168,76,.15);max-width:700px;margin:0 auto;}
         .cert-corner{position:absolute;font-size:1.4rem;color:var(--clr-gold);opacity:.6;line-height:1;}
-        .cert-corner--tl{top:14px;left:18px;} .cert-corner--tr{top:14px;right:18px;} .cert-corner--bl{bottom:14px;left:18px;} .cert-corner--br{bottom:14px;right:18px;}
+        .cert-corner--tl{top:14px;left:18px;}.cert-corner--tr{top:14px;right:18px;}.cert-corner--bl{bottom:14px;left:18px;}.cert-corner--br{bottom:14px;right:18px;}
         .cert-org{font-size:.75rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--clr-moss);margin-bottom:.25rem;}
         .cert-tagline{font-size:.75rem;color:var(--clr-gold);margin-bottom:1rem;}
         .cert-divider{height:1px;background:linear-gradient(90deg,transparent,var(--clr-gold),transparent);margin:.75rem 0;}
@@ -300,7 +246,6 @@ export default function MyTreeClient() {
         .share-btns{display:flex;flex-direction:column;gap:.75rem;min-width:180px;}
         .btn-whatsapp{display:flex;align-items:center;justify-content:center;gap:.5rem;background:#25D366;color:#fff;font-weight:700;font-size:.88rem;padding:.7rem 1.5rem;border-radius:999px;border:none;cursor:pointer;}
         .btn-instagram{display:flex;align-items:center;justify-content:center;gap:.5rem;background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045);color:#fff;font-weight:700;font-size:.88rem;padding:.7rem 1.5rem;border-radius:999px;border:none;cursor:pointer;}
-        .occasion-grid{display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:2rem;}
         .occasion-chip{display:inline-flex;align-items:center;gap:.4rem;background:var(--clr-cream);border:1px solid #e5e7eb;border-radius:999px;padding:.5rem 1rem;font-size:.82rem;font-weight:600;color:#374151;cursor:pointer;transition:all .2s;text-decoration:none;}
         .referral-box{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:1.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
         .referral-link{font-family:'Courier New',monospace;font-size:.85rem;color:var(--clr-moss);letter-spacing:.04em;background:rgba(255,255,255,.04);padding:.4rem .75rem;border-radius:6px;border:1px solid rgba(151,188,98,.2);}
@@ -312,9 +257,21 @@ export default function MyTreeClient() {
         .plant-cta__btns{display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;}
         .btn-white{background:#fff;color:var(--clr-primary);font-weight:700;font-size:.88rem;padding:.7rem 1.75rem;border-radius:999px;border:none;cursor:pointer;text-decoration:none;display:inline-block;}
         .btn-outline-w{background:transparent;color:#fff;font-weight:600;font-size:.88rem;padding:.7rem 1.75rem;border-radius:999px;border:2px solid rgba(255,255,255,.4);cursor:pointer;text-decoration:none;display:inline-block;}
-        @media(max-width:768px){.mt-hero__inner{flex-direction:column;align-items:flex-start;}.share-card{flex-direction:column;}.share-btns{flex-direction:row;min-width:auto;}}
         .donor-avatar{width:56px;height:56px;border-radius:50%;border:3px solid rgba(151,188,98,0.5);object-fit:cover;cursor:pointer;flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#2C5F2D;color:#97BC62;font-size:1.25rem;font-weight:700;font-family:var(--font-display);}
         .donor-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+        /* Photo popup overlay */
+        .photo-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:1000;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:1rem;}
+        .photo-overlay-img{width:min(90vw,480px);aspect-ratio:4/3;border-radius:16px;object-fit:cover;position:relative;}
+        /* Map popup overlay */
+        .map-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem;}
+        .map-card{width:min(90vw,360px);background:white;border-radius:20px;overflow:hidden;}
+        .map-fake{height:160px;background:linear-gradient(135deg,#1a3c34,#2c5f2d,#52b788);position:relative;display:flex;align-items:center;justify-content:center;}
+        @media(max-width:768px){
+          .mt-hero__inner{flex-direction:column;align-items:flex-start;}
+          .share-card{flex-direction:column;}
+          .share-btns{flex-direction:row;min-width:auto;}
+          .tree-grid{grid-template-columns:repeat(2,1fr);}
+        }
       `}</style>
 
       <main className="mt-page">
@@ -323,46 +280,22 @@ export default function MyTreeClient() {
         <section className="mt-hero">
           <div className="mt-hero__inner">
             <div className="mt-hero__left">
-              {/* Donor avatar with upload */}
-              <div
-                className="donor-avatar"
-                onClick={() => photoRef.current?.click()}
-                title="Click to update photo"
-              >
-                {photoUrl
-                  ? <img src={photoUrl} alt={donor.first_name} />
-                  : donor.first_name[0].toUpperCase()
-                }
+              <div className="donor-avatar" onClick={() => photoRef.current?.click()} title="Click to update photo">
+                {photoUrl ? <img src={photoUrl} alt={donor.first_name} /> : donor.first_name[0].toUpperCase()}
               </div>
-              <input
-                ref={photoRef}
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoUpload}
-                style={{ display: 'none' }}
-              />
-
+              <input ref={photoRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display:'none' }} />
               <div className="mt-hero__text">
                 <div className="mt-hero__eyebrow">
                   <span className="live-dot" /> My EcoTree Dashboard
-                  {uploading && <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>Uploading photo...</span>}
+                  {uploading && <span style={{ fontSize:'0.65rem', color:'rgba(255,255,255,0.4)' }}>Uploading...</span>}
                 </div>
-                <h1 className="mt-hero__h1">
-                  {donor.first_name}, your forest is <em>growing</em> 🌳
-                </h1>
-                <p className="mt-hero__sub">
-                  {donor.total_trees} trees planted · {donor.co2_kg} kg CO₂ offset · {donor.location}
-                </p>
+                <h1 className="mt-hero__h1">{donor.first_name}, your forest is <em>growing</em> 🌳</h1>
+                <p className="mt-hero__sub">{donor.total_trees} trees planted · {donor.co2_kg} kg CO₂ offset · {donor.location}</p>
                 <div className="mt-hero__meta">
                   <span>🪪 <strong>{donor.id}</strong></span>
                   <span>📅 Member since <strong>{donor.since}</strong></span>
                   <span>📍 <strong>{donor.location}</strong></span>
-                  <span
-                    onClick={handleLogout}
-                    style={{ cursor: 'pointer', color: 'rgba(255,255,255,0.4)', marginLeft: '1rem' }}
-                  >
-                    Sign out
-                  </span>
+                  <span onClick={handleLogout} style={{ cursor:'pointer', color:'rgba(255,255,255,0.4)', marginLeft:'1rem' }}>Sign out</span>
                 </div>
               </div>
             </div>
@@ -374,10 +307,10 @@ export default function MyTreeClient() {
         <section className="mt-counters">
           <div className="mt-counters__inner">
             {[
-              { icon:"🌳", val:donor.total_trees,                            label:"My Trees",          sub:"GPS verified"         },
-              { icon:"🌿", val:`${donor.co2_kg} kg`,                         label:"CO₂ Offset",        sub:"ISFR · 22 kg/tree/yr" },
-              { icon:"💧", val:`${(donor.water_litres/1000).toFixed(1)}K L`, label:"Water Saved",       sub:"3,785 L per tree/yr"  },
-              { icon:"🌍", val:`${donor.km_equivalent.toLocaleString()} km`, label:"Driving Equivalent",sub:"less CO₂ on roads"    },
+              { icon:'🌳', val:donor.total_trees,                            label:'My Trees',          sub:'GPS verified'         },
+              { icon:'🌿', val:`${donor.co2_kg} kg`,                         label:'CO₂ Offset',        sub:'ISFR · 22 kg/tree/yr' },
+              { icon:'💧', val:`${(donor.water_litres/1000).toFixed(1)}K L`, label:'Water Saved',       sub:'3,785 L per tree/yr'  },
+              { icon:'🌍', val:`${donor.km_equivalent.toLocaleString()} km`, label:'Driving Equivalent',sub:'less CO₂ on roads'    },
             ].map(c => (
               <div className="mt-counter" key={c.label}>
                 <span className="mt-counter__icon">{c.icon}</span>
@@ -393,47 +326,32 @@ export default function MyTreeClient() {
         {treesWithGPS.length > 0 && (
           <section className="mt-map-section">
             <div className="mt-map-header">
-              <div className="mt-map-title">
-                🗺️ My Trees on the Map
-                <span>· {donor.total_trees} locations</span>
-              </div>
+              <div className="mt-map-title">🗺️ My Trees on the Map<span>· {donor.total_trees} locations</span></div>
               <div className="style-toggle">
                 <button className={`style-btn${mapStyle==="light"?" active":""}`} onClick={() => setMapStyle("light")}>🗺️ Street</button>
                 <button className={`style-btn${mapStyle==="satellite"?" active":""}`} onClick={() => setMapStyle("satellite")}>🛰️ Satellite</button>
               </div>
             </div>
             <div className="mt-map-wrap">
-              <Map
-                mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
-                initialViewState={{ longitude: centerLng, latitude: centerLat, zoom: 11 }}
-                style={{ width:"100%", height:"100%" }}
-                mapStyle={MAP_STYLES[mapStyle]}
-              >
+              <Map mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
+                initialViewState={{ longitude:centerLng, latitude:centerLat, zoom:11 }}
+                style={{ width:'100%', height:'100%' }} mapStyle={MAP_STYLES[mapStyle]}>
                 <NavigationControl position="bottom-right" />
                 {treesWithGPS.map((t, i) => (
                   <Marker key={t.id} longitude={t.lng!} latitude={t.lat!} anchor="bottom"
-                    onClick={e => { e.originalEvent.stopPropagation(); setPopup(t); }}
-                  >
-                    <div style={{
-                      width:34, height:34,
-                      background: SPECIES_COLOR[t.species] || "#2C5F2D",
-                      borderRadius:"50% 50% 50% 0", transform:"rotate(-45deg)",
-                      border:"2.5px solid rgba(255,255,255,.95)",
-                      boxShadow: t.pulse ? "0 0 0 8px rgba(44,95,45,.2),0 3px 10px rgba(0,0,0,.3)" : "0 3px 10px rgba(0,0,0,.25)",
-                      display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer",
-                    }}>
-                      <span style={{transform:"rotate(45deg)",fontSize:15}}>{SPECIES_EMOJI[t.species] || '🌱'}</span>
+                    onClick={e => { e.originalEvent.stopPropagation(); setPopup(t); }}>
+                    <div style={{ width:34, height:34, background:SPECIES_COLOR[t.species]||"#2C5F2D", borderRadius:"50% 50% 50% 0", transform:"rotate(-45deg)", border:"2.5px solid rgba(255,255,255,.95)", boxShadow:t.pulse?"0 0 0 8px rgba(44,95,45,.2),0 3px 10px rgba(0,0,0,.3)":"0 3px 10px rgba(0,0,0,.25)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+                      <span style={{ transform:"rotate(45deg)", fontSize:15 }}>{SPECIES_EMOJI[t.species]||'🌱'}</span>
                     </div>
                   </Marker>
                 ))}
                 {popup && (
                   <Popup longitude={popup.lng} latitude={popup.lat} anchor="bottom" offset={48} onClose={() => setPopup(null)} closeOnClick={false}>
-                    <div className="pu-title">{SPECIES_EMOJI[popup.species] || '🌱'} {popup.species}</div>
+                    <div className="pu-title">{SPECIES_EMOJI[popup.species]||'🌱'} {popup.species}</div>
                     <div className="pu-row"><span>Zone</span><strong>{popup.zone}</strong></div>
                     <div className="pu-row"><span>Planted</span><strong>{popup.planted}</strong></div>
-                    <div className="pu-row"><span>Occasion</span><strong>{popup.occasion}</strong></div>
                     <div>
-                      <span className="pu-health" style={{ background: HEALTH_COLOR(popup.health)+"22", color: HEALTH_COLOR(popup.health) }}>
+                      <span className="pu-health" style={{ background:HEALTH_COLOR(popup.health)+"22", color:HEALTH_COLOR(popup.health) }}>
                         Health: {popup.health}% {popup.health>=85?"🟢":popup.health>=70?"🟡":"🔴"}
                       </span>
                     </div>
@@ -441,10 +359,7 @@ export default function MyTreeClient() {
                 )}
               </Map>
             </div>
-            <div className="mt-map-strip">
-              <span className="live-dot" />
-              All {treesWithGPS.length} trees GPS-verified · Click any pin for details
-            </div>
+            <div className="mt-map-strip"><span className="live-dot" />All {treesWithGPS.length} trees GPS-verified · Click any pin for details</div>
           </section>
         )}
 
@@ -453,41 +368,79 @@ export default function MyTreeClient() {
           <div className="mt-inner">
             <p className="mt-eyebrow">Your Forest</p>
             <h2 className="mt-h2">All {donor.total_trees} of your trees</h2>
-            <p className="mt-sub">Click any tree to see full details. Health is monitored monthly by our field volunteers.</p>
+            <p className="mt-sub">Click any photo to view full screen. Tap GPS to open in Google Maps.</p>
             {myTrees.length === 0 ? (
               <div style={{ textAlign:'center', padding:'3rem', color:'#6B7280' }}>
                 <div style={{ fontSize:'3rem', marginBottom:'0.75rem' }}>🌱</div>
                 <div style={{ fontSize:'16px', fontWeight:600 }}>No trees yet</div>
-                <div style={{ fontSize:'14px', marginTop:'0.5rem' }}>
-                  <a href="/donate" style={{ color:'#2C5F2D', fontWeight:600 }}>Plant your first tree →</a>
-                </div>
+                <a href="/donate" style={{ color:'#2C5F2D', fontWeight:600 }}>Plant your first tree →</a>
               </div>
             ) : (
               <div className="tree-grid">
                 {myTrees.map(t => (
-                  <div key={t.id} className="tree-card" onClick={() => setOpenCard(openCard===t.id?null:t.id)}>
-                    {t.photo_url
-                      ? <img src={t.photo_url} alt={t.species} style={{ width:'100%', height:'80px', objectFit:'cover', borderRadius:'8px', marginBottom:'0.5rem' }} />
-                      : <span className="tree-card__emoji">{SPECIES_EMOJI[t.species] || '🌱'}</span>
-                    }
-                    <div className="tree-card__species">{t.species}</div>
-                    <div className="tree-card__zone">📍 {t.zone}</div>
-                    <div className="tree-card__health-track">
-                      <div className="tree-card__health-fill" style={{ width:`${t.health}%`, background:HEALTH_COLOR(t.health) }} />
+                  <div key={t.id} className="tree-card">
+                    {/* Species + name */}
+                    <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'8px' }}>
+                      <span style={{ fontSize:'1.5rem' }}>{SPECIES_EMOJI[t.species]||'🌱'}</span>
+                      <div>
+                        <div style={{ fontSize:'14px', fontWeight:700, color:'#1A1A1A' }}>{t.species}</div>
+                        <div style={{ fontSize:'11px', fontFamily:'monospace', color:'#97BC62' }}>{t.tree_id}</div>
+                      </div>
                     </div>
-                    <div className="tree-card__health-val" style={{ color:HEALTH_COLOR(t.health) }}>
+
+                    {/* Before + After photos — Option A compact */}
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'5px', marginBottom:'8px' }}>
+                      {/* Before */}
+                      <div
+                        className="photo-thumb"
+                        style={{ height:'72px', background: t.before_photo_url ? `url(${t.before_photo_url}) center/cover` : 'linear-gradient(135deg,#374151,#6b7280)' }}
+                        onClick={() => t.before_photo_url && setPhotoPopup({ url: t.before_photo_url, label: `Before planting · ${t.species}`, treeId: t.tree_id })}
+                      >
+                        {!t.before_photo_url && '🏗️'}
+                        <div className="lbl">Before</div>
+                        {t.before_photo_url && <div className="zoom">🔍</div>}
+                      </div>
+                      {/* After */}
+                      <div
+                        className="photo-thumb"
+                        style={{ height:'72px', background: t.after_photo_url ? `url(${t.after_photo_url}) center/cover` : 'linear-gradient(135deg,#2d6a4f,#52b788)' }}
+                        onClick={() => t.after_photo_url && setPhotoPopup({ url: t.after_photo_url, label: `After planting · ${t.species}`, treeId: t.tree_id })}
+                      >
+                        {!t.after_photo_url && '🌳'}
+                        <div className="lbl">After</div>
+                        {t.after_photo_url && <div className="zoom">🔍</div>}
+                      </div>
+                    </div>
+
+                    {/* Zone + health */}
+                    <div style={{ fontSize:'12px', color:'#6B7280', marginBottom:'5px' }}>📍 {t.zone}</div>
+                    <div style={{ background:'#f3f4f6', borderRadius:'999px', height:'5px', overflow:'hidden', marginBottom:'4px' }}>
+                      <div style={{ width:`${t.health}%`, height:'100%', background:HEALTH_COLOR(t.health), borderRadius:'999px' }} />
+                    </div>
+                    <div style={{ fontSize:'11px', fontWeight:600, color:HEALTH_COLOR(t.health), marginBottom:'6px' }}>
                       Health {t.health}% {t.health>=85?"🟢":t.health>=70?"🟡":"🔴"}
                     </div>
-                    <div className="tree-card__occasion">
-                      {getOccasionIcon(t.occasion)} {t.occasion}
-                    </div>
+
+                    {/* GPS clickable */}
+                    {t.lat && t.lng && (
+                      <button className="gps-btn" onClick={() => setMapPopup({ lat: t.lat!, lng: t.lng!, tree: t })}>
+                        <span style={{ fontSize:'12px' }}>📍</span>
+                        <span style={{ fontFamily:'monospace', fontSize:'10px', color:'#2C5F2D', fontWeight:600 }}>
+                          {t.lat.toFixed(4)}° N, {t.lng.toFixed(4)}° E
+                        </span>
+                        <span style={{ marginLeft:'auto', fontSize:'10px', color:'#2C5F2D' }}>Map →</span>
+                      </button>
+                    )}
+
+                    <div className="tree-card__occasion">{getOccasionIcon(t.occasion)} {t.occasion}</div>
                     <div className="tree-card__date">Planted {t.planted}</div>
-                    {t.qr_code_url && openCard === t.id && (
-                      <div style={{ marginTop:'0.75rem', textAlign:'center' }}>
-                        <img src={t.qr_code_url} alt="QR" style={{ width:'80px', height:'80px' }} />
-                        <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'4px' }}>
-                          <a href={`/tree/${t.tree_id}`} target="_blank" rel="noopener noreferrer" style={{ color:'#2C5F2D' }}>View tree profile →</a>
-                        </div>
+
+                    {/* QR + profile link */}
+                    {t.qr_code_url && (
+                      <div style={{ marginTop:'8px', textAlign:'center' }}>
+                        <a href={`/tree/${t.tree_id}`} target="_blank" rel="noopener noreferrer" style={{ fontSize:'11px', color:'#2C5F2D', fontWeight:600, textDecoration:'none' }}>
+                          View tree profile →
+                        </a>
                       </div>
                     )}
                   </div>
@@ -546,7 +499,7 @@ export default function MyTreeClient() {
               <div className="cert-footer">Member since {donor.since} · ISFR Standard · GPS Verified · 80G Approved</div>
               <div className="cert-id">{donor.id}</div>
             </div>
-            <div style={{ textAlign:"center", marginTop:"1.5rem" }}>
+            <div style={{ textAlign:'center', marginTop:'1.5rem' }}>
               <button className="cert-btn" onClick={downloadCert}>⬇️ Download PDF Certificate</button>
             </div>
           </div>
@@ -559,11 +512,7 @@ export default function MyTreeClient() {
             <h2 className="mt-h2">Inspire others to plant</h2>
             <div className="share-card">
               <div className="share-card__preview">
-                <div className="share-card__text">
-                  🌳 I&apos;ve planted {donor.total_trees} trees with EcoTree Impact Foundation!<br />
-                  🌿 {donor.co2_kg} kg CO₂ offset · Growing in Bangalore<br />
-                  💚 Join me: ecotrees.org/ref/{donor.referral_code}
-                </div>
+                <div className="share-card__text">🌳 I&apos;ve planted {donor.total_trees} trees with EcoTree Impact Foundation!<br />🌿 {donor.co2_kg} kg CO₂ offset · Growing in Bangalore<br />💚 Join me: ecotrees.org/ref/{donor.referral_code}</div>
                 <div className="share-card__hashtags">#EcoTree #PlantATree #Bangalore #GreenIndia #ClimateAction</div>
               </div>
               <div className="share-btns">
@@ -579,8 +528,8 @@ export default function MyTreeClient() {
           <div className="mt-inner">
             <p className="mt-eyebrow">Grow Your Forest</p>
             <h2 className="mt-h2">Add more trees</h2>
-            <div className="occasion-grid">
-              {[{icon:"🎂",label:"Birthday"},{icon:"💍",label:"Anniversary"},{icon:"🙏",label:"Memorial"},{icon:"🪔",label:"Diwali"},{icon:"🎆",label:"New Year"},{icon:"🌍",label:"Earth Day"},{icon:"🏢",label:"Corporate"},{icon:"🎁",label:"Gift a Tree"}].map(o => (
+            <div style={{ display:'flex', gap:'.75rem', flexWrap:'wrap', marginBottom:'2rem' }}>
+              {[{icon:'🎂',label:'Birthday'},{icon:'💍',label:'Anniversary'},{icon:'🙏',label:'Memorial'},{icon:'🪔',label:'Diwali'},{icon:'🎆',label:'New Year'},{icon:'🌍',label:'Earth Day'},{icon:'🏢',label:'Corporate'},{icon:'🎁',label:'Gift a Tree'}].map(o => (
                 <a key={o.label} href="/donate" className="occasion-chip">{o.icon} {o.label}</a>
               ))}
             </div>
@@ -598,25 +547,90 @@ export default function MyTreeClient() {
         {/* REFER */}
         <section className="mt-section mt-section--dark">
           <div className="mt-inner">
-            <p className="mt-eyebrow" style={{ color:"var(--clr-moss)" }}>Referral Programme</p>
+            <p className="mt-eyebrow" style={{ color:'var(--clr-moss)' }}>Referral Programme</p>
             <h2 className="mt-h2 mt-h2--light">Every friend you refer plants a tree</h2>
             <div className="referral-box">
               <div>
-                <div style={{ fontSize:".75rem",color:"rgba(255,255,255,.4)",marginBottom:".35rem",fontWeight:600,textTransform:"uppercase" }}>Your referral link</div>
+                <div style={{ fontSize:'.75rem', color:'rgba(255,255,255,.4)', marginBottom:'.35rem', fontWeight:600, textTransform:'uppercase' }}>Your referral link</div>
                 <div className="referral-link">ecotrees.org/ref/{donor.referral_code}</div>
               </div>
-              <div style={{ display:"flex",gap:".75rem",flexWrap:"wrap" }}>
+              <div style={{ display:'flex', gap:'.75rem', flexWrap:'wrap' }}>
                 <button className={`btn-copy${copied?" copied":""}`} onClick={copyReferral}>{copied?"✅ Copied!":"📋 Copy Link"}</button>
-                <button className="btn-whatsapp" onClick={() => {
-                  const text = encodeURIComponent(`🌳 Join me on EcoTree!\nhttps://ecotrees.org/ref/${donor.referral_code}`);
-                  window.open(`https://wa.me/?text=${text}`,"_blank");
-                }}>💬 Share</button>
+                <button className="btn-whatsapp" onClick={() => { const text = encodeURIComponent(`🌳 Join me on EcoTree!\nhttps://ecotrees.org/ref/${donor.referral_code}`); window.open(`https://wa.me/?text=${text}`,"_blank"); }}>💬 Share</button>
               </div>
             </div>
           </div>
         </section>
 
       </main>
+
+      {/* ── PHOTO FULLSCREEN POPUP ── */}
+      {photoPopup && (
+        <div className="photo-overlay" onClick={() => setPhotoPopup(null)}>
+          <div style={{ color:'rgba(255,255,255,0.5)', fontSize:'11px', textTransform:'uppercase', letterSpacing:'0.08em' }}>Tap anywhere to close</div>
+          <div style={{ position:'relative' }} onClick={e => e.stopPropagation()}>
+            <img
+              src={photoPopup.url}
+              alt={photoPopup.label}
+              className="photo-overlay-img"
+            />
+            <button
+              onClick={() => setPhotoPopup(null)}
+              style={{ position:'absolute', top:'-12px', right:'-12px', width:'28px', height:'28px', borderRadius:'50%', background:'#dc2626', border:'none', color:'white', fontSize:'14px', cursor:'pointer', fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center' }}
+            >✕</button>
+          </div>
+          <div style={{ background:'rgba(255,255,255,0.1)', borderRadius:'12px', padding:'10px 16px', color:'white', fontSize:'12px', textAlign:'center', width:'min(90vw,400px)' }}>
+            <div style={{ fontWeight:600, color:'#97BC62', marginBottom:'4px' }}>{photoPopup.label}</div>
+            <div style={{ fontFamily:'monospace', opacity:0.7 }}>{photoPopup.treeId}</div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MAP POPUP ── */}
+      {mapPopup && (
+        <div className="map-overlay" onClick={() => setMapPopup(null)}>
+          <div className="map-card" onClick={e => e.stopPropagation()}>
+            {/* Fake satellite map with pin */}
+            <div className="map-fake">
+              <svg width="100%" height="100%" style={{ position:'absolute', opacity:0.15 }}>
+                <defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0L0 0 0 20" fill="none" stroke="white" strokeWidth="0.5"/></pattern></defs>
+                <rect width="100%" height="100%" fill="url(#grid)"/>
+              </svg>
+              {/* Pin */}
+              <div style={{ width:34, height:34, background:'#2C5F2D', borderRadius:'50% 50% 50% 0', transform:'rotate(-45deg)', border:'3px solid white', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 3px 10px rgba(0,0,0,0.3)' }}>
+                <span style={{ transform:'rotate(45deg)', fontSize:15 }}>🌳</span>
+              </div>
+              {/* Tree photo thumbnail */}
+              {mapPopup.tree.after_photo_url && (
+                <div style={{ position:'absolute', top:8, right:8, width:52, height:52, borderRadius:8, border:'2px solid white', overflow:'hidden', boxShadow:'0 2px 8px rgba(0,0,0,0.3)' }}>
+                  <img src={mapPopup.tree.after_photo_url} alt="tree" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                </div>
+              )}
+              <div style={{ position:'absolute', bottom:6, left:8, fontSize:'10px', color:'rgba(255,255,255,0.6)', background:'rgba(0,0,0,0.3)', padding:'2px 6px', borderRadius:4 }}>🛰️ Satellite view</div>
+            </div>
+            {/* Info */}
+            <div style={{ padding:'1rem' }}>
+              <div style={{ fontSize:'14px', fontWeight:600, color:'#1A1A1A', marginBottom:'4px' }}>
+                {SPECIES_EMOJI[mapPopup.tree.species]||'🌳'} {mapPopup.tree.species} · {mapPopup.tree.zone}
+              </div>
+              <div style={{ fontFamily:'monospace', fontSize:'11px', color:'#2C5F2D', fontWeight:600, background:'#f0fdf4', padding:'6px 10px', borderRadius:6, marginBottom:'12px' }}>
+                {mapPopup.lat.toFixed(6)}° N, {mapPopup.lng.toFixed(6)}° E
+              </div>
+              <a
+                href={`https://maps.google.com/?q=${mapPopup.lat},${mapPopup.lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display:'block', width:'100%', padding:'10px', background:'#2C5F2D', color:'white', borderRadius:8, fontSize:'13px', fontWeight:600, textDecoration:'none', textAlign:'center', marginBottom:8 }}
+              >
+                🗺️ Open in Google Maps
+              </a>
+              <button onClick={() => setMapPopup(null)} style={{ width:'100%', padding:'8px', background:'transparent', color:'#6B7280', border:'1px solid #e5e7eb', borderRadius:8, fontSize:'13px', cursor:'pointer' }}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
