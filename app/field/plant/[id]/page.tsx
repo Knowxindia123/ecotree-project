@@ -153,14 +153,16 @@ setTreeId(treeData?.tree_id || '')
       setProgress(80)
 
       // Update tree status to PLANTED
-      await supabase.from('trees').update({
-        status:        'PLANTED',
-        latitude:      gps?.lat || task?.trees?.latitude,
-        longitude:     gps?.lng || task?.trees?.longitude,
-        photo_url:     afterUrl,
-        worker_id:     worker?.id,
-        planting_date: new Date().toISOString().split('T')[0],
-      }).eq('id', task?.trees?.id)
+     
+const treeRecord = Array.isArray(task?.trees) ? task.trees[0] : task?.trees
+await supabase.from('trees').update({
+  status:        'PLANTED',
+  latitude:      gps?.lat ?? null,
+  longitude:     gps?.lng ?? null,
+  photo_url:     afterUrl,
+  worker_id:     worker?.id,
+  planting_date: new Date().toISOString().split('T')[0],
+}).eq('id', treeRecord?.id)
 
       // Save QR code URL to trees table
       const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`https://ecotrees.org/tree/${treeId}`)}`
