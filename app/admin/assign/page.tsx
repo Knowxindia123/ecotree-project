@@ -23,6 +23,12 @@ interface Assignment {
 export default function AdminAssign() {
   const [workers, setWorkers]       = useState<Worker[]>([])
   const [sites, setSites]           = useState<Site[]>([])
+  const [showSiteForm, setShowSiteForm] = useState(false)
+const [newSite, setNewSite] = useState({
+  name: '', description: '', city: 'Bangalore',
+  latitude: '', longitude: ''
+})
+const [gettingLocation, setGettingLocation] = useState(false)
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [loading, setLoading]       = useState(true)
   const [saving, setSaving]         = useState(false)
