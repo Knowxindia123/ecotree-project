@@ -310,14 +310,6 @@ export default function AdminReview() {
     </div>
   )
 
-  function CheckBadge({ pass, label }: { pass: boolean | null; label: string }) {
-    const bg   = pass === true ? '#dcfce7' : pass === false ? '#fee2e2' : '#f3f4f6'
-    const text = pass === true ? '#166534' : pass === false ? '#991b1b' : '#6b7280'
-    const icon = pass === true ? '✅' : pass === false ? '❌' : '⏳'
-    return (
-      <div style={{ background:bg, borderRadius:6, padding:'5px 8px', textAlign:'center', fontSize:'11px', color:text, fontWeight:500 }}>
-        {icon} {label}
-      </div>
-    )
+ 
   }
 }
