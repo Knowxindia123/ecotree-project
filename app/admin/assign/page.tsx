@@ -62,7 +62,49 @@ const [gettingLocation, setGettingLocation] = useState(false)
       setLoading(false)
     })
   }, [])
+async function handleCreateSite(e: React.FormEvent) {
+  e.preventDefault()
+  const { data: site, error } = await supabase.from('sites').insert({
+    name:        newSite.name,
+    description: newSite.description || null,
+    city:        newSite.city,
+    latitude:    newSite.latitude ? Number(newSite.latitude) : null,
+    longitude:   newSite.longitude ? Number(newSite.longitude) : null,
+    is_active:   true,
+  }).select('id, name').single()
 
+  if (!error && site) {
+    setSites(prev => [...prev, site])
+    setForm(f => ({ ...f, site_id: String(site.id) }))
+    setSuccess(`Site "${newSite.name}" created and selected!`)
+    setShowSiteForm(false)
+    setNewSite({ name:'', description:'', city:'Bangalore', latitude:'', longitude:'' })
+  } else {
+    setError(error?.message || 'Failed to create site')
+  }
+}
+
+function getMyLocation() {
+  setGettingLocation(true)
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      setNewSite(s => ({
+        ...s,
+        latitude:  pos.coords.latitude.toFixed(6),
+        longitude: pos.coords.longitude.toFixed(6)
+      }))
+      setGettingLocation(false)
+    },
+    () => {
+      setGettingLocation(false)
+      alert('Could not get location. Enter manually.')
+    },
+    { enableHighAccuracy: true }
+  )
+}
+
+async function handleAssign(e: React.FormEvent) {
+  // ... existing code
   async function handleAssign(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
@@ -161,6 +203,80 @@ const [gettingLocation, setGettingLocation] = useState(false)
             <div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Planting site *</label>
               <select required value={form.site_id} onChange={e => setForm({...form, site_id: e.target.value})} style={{ width: '100%', padding: '0.6rem 0.85rem', border: '1.5px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', outline: 'none' }}>
+               <option value="">Select site</option>
+  {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+</select>
+
+<button
+  type="button"
+  onClick={() => setShowSiteForm(!showSiteForm)}
+  style={{ fontSize:'12px', color:'#2C5F2D', background:'none', border:'none', cursor:'pointer', marginTop:'4px', textDecoration:'underline' }}
+>
+  + Create new site
+</button>
+
+{showSiteForm && (
+  ... entire form from Step 3 ...
+)}
+              {showSiteForm && (
+  <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:'10px', padding:'1rem', marginTop:'0.5rem' }}>
+    <div style={{ fontSize:'13px', fontWeight:600, color:'#1A3C34', marginBottom:'0.75rem' }}>Create new site</div>
+    <form onSubmit={handleCreateSite}>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem', marginBottom:'0.75rem' }}>
+        <div>
+          <label style={{ fontSize:'12px', fontWeight:500, color:'#374151', display:'block', marginBottom:'4px' }}>Site name *</label>
+          <input required type="text" placeholder="Vijayanagar Park" value={newSite.name}
+            onChange={e => setNewSite(s => ({...s, name: e.target.value}))}
+            style={{ width:'100%', padding:'0.5rem 0.75rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none' }} />
+        </div>
+        <div>
+          <label style={{ fontSize:'12px', fontWeight:500, color:'#374151', display:'block', marginBottom:'4px' }}>City</label>
+          <input type="text" placeholder="Bangalore" value={newSite.city}
+            onChange={e => setNewSite(s => ({...s, city: e.target.value}))}
+            style={{ width:'100%', padding:'0.5rem 0.75rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none' }} />
+        </div>
+        <div style={{ gridColumn:'span 2' }}>
+          <label style={{ fontSize:'12px', fontWeight:500, color:'#374151', display:'block', marginBottom:'4px' }}>Description</label>
+          <input type="text" placeholder="Near main entrance" value={newSite.description}
+            onChange={e => setNewSite(s => ({...s, description: e.target.value}))}
+            style={{ width:'100%', padding:'0.5rem 0.75rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none' }} />
+        </div>
+        <div style={{ gridColumn:'span 2' }}>
+          <button type="button" onClick={getMyLocation}
+            style={{ width:'100%', padding:'0.6rem', background:'#1A3C34', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
+            {gettingLocation ? '📍 Getting location...' : '📍 Use my current location'}
+          </button>
+        </div>
+        {newSite.latitude && (
+          <div style={{ gridColumn:'span 2', fontSize:'12px', color:'#166534', background:'#dcfce7', padding:'6px 10px', borderRadius:'6px' }}>
+            ✅ GPS: {newSite.latitude}° N, {newSite.longitude}° E
+          </div>
+        )}
+        <div>
+          <label style={{ fontSize:'12px', fontWeight:500, color:'#374151', display:'block', marginBottom:'4px' }}>Latitude (manual)</label>
+          <input type="number" step="any" placeholder="12.9716" value={newSite.latitude}
+            onChange={e => setNewSite(s => ({...s, latitude: e.target.value}))}
+            style={{ width:'100%', padding:'0.5rem 0.75rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none' }} />
+        </div>
+        <div>
+          <label style={{ fontSize:'12px', fontWeight:500, color:'#374151', display:'block', marginBottom:'4px' }}>Longitude (manual)</label>
+          <input type="number" step="any" placeholder="77.5946" value={newSite.longitude}
+            onChange={e => setNewSite(s => ({...s, longitude: e.target.value}))}
+            style={{ width:'100%', padding:'0.5rem 0.75rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none' }} />
+        </div>
+      </div>
+      <div style={{ display:'flex', gap:'0.5rem' }}>
+        <button type="submit" style={{ padding:'8px 16px', background:'#2C5F2D', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
+          Create site
+        </button>
+        <button type="button" onClick={() => setShowSiteForm(false)}
+          style={{ padding:'8px 16px', background:'transparent', color:'#6B7280', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', cursor:'pointer' }}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+)}
                 <option value="">Select site</option>
                 {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
