@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase'
 interface ReviewItem {
   id: number
   photo_url: string | null
+  before_photo_url: string | null
+  after_photo_url: string | null
   latitude: number | null
   longitude: number | null
   ai_health_score: number | null
@@ -24,11 +26,20 @@ interface ReviewItem {
   users: { name: string; phone: string | null } | null
 }
 
+interface PhotoPopup {
+  url: string
+  label: string
+  treeId: string
+  health: number | null
+  lat: number | null
+  lng: number | null
+}
+
 export default function AdminReview() {
-  const [items, setItems]     = useState<ReviewItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [selected, setSelected] = useState<ReviewItem | null>(null)
+  const [items,      setItems]      = useState<ReviewItem[]>([])
+  const [loading,    setLoading]    = useState(true)
   const [processing, setProcessing] = useState(false)
+  const [photoPopup, setPhotoPopup] = useState<PhotoPopup | null>(null)
 
   useEffect(() => { loadQueue() }, [])
 
@@ -37,8 +48,9 @@ export default function AdminReview() {
     const { data } = await supabase
       .from('tree_updates')
       .select(`
-        id, photo_url, latitude, longitude,
-        ai_health_score, ai_species_match, ai_gps_match,
+        id, photo_url, before_photo_url, after_photo_url,
+        latitude, longitude, ai_health_score,
+        ai_species_match, ai_gps_match,
         ai_duplicate_check, ai_timestamp_valid,
         notes, update_date,
         trees(tree_id, species, latitude, longitude, sites(name)),
@@ -53,211 +65,259 @@ export default function AdminReview() {
 
   async function handleDecision(id: number, approve: boolean) {
     setProcessing(true)
-    await supabase
-      .from('tree_updates')
-      .update({
-        is_verified:  approve,
-        verified_by:  approve ? 'HUMAN' : 'REJECTED'
-      })
-      .eq('id', id)
+    await supabase.from('tree_updates').update({
+      is_verified:  approve,
+      verified_by:  approve ? 'HUMAN' : 'REJECTED'
+    }).eq('id', id)
 
     if (approve) {
-      // Update tree status to VERIFIED
       const item = items.find(i => i.id === id)
       if (item?.trees) {
-        await supabase
-          .from('trees')
-          .update({
-            status:             'VERIFIED',
-            latest_health_score: item.ai_health_score,
-            latest_update_date:  item.update_date
-          })
-          .eq('tree_id', item.trees.tree_id)
+        await supabase.from('trees').update({
+          status:              'VERIFIED',
+          latest_health_score: item.ai_health_score,
+          latest_update_date:  item.update_date
+        }).eq('tree_id', item.trees.tree_id)
       }
     }
-
-    setSelected(null)
+    setPhotoPopup(null)
     loadQueue()
     setProcessing(false)
   }
 
-  function FailReason({ item }: { item: ReviewItem }) {
-    const reasons = []
-    if (item.ai_species_match === false) reasons.push({ label: 'Species mismatch', color: '#fee2e2', text: '#991b1b' })
-    if (item.ai_gps_match     === false) reasons.push({ label: 'GPS off target',   color: '#fef3c7', text: '#92400e' })
-    if (item.ai_duplicate_check === false) reasons.push({ label: 'Duplicate photo', color: '#fee2e2', text: '#991b1b' })
-    if (item.ai_timestamp_valid === false) reasons.push({ label: 'Invalid timestamp', color: '#fef3c7', text: '#92400e' })
-    if (reasons.length === 0) reasons.push({ label: 'Pending review', color: '#e0f2fe', text: '#075985' })
+  function gpsDistance(lat1: number, lng1: number, lat2: number, lng2: number): string {
+    const R = 6371000
+    const dLat = (lat2 - lat1) * Math.PI / 180
+    const dLng = (lng2 - lng1) * Math.PI / 180
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2
+    const d = 2*R*Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+    return d < 1000 ? `${Math.round(d)}m` : `${(d/1000).toFixed(1)}km`
+  }
+
+  function CheckBadge({ pass, label }: { pass: boolean | null; label: string }) {
+    const bg   = pass === true ? '#dcfce7' : pass === false ? '#fee2e2' : '#f3f4f6'
+    const text = pass === true ? '#166534' : pass === false ? '#991b1b' : '#6b7280'
+    const icon = pass === true ? '✅' : pass === false ? '❌' : '⏳'
     return (
-      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-        {reasons.map(r => (
-          <span key={r.label} style={{ background: r.color, color: r.text, fontSize: '11px', padding: '2px 8px', borderRadius: '6px', fontWeight: 500 }}>
-            {r.label}
-          </span>
-        ))}
+      <div style={{ background:bg, borderRadius:6, padding:'5px 8px', textAlign:'center', fontSize:'11px', color:text, fontWeight:500 }}>
+        {icon} {label}
       </div>
     )
   }
 
   return (
     <div>
-      <div style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1A1A1A', marginBottom: '4px' }}>Review Queue</h1>
-        <p style={{ fontSize: '14px', color: '#6B7280' }}>
-          {items.length} photo{items.length !== 1 ? 's' : ''} waiting for human review — Claude Vision flagged these for manual approval
+      <div style={{ marginBottom:'1.5rem' }}>
+        <h1 style={{ fontSize:'1.25rem', fontWeight:600, color:'#1A1A1A', marginBottom:'4px' }}>Review Queue</h1>
+        <p style={{ fontSize:'14px', color:'#6B7280' }}>
+          {items.length} photo{items.length!==1?'s':''} waiting — Claude Vision flagged these for manual approval
         </p>
       </div>
 
       {loading ? (
-        <div style={{ color: '#6B7280', fontSize: '14px' }}>Loading...</div>
+        <div style={{ color:'#6B7280', fontSize:'14px' }}>Loading...</div>
       ) : items.length === 0 ? (
-        <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '3rem', textAlign: 'center' }}>
-          <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>✅</div>
-          <div style={{ fontSize: '15px', fontWeight: 600, color: '#1A1A1A', marginBottom: '4px' }}>Queue is clear!</div>
-          <div style={{ fontSize: '13px', color: '#6B7280' }}>All recent photos passed AI verification</div>
+        <div style={{ background:'white', border:'1px solid #e5e7eb', borderRadius:'12px', padding:'3rem', textAlign:'center' }}>
+          <div style={{ fontSize:'2rem', marginBottom:'0.75rem' }}>✅</div>
+          <div style={{ fontSize:'15px', fontWeight:600, color:'#1A1A1A', marginBottom:'4px' }}>Queue is clear!</div>
+          <div style={{ fontSize:'13px', color:'#6B7280' }}>All recent photos passed AI verification</div>
         </div>
       ) : (
-        <>
-          {/* Review cards grid */}
-          <div className="review-grid">
-            {items.map(item => (
-              <div
-                key={item.id}
-                onClick={() => setSelected(item)}
-                style={{
-                  background: 'white',
-                  border: selected?.id === item.id ? '2px solid #2C5F2D' : '1px solid #e5e7eb',
-                  borderRadius: '12px',
-                  overflow: 'hidden',
-                  cursor: 'pointer',
-                  transition: 'border-color 0.15s'
-                }}
-              >
-                {/* Photo */}
-                <div style={{
-                  height: '140px',
-                  background: item.photo_url ? `url(${item.photo_url}) center/cover` : 'linear-gradient(135deg,#2d6a4f,#52b788)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '2rem',
-                  position: 'relative'
-                }}>
-                  {!item.photo_url && '🌳'}
-                  {item.ai_health_score !== null && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '8px', right: '8px',
-                      background: 'rgba(0,0,0,0.6)',
-                      color: 'white',
-                      fontSize: '12px',
-                      padding: '3px 8px',
-                      borderRadius: '6px',
-                      fontWeight: 600
-                    }}>
-                      Health: {item.ai_health_score}
+        <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
+          {items.map(item => {
+            const siteLat = item.trees?.latitude
+            const siteLng = item.trees?.longitude
+            const captLat = item.latitude
+            const captLng = item.longitude
+            const hasGPSCompare = siteLat && siteLng && captLat && captLng
+            const dist = hasGPSCompare ? gpsDistance(siteLat!, siteLng!, captLat!, captLng!) : null
+
+            return (
+              <div key={item.id} style={{ background:'white', border:'1px solid #e5e7eb', borderRadius:'12px', overflow:'hidden' }}>
+
+                {/* Header */}
+                <div style={{ padding:'10px 16px', background:'#f9fafb', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'8px' }}>
+                  <div>
+                    <div style={{ fontFamily:'monospace', fontSize:'13px', fontWeight:600, color:'#1A3C34' }}>{item.trees?.tree_id || '—'}</div>
+                    <div style={{ fontSize:'12px', color:'#6B7280' }}>
+                      👷 {item.users?.name||'—'} · 📍 {item.trees?.sites?.name||'—'} · {new Date(item.update_date).toLocaleDateString('en-IN')}
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:'6px' }}>
+                    <button
+                      onClick={() => handleDecision(item.id, true)}
+                      disabled={processing}
+                      style={{ padding:'6px 16px', background:'#2C5F2D', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}
+                    >✓ Approve</button>
+                    <button
+                      onClick={() => handleDecision(item.id, false)}
+                      disabled={processing}
+                      style={{ padding:'6px 16px', background:'transparent', color:'#dc2626', border:'1px solid #fecaca', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}
+                    >✕ Reject</button>
+                  </div>
+                </div>
+
+                <div style={{ padding:'14px 16px' }}>
+
+                  {/* Before + After photos */}
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'12px' }}>
+                    {/* Before */}
+                    <div>
+                      <div style={{ fontSize:'12px', fontWeight:500, color:'#374151', marginBottom:'5px' }}>📷 Before planting</div>
+                      <div
+                        onClick={() => item.before_photo_url && setPhotoPopup({
+                          url: item.before_photo_url,
+                          label: 'Before planting · ' + (item.trees?.species||''),
+                          treeId: item.trees?.tree_id||'',
+                          health: null,
+                          lat: captLat, lng: captLng
+                        })}
+                        style={{
+                          borderRadius:10, overflow:'hidden', aspectRatio:'4/3',
+                          background: item.before_photo_url ? `url(${item.before_photo_url}) center/cover` : 'linear-gradient(135deg,#374151,#6b7280)',
+                          display:'flex', alignItems:'center', justifyContent:'center',
+                          fontSize:'2rem', cursor: item.before_photo_url ? 'pointer' : 'default',
+                          position:'relative', transition:'transform 0.15s',
+                        }}
+                      >
+                        {!item.before_photo_url && '🏗️'}
+                        {item.before_photo_url && (
+                          <div style={{ position:'absolute', bottom:0, left:0, right:0, background:'rgba(0,0,0,0.55)', color:'white', fontSize:'10px', fontWeight:600, padding:'4px 8px', display:'flex', justifyContent:'space-between' }}>
+                            <span>Before</span><span>🔍 Click to enlarge</span>
+                          </div>
+                        )}
+                        {!item.before_photo_url && (
+                          <div style={{ position:'absolute', bottom:0, left:0, right:0, background:'rgba(0,0,0,0.55)', color:'white', fontSize:'10px', padding:'4px 8px', textAlign:'center' }}>Not uploaded</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* After */}
+                    <div>
+                      <div style={{ fontSize:'12px', fontWeight:500, color:'#374151', marginBottom:'5px' }}>🌱 After planting</div>
+                      <div
+                        onClick={() => (item.after_photo_url||item.photo_url) && setPhotoPopup({
+                          url: item.after_photo_url||item.photo_url||'',
+                          label: 'After planting · ' + (item.trees?.species||''),
+                          treeId: item.trees?.tree_id||'',
+                          health: item.ai_health_score,
+                          lat: captLat, lng: captLng
+                        })}
+                        style={{
+                          borderRadius:10, overflow:'hidden', aspectRatio:'4/3',
+                          background: (item.after_photo_url||item.photo_url) ? `url(${item.after_photo_url||item.photo_url}) center/cover` : 'linear-gradient(135deg,#2d6a4f,#52b788)',
+                          display:'flex', alignItems:'center', justifyContent:'center',
+                          fontSize:'2rem', cursor: (item.after_photo_url||item.photo_url) ? 'pointer' : 'default',
+                          position:'relative', transition:'transform 0.15s',
+                        }}
+                      >
+                        {!(item.after_photo_url||item.photo_url) && '🌳'}
+                        {(item.after_photo_url||item.photo_url) && (
+                          <>
+                            {item.ai_health_score !== null && (
+                              <div style={{ position:'absolute', top:6, right:6, background:'rgba(0,0,0,0.6)', color:'white', fontSize:'11px', padding:'2px 8px', borderRadius:6, fontWeight:600 }}>
+                                Health: {item.ai_health_score}
+                              </div>
+                            )}
+                            <div style={{ position:'absolute', bottom:0, left:0, right:0, background:'rgba(0,0,0,0.55)', color:'white', fontSize:'10px', fontWeight:600, padding:'4px 8px', display:'flex', justifyContent:'space-between' }}>
+                              <span>After</span><span>🔍 Click to enlarge</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* GPS comparison */}
+                  {hasGPSCompare && (
+                    <div style={{ background:'#f9fafb', borderRadius:8, padding:'10px 12px', marginBottom:'10px', fontSize:'12px' }}>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px', marginBottom:'6px' }}>
+                        <div>
+                          <div style={{ color:'#6B7280', marginBottom:'2px' }}>📍 Assigned site</div>
+                          <div style={{ fontFamily:'monospace', fontSize:'11px', color:'#374151' }}>{siteLat?.toFixed(4)}, {siteLng?.toFixed(4)}</div>
+                        </div>
+                        <div>
+                          <div style={{ color:'#6B7280', marginBottom:'2px' }}>📱 Captured GPS</div>
+                          <div style={{ fontFamily:'monospace', fontSize:'11px', color: item.ai_gps_match===false ? '#dc2626' : '#374151' }}>{captLat?.toFixed(4)}, {captLng?.toFixed(4)}</div>
+                        </div>
+                      </div>
+                      {dist && (
+                        <div style={{ fontSize:'11px', color: item.ai_gps_match===false ? '#dc2626' : '#166534', fontWeight:500 }}>
+                          {item.ai_gps_match===false ? '⚠️' : '✅'} Distance from site: {dist}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 4 AI check badges */}
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'6px', marginBottom:'10px' }}>
+                    <CheckBadge pass={item.ai_species_match}    label="Species" />
+                    <CheckBadge pass={item.ai_gps_match}        label="GPS" />
+                    <CheckBadge pass={item.ai_duplicate_check}  label="No dupe" />
+                    <CheckBadge pass={item.ai_timestamp_valid}  label="Timestamp" />
+                  </div>
+
+                  {/* Notes */}
+                  {item.notes && (
+                    <div style={{ background:'#f9fafb', borderRadius:8, padding:'8px 12px', fontSize:'13px', color:'#374151' }}>
+                      📝 {item.notes}
                     </div>
                   )}
                 </div>
-
-                <div style={{ padding: '0.875rem' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#1A1A1A', fontFamily: 'monospace', marginBottom: '4px' }}>
-                    {item.trees?.tree_id || '—'}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '8px' }}>
-                    👷 {item.users?.name || '—'} · 📍 {item.trees?.sites?.name || '—'}
-                  </div>
-                  <FailReason item={item} />
-                  <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
-                    <button
-                      onClick={e => { e.stopPropagation(); handleDecision(item.id, true) }}
-                      disabled={processing}
-                      style={{ flex: 1, padding: '7px', background: '#2C5F2D', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-                    >
-                      Approve
-                    </button>
-                    <button
-                      onClick={e => { e.stopPropagation(); handleDecision(item.id, false) }}
-                      disabled={processing}
-                      style={{ flex: 1, padding: '7px', background: 'transparent', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </div>
               </div>
-            ))}
-          </div>
-
-          {/* Detail panel */}
-          {selected && (
-            <div style={{
-              position: 'fixed',
-              bottom: 0, left: 0, right: 0,
-              background: 'white',
-              border: '1px solid #e5e7eb',
-              borderRadius: '16px 16px 0 0',
-              padding: '1.25rem',
-              maxHeight: '50vh',
-              overflowY: 'auto',
-              zIndex: 100,
-              boxShadow: '0 -8px 32px rgba(0,0,0,0.15)'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <span style={{ fontSize: '14px', fontWeight: 600 }}>Review: {selected.trees?.tree_id}</span>
-                <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#6B7280' }}>✕</button>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
-                {[
-                  ['Species match', selected.ai_species_match],
-                  ['GPS match',     selected.ai_gps_match],
-                  ['No duplicate',  selected.ai_duplicate_check],
-                  ['Valid timestamp', selected.ai_timestamp_valid],
-                ].map(([label, val]) => (
-                  <div key={String(label)} style={{
-                    background: val === true ? '#dcfce7' : val === false ? '#fee2e2' : '#f3f4f6',
-                    borderRadius: '8px',
-                    padding: '10px 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}>
-                    <span style={{ fontSize: '16px' }}>{val === true ? '✅' : val === false ? '❌' : '⏳'}</span>
-                    <span style={{ fontSize: '13px', fontWeight: 500 }}>{String(label)}</span>
-                  </div>
-                ))}
-              </div>
-              {selected.notes && (
-                <div style={{ background: '#f9fafb', borderRadius: '8px', padding: '10px 12px', fontSize: '13px', color: '#374151', marginBottom: '1rem' }}>
-                  📝 {selected.notes}
-                </div>
-              )}
-              <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button
-                  onClick={() => handleDecision(selected.id, true)}
-                  disabled={processing}
-                  style={{ flex: 1, padding: '12px', background: '#2C5F2D', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
-                >
-                  Approve ✓
-                </button>
-                <button
-                  onClick={() => handleDecision(selected.id, false)}
-                  disabled={processing}
-                  style={{ flex: 1, padding: '12px', background: 'transparent', color: '#dc2626', border: '1.5px solid #fecaca', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
-                >
-                  Reject ✕
-                </button>
-              </div>
-            </div>
-          )}
-        </>
+            )
+          })}
+        </div>
       )}
 
-      <style>{`
-        .review-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
-        @media (max-width: 900px) { .review-grid { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 560px) { .review-grid { grid-template-columns: 1fr; } }
-      `}</style>
+      {/* Photo fullscreen popup */}
+      {photoPopup && (
+        <div
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:'12px', padding:'1rem' }}
+          onClick={() => setPhotoPopup(null)}
+        >
+          <div style={{ color:'rgba(255,255,255,0.5)', fontSize:'11px', textTransform:'uppercase', letterSpacing:'0.08em' }}>Tap anywhere to close</div>
+          <div style={{ position:'relative' }} onClick={e => e.stopPropagation()}>
+            <img
+              src={photoPopup.url}
+              alt={photoPopup.label}
+              style={{ width:'min(90vw,560px)', maxHeight:'60vh', objectFit:'contain', borderRadius:'12px' }}
+            />
+            <button onClick={() => setPhotoPopup(null)} style={{ position:'absolute', top:'-12px', right:'-12px', width:'28px', height:'28px', borderRadius:'50%', background:'#dc2626', border:'none', color:'white', fontSize:'14px', cursor:'pointer', fontWeight:700 }}>✕</button>
+          </div>
+          <div style={{ background:'rgba(255,255,255,0.1)', borderRadius:'12px', padding:'12px 20px', color:'white', fontSize:'12px', textAlign:'center', width:'min(90vw,480px)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily:'monospace', fontSize:'13px', fontWeight:600, color:'#97BC62', marginBottom:'4px' }}>{photoPopup.treeId}</div>
+            <div style={{ opacity:0.8, marginBottom:'8px' }}>{photoPopup.label}</div>
+            {photoPopup.health !== null && (
+              <div style={{ marginBottom:'8px', fontWeight:600, color:'#97BC62' }}>Health score: {photoPopup.health}/100</div>
+            )}
+            {photoPopup.lat && photoPopup.lng && (
+              <div style={{ fontFamily:'monospace', fontSize:'11px', opacity:0.6, marginBottom:'10px' }}>📍 {photoPopup.lat.toFixed(5)}, {photoPopup.lng.toFixed(5)}</div>
+            )}
+            <div style={{ display:'flex', gap:'8px', justifyContent:'center' }}>
+              <button
+                onClick={() => { const item = items.find(i => i.trees?.tree_id === photoPopup.treeId); if(item) handleDecision(item.id, true) }}
+                style={{ padding:'8px 20px', background:'#2C5F2D', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}
+              >✓ Approve</button>
+              <button
+                onClick={() => { const item = items.find(i => i.trees?.tree_id === photoPopup.treeId); if(item) handleDecision(item.id, false) }}
+                style={{ padding:'8px 20px', background:'transparent', color:'#fca5a5', border:'1px solid #fca5a5', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}
+              >✕ Reject</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
+
+  function CheckBadge({ pass, label }: { pass: boolean | null; label: string }) {
+    const bg   = pass === true ? '#dcfce7' : pass === false ? '#fee2e2' : '#f3f4f6'
+    const text = pass === true ? '#166534' : pass === false ? '#991b1b' : '#6b7280'
+    const icon = pass === true ? '✅' : pass === false ? '❌' : '⏳'
+    return (
+      <div style={{ background:bg, borderRadius:6, padding:'5px 8px', textAlign:'center', fontSize:'11px', color:text, fontWeight:500 }}>
+        {icon} {label}
+      </div>
+    )
+  }
 }
