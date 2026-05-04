@@ -136,7 +136,7 @@ setTreeId(treeData?.tree_id || '')
 
       // Insert tree_update
       const { error: updateErr } = await supabase.from('tree_updates').insert({
-        tree_id:          task?.trees?.id,
+        tree_id:          task?.trees?.id || null,
         worker_id:        worker?.id,
         before_photo_url: beforeUrl,
         after_photo_url:  afterUrl,
