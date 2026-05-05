@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Map, { Marker, Popup, NavigationControl } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { supabase } from "@/lib/supabase";
@@ -14,12 +14,13 @@ const MAP_STYLES: Record<MapStyle, string> = {
 };
 
 export default function MyTreeClient() {
-  const router = useRouter();
-  const [mapStyle, setMapStyle] = useState<MapStyle>("light");
-  const [popup,    setPopup]    = useState<any>(null);
-  const [copied,   setCopied]   = useState(false);
-  const [loading,  setLoading]  = useState(true);
-  const [uploading, setUploading] = useState(false);
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const [mapStyle,   setMapStyle]   = useState<MapStyle>("light");
+  const [popup,      setPopup]      = useState<any>(null);
+  const [copied,     setCopied]     = useState(false);
+  const [loading,    setLoading]    = useState(true);
+  const [uploading,  setUploading]  = useState(false);
   const certRef  = useRef<HTMLDivElement>(null);
   const photoRef = useRef<HTMLInputElement>(null);
 
@@ -33,18 +34,67 @@ export default function MyTreeClient() {
   // Map popup state
   const [mapPopup, setMapPopup] = useState<{ lat: number; lng: number; tree: DonorTree } | null>(null);
 
+  // ── ADMIN VIEW STATE ──
+  const [isAdminView,      setIsAdminView]      = useState(false);
+  const [adminViewDonorName, setAdminViewDonorName] = useState('');
+
   useEffect(() => { init() }, []);
 
+  // ── MODIFIED INIT — supports admin bypass via ?donor_id=X&admin_view=true ──
   async function init() {
     setLoading(true);
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { window.location.replace('/my-tree/login'); return; }
-    const { donor, myTrees, occasionTimeline } = await getDonorData(session.user.email!);
-    if (!donor) { window.location.replace('/my-tree/login'); return; }
-    setDonor(donor);
-    setMyTrees(myTrees);
-    setTimeline(occasionTimeline);
-    setPhotoUrl(donor.photo_url);
+
+    const donorId  = searchParams.get('donor_id');
+    const adminView = searchParams.get('admin_view') === 'true';
+
+    if (donorId && adminView) {
+      // ── ADMIN BYPASS FLOW ──
+      // 1. Verify the current session user is an ADMIN
+      const { data: currentUser } = await supabase
+        .from('users')
+        .select('role')
+        .eq('email', session.user.email)
+        .single();
+
+      if (currentUser?.role !== 'ADMIN') {
+        // Not an admin — block access
+        window.location.replace('/my-tree/login');
+        return;
+      }
+
+      // 2. Fetch the donor email from donors table using donor_id
+      const { data: donorRow } = await supabase
+        .from('donors')
+        .select('email, name')
+        .eq('id', donorId)
+        .single();
+
+      if (!donorRow) { window.location.replace('/admin/donors'); return; }
+
+      // 3. Load donor data using their email (Option B — no change to getDonorData)
+      const { donor, myTrees, occasionTimeline } = await getDonorData(donorRow.email);
+      if (!donor) { window.location.replace('/admin/donors'); return; }
+
+      setIsAdminView(true);
+      setAdminViewDonorName(donorRow.name);
+      setDonor(donor);
+      setMyTrees(myTrees);
+      setTimeline(occasionTimeline);
+      setPhotoUrl(donor.photo_url);
+
+    } else {
+      // ── NORMAL DONOR FLOW (unchanged) ──
+      const { donor, myTrees, occasionTimeline } = await getDonorData(session.user.email!);
+      if (!donor) { window.location.replace('/my-tree/login'); return; }
+      setDonor(donor);
+      setMyTrees(myTrees);
+      setTimeline(occasionTimeline);
+      setPhotoUrl(donor.photo_url);
+    }
+
     setLoading(false);
   }
 
@@ -259,10 +309,8 @@ export default function MyTreeClient() {
         .btn-outline-w{background:transparent;color:#fff;font-weight:600;font-size:.88rem;padding:.7rem 1.75rem;border-radius:999px;border:2px solid rgba(255,255,255,.4);cursor:pointer;text-decoration:none;display:inline-block;}
         .donor-avatar{width:56px;height:56px;border-radius:50%;border:3px solid rgba(151,188,98,0.5);object-fit:cover;cursor:pointer;flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#2C5F2D;color:#97BC62;font-size:1.25rem;font-weight:700;font-family:var(--font-display);}
         .donor-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
-        /* Photo popup overlay */
         .photo-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:1000;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:1rem;}
         .photo-overlay-img{width:min(90vw,480px);aspect-ratio:4/3;border-radius:16px;object-fit:cover;position:relative;}
-        /* Map popup overlay */
         .map-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem;}
         .map-card{width:min(90vw,360px);background:white;border-radius:20px;overflow:hidden;}
         .map-fake{height:160px;background:linear-gradient(135deg,#1a3c34,#2c5f2d,#52b788);position:relative;display:flex;align-items:center;justify-content:center;}
@@ -276,14 +324,46 @@ export default function MyTreeClient() {
 
       <main className="mt-page">
 
+        {/* ── ADMIN BANNER — shown only when admin is viewing a donor ── */}
+        {isAdminView && (
+          <div style={{
+            background: '#1A3C34',
+            borderBottom: '3px solid #97BC62',
+            padding: '0.75rem 1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '1rem',
+            flexWrap: 'wrap',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '18px' }}>👁</span>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#97BC62' }}>
+                  Admin View — {adminViewDonorName}
+                </div>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>
+                  {donor.email} · {donor.total_trees} trees · Read-only
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => window.close()}
+              style={{ padding: '6px 14px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', color: 'white', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+            >
+              ← Close Tab
+            </button>
+          </div>
+        )}
+
         {/* HERO */}
         <section className="mt-hero">
           <div className="mt-hero__inner">
             <div className="mt-hero__left">
-              <div className="donor-avatar" onClick={() => photoRef.current?.click()} title="Click to update photo">
+              <div className="donor-avatar" onClick={() => !isAdminView && photoRef.current?.click()} title={isAdminView ? donor.name : "Click to update photo"}>
                 {photoUrl ? <img src={photoUrl} alt={donor.first_name} /> : donor.first_name[0].toUpperCase()}
               </div>
-              <input ref={photoRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display:'none' }} />
+              {!isAdminView && <input ref={photoRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display:'none' }} />}
               <div className="mt-hero__text">
                 <div className="mt-hero__eyebrow">
                   <span className="live-dot" /> My EcoTree Dashboard
@@ -295,7 +375,9 @@ export default function MyTreeClient() {
                   <span>🪪 <strong>{donor.id}</strong></span>
                   <span>📅 Member since <strong>{donor.since}</strong></span>
                   <span>📍 <strong>{donor.location}</strong></span>
-                  <span onClick={handleLogout} style={{ cursor:'pointer', color:'rgba(255,255,255,0.4)', marginLeft:'1rem' }}>Sign out</span>
+                  {!isAdminView && (
+                    <span onClick={handleLogout} style={{ cursor:'pointer', color:'rgba(255,255,255,0.4)', marginLeft:'1rem' }}>Sign out</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -373,13 +455,12 @@ export default function MyTreeClient() {
               <div style={{ textAlign:'center', padding:'3rem', color:'#6B7280' }}>
                 <div style={{ fontSize:'3rem', marginBottom:'0.75rem' }}>🌱</div>
                 <div style={{ fontSize:'16px', fontWeight:600 }}>No trees yet</div>
-                <a href="/donate" style={{ color:'#2C5F2D', fontWeight:600 }}>Plant your first tree →</a>
+                {!isAdminView && <a href="/donate" style={{ color:'#2C5F2D', fontWeight:600 }}>Plant your first tree →</a>}
               </div>
             ) : (
               <div className="tree-grid">
                 {myTrees.map(t => (
                   <div key={t.id} className="tree-card">
-                    {/* Species + name */}
                     <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'8px' }}>
                       <span style={{ fontSize:'1.5rem' }}>{SPECIES_EMOJI[t.species]||'🌱'}</span>
                       <div>
@@ -387,32 +468,20 @@ export default function MyTreeClient() {
                         <div style={{ fontSize:'11px', fontFamily:'monospace', color:'#97BC62' }}>{t.tree_id}</div>
                       </div>
                     </div>
-
-                    {/* Before + After photos — Option A compact */}
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'5px', marginBottom:'8px' }}>
-                      {/* Before */}
-                      <div
-                        className="photo-thumb"
-                        style={{ height:'72px', background: t.before_photo_url ? `url(${t.before_photo_url}) center/cover` : 'linear-gradient(135deg,#374151,#6b7280)' }}
-                        onClick={() => t.before_photo_url && setPhotoPopup({ url: t.before_photo_url, label: `Before planting · ${t.species}`, treeId: t.tree_id })}
-                      >
+                      <div className="photo-thumb" style={{ height:'72px', background: t.before_photo_url ? `url(${t.before_photo_url}) center/cover` : 'linear-gradient(135deg,#374151,#6b7280)' }}
+                        onClick={() => t.before_photo_url && setPhotoPopup({ url: t.before_photo_url, label: `Before planting · ${t.species}`, treeId: t.tree_id })}>
                         {!t.before_photo_url && '🏗️'}
                         <div className="lbl">Before</div>
                         {t.before_photo_url && <div className="zoom">🔍</div>}
                       </div>
-                      {/* After */}
-                      <div
-                        className="photo-thumb"
-                        style={{ height:'72px', background: t.after_photo_url ? `url(${t.after_photo_url}) center/cover` : 'linear-gradient(135deg,#2d6a4f,#52b788)' }}
-                        onClick={() => t.after_photo_url && setPhotoPopup({ url: t.after_photo_url, label: `After planting · ${t.species}`, treeId: t.tree_id })}
-                      >
+                      <div className="photo-thumb" style={{ height:'72px', background: t.after_photo_url ? `url(${t.after_photo_url}) center/cover` : 'linear-gradient(135deg,#2d6a4f,#52b788)' }}
+                        onClick={() => t.after_photo_url && setPhotoPopup({ url: t.after_photo_url, label: `After planting · ${t.species}`, treeId: t.tree_id })}>
                         {!t.after_photo_url && '🌳'}
                         <div className="lbl">After</div>
                         {t.after_photo_url && <div className="zoom">🔍</div>}
                       </div>
                     </div>
-
-                    {/* Zone + health */}
                     <div style={{ fontSize:'12px', color:'#6B7280', marginBottom:'5px' }}>📍 {t.zone}</div>
                     <div style={{ background:'#f3f4f6', borderRadius:'999px', height:'5px', overflow:'hidden', marginBottom:'4px' }}>
                       <div style={{ width:`${t.health}%`, height:'100%', background:HEALTH_COLOR(t.health), borderRadius:'999px' }} />
@@ -420,8 +489,6 @@ export default function MyTreeClient() {
                     <div style={{ fontSize:'11px', fontWeight:600, color:HEALTH_COLOR(t.health), marginBottom:'6px' }}>
                       Health {t.health}% {t.health>=85?"🟢":t.health>=70?"🟡":"🔴"}
                     </div>
-
-                    {/* GPS clickable */}
                     {t.lat && t.lng && (
                       <button className="gps-btn" onClick={() => setMapPopup({ lat: t.lat!, lng: t.lng!, tree: t })}>
                         <span style={{ fontSize:'12px' }}>📍</span>
@@ -431,11 +498,8 @@ export default function MyTreeClient() {
                         <span style={{ marginLeft:'auto', fontSize:'10px', color:'#2C5F2D' }}>Map →</span>
                       </button>
                     )}
-
                     <div className="tree-card__occasion">{getOccasionIcon(t.occasion)} {t.occasion}</div>
                     <div className="tree-card__date">Planted {t.planted}</div>
-
-                    {/* QR + profile link */}
                     {t.qr_code_url && (
                       <div style={{ marginTop:'8px', textAlign:'center' }}>
                         <a href={`/tree/${t.tree_id}`} target="_blank" rel="noopener noreferrer" style={{ fontSize:'11px', color:'#2C5F2D', fontWeight:600, textDecoration:'none' }}>
@@ -505,79 +569,79 @@ export default function MyTreeClient() {
           </div>
         </section>
 
-        {/* SOCIAL SHARE */}
-        <section className="mt-section mt-section--white">
-          <div className="mt-inner">
-            <p className="mt-eyebrow">Share Your Impact</p>
-            <h2 className="mt-h2">Inspire others to plant</h2>
-            <div className="share-card">
-              <div className="share-card__preview">
-                <div className="share-card__text">🌳 I&apos;ve planted {donor.total_trees} trees with EcoTree Impact Foundation!<br />🌿 {donor.co2_kg} kg CO₂ offset · Growing in Bangalore<br />💚 Join me: ecotrees.org/ref/{donor.referral_code}</div>
-                <div className="share-card__hashtags">#EcoTree #PlantATree #Bangalore #GreenIndia #ClimateAction</div>
-              </div>
-              <div className="share-btns">
-                <button className="btn-whatsapp" onClick={shareWhatsApp}>💬 Share on WhatsApp</button>
-                <button className="btn-instagram" onClick={copyInstagram}>📸 Copy for Instagram</button>
+        {/* SOCIAL SHARE — hidden in admin view */}
+        {!isAdminView && (
+          <section className="mt-section mt-section--white">
+            <div className="mt-inner">
+              <p className="mt-eyebrow">Share Your Impact</p>
+              <h2 className="mt-h2">Inspire others to plant</h2>
+              <div className="share-card">
+                <div className="share-card__preview">
+                  <div className="share-card__text">🌳 I&apos;ve planted {donor.total_trees} trees with EcoTree Impact Foundation!<br />🌿 {donor.co2_kg} kg CO₂ offset · Growing in Bangalore<br />💚 Join me: ecotrees.org/ref/{donor.referral_code}</div>
+                  <div className="share-card__hashtags">#EcoTree #PlantATree #Bangalore #GreenIndia #ClimateAction</div>
+                </div>
+                <div className="share-btns">
+                  <button className="btn-whatsapp" onClick={shareWhatsApp}>💬 Share on WhatsApp</button>
+                  <button className="btn-instagram" onClick={copyInstagram}>📸 Copy for Instagram</button>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
-        {/* PLANT MORE */}
-        <section className="mt-section mt-section--cream">
-          <div className="mt-inner">
-            <p className="mt-eyebrow">Grow Your Forest</p>
-            <h2 className="mt-h2">Add more trees</h2>
-            <div style={{ display:'flex', gap:'.75rem', flexWrap:'wrap', marginBottom:'2rem' }}>
-              {[{icon:'🎂',label:'Birthday'},{icon:'💍',label:'Anniversary'},{icon:'🙏',label:'Memorial'},{icon:'🪔',label:'Diwali'},{icon:'🎆',label:'New Year'},{icon:'🌍',label:'Earth Day'},{icon:'🏢',label:'Corporate'},{icon:'🎁',label:'Gift a Tree'}].map(o => (
-                <a key={o.label} href="/donate" className="occasion-chip">{o.icon} {o.label}</a>
-              ))}
-            </div>
-            <div className="plant-cta">
-              <h3>Your forest is at {donor.total_trees} trees — keep growing 🌱</h3>
-              <p>Every tree you add appears on your personal map and updates your certificate automatically.</p>
-              <div className="plant-cta__btns">
-                <a href="/donate" className="btn-white">🌳 Plant More Trees</a>
-                <a href="/dashboard" className="btn-outline-w">📊 Public Dashboard</a>
+        {/* PLANT MORE — hidden in admin view */}
+        {!isAdminView && (
+          <section className="mt-section mt-section--cream">
+            <div className="mt-inner">
+              <p className="mt-eyebrow">Grow Your Forest</p>
+              <h2 className="mt-h2">Add more trees</h2>
+              <div style={{ display:'flex', gap:'.75rem', flexWrap:'wrap', marginBottom:'2rem' }}>
+                {[{icon:'🎂',label:'Birthday'},{icon:'💍',label:'Anniversary'},{icon:'🙏',label:'Memorial'},{icon:'🪔',label:'Diwali'},{icon:'🎆',label:'New Year'},{icon:'🌍',label:'Earth Day'},{icon:'🏢',label:'Corporate'},{icon:'🎁',label:'Gift a Tree'}].map(o => (
+                  <a key={o.label} href="/donate" className="occasion-chip">{o.icon} {o.label}</a>
+                ))}
+              </div>
+              <div className="plant-cta">
+                <h3>Your forest is at {donor.total_trees} trees — keep growing 🌱</h3>
+                <p>Every tree you add appears on your personal map and updates your certificate automatically.</p>
+                <div className="plant-cta__btns">
+                  <a href="/donate" className="btn-white">🌳 Plant More Trees</a>
+                  <a href="/dashboard" className="btn-outline-w">📊 Public Dashboard</a>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
-        {/* REFER */}
-        <section className="mt-section mt-section--dark">
-          <div className="mt-inner">
-            <p className="mt-eyebrow" style={{ color:'var(--clr-moss)' }}>Referral Programme</p>
-            <h2 className="mt-h2 mt-h2--light">Every friend you refer plants a tree</h2>
-            <div className="referral-box">
-              <div>
-                <div style={{ fontSize:'.75rem', color:'rgba(255,255,255,.4)', marginBottom:'.35rem', fontWeight:600, textTransform:'uppercase' }}>Your referral link</div>
-                <div className="referral-link">ecotrees.org/ref/{donor.referral_code}</div>
-              </div>
-              <div style={{ display:'flex', gap:'.75rem', flexWrap:'wrap' }}>
-                <button className={`btn-copy${copied?" copied":""}`} onClick={copyReferral}>{copied?"✅ Copied!":"📋 Copy Link"}</button>
-                <button className="btn-whatsapp" onClick={() => { const text = encodeURIComponent(`🌳 Join me on EcoTree!\nhttps://ecotrees.org/ref/${donor.referral_code}`); window.open(`https://wa.me/?text=${text}`,"_blank"); }}>💬 Share</button>
+        {/* REFER — hidden in admin view */}
+        {!isAdminView && (
+          <section className="mt-section mt-section--dark">
+            <div className="mt-inner">
+              <p className="mt-eyebrow" style={{ color:'var(--clr-moss)' }}>Referral Programme</p>
+              <h2 className="mt-h2 mt-h2--light">Every friend you refer plants a tree</h2>
+              <div className="referral-box">
+                <div>
+                  <div style={{ fontSize:'.75rem', color:'rgba(255,255,255,.4)', marginBottom:'.35rem', fontWeight:600, textTransform:'uppercase' }}>Your referral link</div>
+                  <div className="referral-link">ecotrees.org/ref/{donor.referral_code}</div>
+                </div>
+                <div style={{ display:'flex', gap:'.75rem', flexWrap:'wrap' }}>
+                  <button className={`btn-copy${copied?" copied":""}`} onClick={copyReferral}>{copied?"✅ Copied!":"📋 Copy Link"}</button>
+                  <button className="btn-whatsapp" onClick={() => { const text = encodeURIComponent(`🌳 Join me on EcoTree!\nhttps://ecotrees.org/ref/${donor.referral_code}`); window.open(`https://wa.me/?text=${text}`,"_blank"); }}>💬 Share</button>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
       </main>
 
-      {/* ── PHOTO FULLSCREEN POPUP ── */}
+      {/* PHOTO FULLSCREEN POPUP */}
       {photoPopup && (
         <div className="photo-overlay" onClick={() => setPhotoPopup(null)}>
           <div style={{ color:'rgba(255,255,255,0.5)', fontSize:'11px', textTransform:'uppercase', letterSpacing:'0.08em' }}>Tap anywhere to close</div>
           <div style={{ position:'relative' }} onClick={e => e.stopPropagation()}>
-            <img
-              src={photoPopup.url}
-              alt={photoPopup.label}
-              className="photo-overlay-img"
-            />
-            <button
-              onClick={() => setPhotoPopup(null)}
-              style={{ position:'absolute', top:'-12px', right:'-12px', width:'28px', height:'28px', borderRadius:'50%', background:'#dc2626', border:'none', color:'white', fontSize:'14px', cursor:'pointer', fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center' }}
-            >✕</button>
+            <img src={photoPopup.url} alt={photoPopup.label} className="photo-overlay-img" />
+            <button onClick={() => setPhotoPopup(null)}
+              style={{ position:'absolute', top:'-12px', right:'-12px', width:'28px', height:'28px', borderRadius:'50%', background:'#dc2626', border:'none', color:'white', fontSize:'14px', cursor:'pointer', fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
           </div>
           <div style={{ background:'rgba(255,255,255,0.1)', borderRadius:'12px', padding:'10px 16px', color:'white', fontSize:'12px', textAlign:'center', width:'min(90vw,400px)' }}>
             <div style={{ fontWeight:600, color:'#97BC62', marginBottom:'4px' }}>{photoPopup.label}</div>
@@ -586,21 +650,18 @@ export default function MyTreeClient() {
         </div>
       )}
 
-      {/* ── MAP POPUP ── */}
+      {/* MAP POPUP */}
       {mapPopup && (
         <div className="map-overlay" onClick={() => setMapPopup(null)}>
           <div className="map-card" onClick={e => e.stopPropagation()}>
-            {/* Fake satellite map with pin */}
             <div className="map-fake">
               <svg width="100%" height="100%" style={{ position:'absolute', opacity:0.15 }}>
                 <defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0L0 0 0 20" fill="none" stroke="white" strokeWidth="0.5"/></pattern></defs>
                 <rect width="100%" height="100%" fill="url(#grid)"/>
               </svg>
-              {/* Pin */}
               <div style={{ width:34, height:34, background:'#2C5F2D', borderRadius:'50% 50% 50% 0', transform:'rotate(-45deg)', border:'3px solid white', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 3px 10px rgba(0,0,0,0.3)' }}>
                 <span style={{ transform:'rotate(45deg)', fontSize:15 }}>🌳</span>
               </div>
-              {/* Tree photo thumbnail */}
               {mapPopup.tree.after_photo_url && (
                 <div style={{ position:'absolute', top:8, right:8, width:52, height:52, borderRadius:8, border:'2px solid white', overflow:'hidden', boxShadow:'0 2px 8px rgba(0,0,0,0.3)' }}>
                   <img src={mapPopup.tree.after_photo_url} alt="tree" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
@@ -608,7 +669,6 @@ export default function MyTreeClient() {
               )}
               <div style={{ position:'absolute', bottom:6, left:8, fontSize:'10px', color:'rgba(255,255,255,0.6)', background:'rgba(0,0,0,0.3)', padding:'2px 6px', borderRadius:4 }}>🛰️ Satellite view</div>
             </div>
-            {/* Info */}
             <div style={{ padding:'1rem' }}>
               <div style={{ fontSize:'14px', fontWeight:600, color:'#1A1A1A', marginBottom:'4px' }}>
                 {SPECIES_EMOJI[mapPopup.tree.species]||'🌳'} {mapPopup.tree.species} · {mapPopup.tree.zone}
@@ -616,12 +676,8 @@ export default function MyTreeClient() {
               <div style={{ fontFamily:'monospace', fontSize:'11px', color:'#2C5F2D', fontWeight:600, background:'#f0fdf4', padding:'6px 10px', borderRadius:6, marginBottom:'12px' }}>
                 {mapPopup.lat.toFixed(6)}° N, {mapPopup.lng.toFixed(6)}° E
               </div>
-              <a
-                href={`https://maps.google.com/?q=${mapPopup.lat},${mapPopup.lng}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ display:'block', width:'100%', padding:'10px', background:'#2C5F2D', color:'white', borderRadius:8, fontSize:'13px', fontWeight:600, textDecoration:'none', textAlign:'center', marginBottom:8 }}
-              >
+              <a href={`https://maps.google.com/?q=${mapPopup.lat},${mapPopup.lng}`} target="_blank" rel="noopener noreferrer"
+                style={{ display:'block', width:'100%', padding:'10px', background:'#2C5F2D', color:'white', borderRadius:8, fontSize:'13px', fontWeight:600, textDecoration:'none', textAlign:'center', marginBottom:8 }}>
                 🗺️ Open in Google Maps
               </a>
               <button onClick={() => setMapPopup(null)} style={{ width:'100%', padding:'8px', background:'transparent', color:'#6B7280', border:'1px solid #e5e7eb', borderRadius:8, fontSize:'13px', cursor:'pointer' }}>
