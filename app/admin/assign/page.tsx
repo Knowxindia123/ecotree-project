@@ -112,7 +112,7 @@ export default function AdminAssign() {
     }
     const { data: tree, error: treeError } = await supabase.from('trees').insert({
       tree_id:   treeId,
-      donor_id:  donorId || 1,
+      donor_id:  donorId || null,
       site_id:   Number(form.site_id),
       worker_id: Number(form.worker_id),
       tree_type: treeType?.label || form.tree_type,
