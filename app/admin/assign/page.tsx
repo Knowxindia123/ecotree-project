@@ -4,13 +4,14 @@ import { supabase } from '@/lib/supabase'
 
 const SPECIES = ['Neem','Peepal','Mango','Jamun','Guava','Rain Tree','Banyan','Gulmohar','Custom tree']
 const TREE_TYPES = [
-  { id: 'common',  label: 'Common Species',    price: 100 },
-  { id: 'fruit',   label: 'Fruit Trees',       price: 250 },
+  { id: 'common',  label: 'Common Species',     price: 100 },
+  { id: 'fruit',   label: 'Fruit Trees',        price: 250 },
   { id: 'native',  label: 'Native Large Trees', price: 500 },
 ]
 
 interface Worker { id: number; name: string }
 interface Site   { id: number; name: string }
+interface Donor  { id: number; name: string; email: string }
 interface Assignment {
   id: number
   assigned_at: string
@@ -23,6 +24,7 @@ interface Assignment {
 export default function AdminAssign() {
   const [workers,     setWorkers]     = useState<Worker[]>([])
   const [sites,       setSites]       = useState<Site[]>([])
+  const [donors,      setDonors]      = useState<Donor[]>([])   // ← NEW
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [loading,     setLoading]     = useState(true)
   const [saving,      setSaving]      = useState(false)
@@ -35,22 +37,24 @@ export default function AdminAssign() {
     latitude: '', longitude: ''
   })
   const [form, setForm] = useState({
-    worker_id:'', site_id:'', species:'Neem', tree_type:'common',
-    due_date:'', notes:'', donor_name:'', donor_email:'',
+    worker_id: '', site_id: '', species: 'Neem', tree_type: 'common',
+    due_date: '', notes: '', donor_id: '',   // ← donor_id replaces donor_name/email
   })
 
   useEffect(() => {
     Promise.all([
       supabase.from('users').select('id, name').eq('role', 'WORKER').eq('is_active', true).order('name'),
       supabase.from('sites').select('id, name').eq('is_active', true).order('name'),
+      supabase.from('donors').select('id, name, email').order('name'),   // ← NEW
       supabase.from('assignments')
         .select('id, assigned_at, status, trees(tree_id, species), users(name), sites(name)')
         .eq('status', 'ASSIGNED')
         .order('assigned_at', { ascending: false })
         .limit(10)
-    ]).then(([w, s, a]) => {
+    ]).then(([w, s, d, a]) => {
       setWorkers(w.data || [])
       setSites(s.data || [])
+      setDonors(d.data || [])   // ← NEW
       setAssignments((a.data as unknown as Assignment[]) || [])
       setLoading(false)
     })
@@ -62,7 +66,7 @@ export default function AdminAssign() {
       name:        newSite.name,
       description: newSite.description || null,
       city:        newSite.city,
-      latitude:    newSite.latitude ? Number(newSite.latitude) : null,
+      latitude:    newSite.latitude  ? Number(newSite.latitude)  : null,
       longitude:   newSite.longitude ? Number(newSite.longitude) : null,
       is_active:   true,
     }).select('id, name').single()
@@ -98,28 +102,25 @@ export default function AdminAssign() {
     setSaving(true)
     setError('')
     setSuccess('')
+
     const treeId   = `ET-BLR-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`
     const treeType = TREE_TYPES.find(t => t.id === form.tree_type)
-    let donorId = null
-    if (form.donor_email) {
-      const { data: existingDonor } = await supabase.from('donors').select('id').eq('email', form.donor_email).single()
-      if (existingDonor) {
-        donorId = existingDonor.id
-      } else {
-        const { data: newDonor } = await supabase.from('donors').insert({ name: form.donor_name || 'TBD', email: form.donor_email }).select('id').single()
-        donorId = newDonor?.id
-      }
-    }
+
+    // ── donor_id comes directly from dropdown selection ──
+    const donorId = form.donor_id ? Number(form.donor_id) : null
+
     const { data: tree, error: treeError } = await supabase.from('trees').insert({
       tree_id:   treeId,
-      donor_id:  donorId || null,
+      donor_id:  donorId,
       site_id:   Number(form.site_id),
       worker_id: Number(form.worker_id),
       tree_type: treeType?.label || form.tree_type,
       species:   form.species,
       status:    'ASSIGNED',
     }).select('id').single()
+
     if (treeError) { setError(treeError.message); setSaving(false); return }
+
     const { error: assignError } = await supabase.from('assignments').insert({
       tree_id:   tree.id,
       worker_id: Number(form.worker_id),
@@ -128,9 +129,14 @@ export default function AdminAssign() {
       due_date:  form.due_date || null,
       notes:     form.notes    || null,
     })
+
     if (assignError) { setError(assignError.message); setSaving(false); return }
-    setSuccess(`Tree ${treeId} assigned successfully!`)
-    setForm({ worker_id:'', site_id:'', species:'Neem', tree_type:'common', due_date:'', notes:'', donor_name:'', donor_email:'' })
+
+    // Show which donor this was linked to
+    const selectedDonor = donors.find(d => d.id === donorId)
+    setSuccess(`Tree ${treeId} assigned successfully!${selectedDonor ? ` Linked to ${selectedDonor.name}.` : ''}`)
+    setForm({ worker_id:'', site_id:'', species:'Neem', tree_type:'common', due_date:'', notes:'', donor_id:'' })
+
     const { data: newAssignments } = await supabase.from('assignments')
       .select('id, assigned_at, status, trees(tree_id, species), users(name), sites(name)')
       .eq('status', 'ASSIGNED').order('assigned_at', { ascending: false }).limit(10)
@@ -150,21 +156,26 @@ export default function AdminAssign() {
         <form onSubmit={handleAssign}>
           <div className="form-grid" style={{ marginBottom: '1rem' }}>
 
+            {/* Field worker */}
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Field worker *</label>
-              <select required value={form.worker_id} onChange={e => setForm({...form, worker_id: e.target.value})} style={{ width: '100%', padding: '0.6rem 0.85rem', border: '1.5px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', outline: 'none' }}>
+              <label style={{ display:'block', fontSize:'13px', fontWeight:500, color:'#374151', marginBottom:'6px' }}>Field worker *</label>
+              <select required value={form.worker_id} onChange={e => setForm({...form, worker_id: e.target.value})}
+                style={{ width:'100%', padding:'0.6rem 0.85rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'14px', outline:'none' }}>
                 <option value="">Select worker</option>
                 {workers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
             </div>
 
+            {/* Planting site */}
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Planting site *</label>
-              <select required value={form.site_id} onChange={e => setForm({...form, site_id: e.target.value})} style={{ width: '100%', padding: '0.6rem 0.85rem', border: '1.5px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', outline: 'none' }}>
+              <label style={{ display:'block', fontSize:'13px', fontWeight:500, color:'#374151', marginBottom:'6px' }}>Planting site *</label>
+              <select required value={form.site_id} onChange={e => setForm({...form, site_id: e.target.value})}
+                style={{ width:'100%', padding:'0.6rem 0.85rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'14px', outline:'none' }}>
                 <option value="">Select site</option>
                 {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
-              <button type="button" onClick={() => setShowSiteForm(!showSiteForm)} style={{ fontSize:'12px', color:'#2C5F2D', background:'none', border:'none', cursor:'pointer', marginTop:'6px', textDecoration:'underline' }}>
+              <button type="button" onClick={() => setShowSiteForm(!showSiteForm)}
+                style={{ fontSize:'12px', color:'#2C5F2D', background:'none', border:'none', cursor:'pointer', marginTop:'6px', textDecoration:'underline' }}>
                 + Create new site
               </button>
               {showSiteForm && (
@@ -223,66 +234,105 @@ export default function AdminAssign() {
               )}
             </div>
 
+            {/* Tree type */}
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Tree type *</label>
-              <select required value={form.tree_type} onChange={e => setForm({...form, tree_type: e.target.value})} style={{ width: '100%', padding: '0.6rem 0.85rem', border: '1.5px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', outline: 'none' }}>
+              <label style={{ display:'block', fontSize:'13px', fontWeight:500, color:'#374151', marginBottom:'6px' }}>Tree type *</label>
+              <select required value={form.tree_type} onChange={e => setForm({...form, tree_type: e.target.value})}
+                style={{ width:'100%', padding:'0.6rem 0.85rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'14px', outline:'none' }}>
                 {TREE_TYPES.map(t => <option key={t.id} value={t.id}>{t.label} — ₹{t.price}</option>)}
               </select>
             </div>
 
+            {/* Species */}
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Species *</label>
-              <select required value={form.species} onChange={e => setForm({...form, species: e.target.value})} style={{ width: '100%', padding: '0.6rem 0.85rem', border: '1.5px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', outline: 'none' }}>
+              <label style={{ display:'block', fontSize:'13px', fontWeight:500, color:'#374151', marginBottom:'6px' }}>Species *</label>
+              <select required value={form.species} onChange={e => setForm({...form, species: e.target.value})}
+                style={{ width:'100%', padding:'0.6rem 0.85rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'14px', outline:'none' }}>
                 {SPECIES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Due date</label>
-              <input type="date" value={form.due_date} onChange={e => setForm({...form, due_date: e.target.value})} style={{ width: '100%', padding: '0.6rem 0.85rem', border: '1.5px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', outline: 'none' }} />
+            {/* ── DONOR DROPDOWN — NEW ── */}
+            <div style={{ gridColumn: 'span 2' }}>
+              <label style={{ display:'block', fontSize:'13px', fontWeight:500, color:'#374151', marginBottom:'6px' }}>
+                Donor <span style={{ color:'#9ca3af', fontWeight:400 }}>(links tree to donor dashboard)</span>
+              </label>
+              <select
+                value={form.donor_id}
+                onChange={e => setForm({...form, donor_id: e.target.value})}
+                style={{ width:'100%', padding:'0.6rem 0.85rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'14px', outline:'none' }}
+              >
+                <option value="">— Select donor (optional) —</option>
+                {donors.map(d => (
+                  <option key={d.id} value={d.id}>
+                    {d.name} — {d.email}
+                  </option>
+                ))}
+              </select>
+              {form.donor_id && (
+                <div style={{ fontSize:'12px', color:'#166534', background:'#dcfce7', padding:'5px 10px', borderRadius:'6px', marginTop:'6px' }}>
+                  ✅ Tree will appear on this donor's my-tree dashboard after planting
+                </div>
+              )}
+              {!form.donor_id && (
+                <div style={{ fontSize:'12px', color:'#9ca3af', marginTop:'4px' }}>
+                  If not selected — tree won't appear on any donor dashboard
+                </div>
+              )}
             </div>
 
+            {/* Due date */}
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Notes</label>
-              <input type="text" placeholder="e.g. Plant near entrance" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} style={{ width: '100%', padding: '0.6rem 0.85rem', border: '1.5px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', outline: 'none' }} />
+              <label style={{ display:'block', fontSize:'13px', fontWeight:500, color:'#374151', marginBottom:'6px' }}>Due date</label>
+              <input type="date" value={form.due_date} onChange={e => setForm({...form, due_date: e.target.value})}
+                style={{ width:'100%', padding:'0.6rem 0.85rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'14px', outline:'none' }} />
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label style={{ display:'block', fontSize:'13px', fontWeight:500, color:'#374151', marginBottom:'6px' }}>Notes</label>
+              <input type="text" placeholder="e.g. Plant near entrance" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})}
+                style={{ width:'100%', padding:'0.6rem 0.85rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'14px', outline:'none' }} />
             </div>
 
           </div>
 
-          {error   && <div style={{ color: '#dc2626', fontSize: '13px', marginBottom: '0.75rem' }}>{error}</div>}
-          {success && <div style={{ color: '#16a34a', fontSize: '13px', marginBottom: '0.75rem' }}>{success}</div>}
+          {error   && <div style={{ color:'#dc2626', fontSize:'13px', marginBottom:'0.75rem' }}>{error}</div>}
+          {success && <div style={{ color:'#16a34a', fontSize:'13px', marginBottom:'0.75rem' }}>{success}</div>}
 
-          <button type="submit" disabled={saving} style={{ padding: '10px 24px', background: saving ? '#9ca3af' : '#2C5F2D', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}>
+          <button type="submit" disabled={saving}
+            style={{ padding:'10px 24px', background: saving ? '#9ca3af' : '#2C5F2D', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor: saving ? 'not-allowed' : 'pointer' }}>
             {saving ? 'Assigning...' : 'Assign tree →'}
           </button>
         </form>
       </div>
 
-      <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden' }}>
-        <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #e5e7eb' }}>
-          <span style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A' }}>Pending assignments</span>
+      {/* Pending assignments table */}
+      <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e5e7eb', overflow:'hidden' }}>
+        <div style={{ padding:'1rem 1.25rem', borderBottom:'1px solid #e5e7eb' }}>
+          <span style={{ fontSize:'14px', fontWeight:600, color:'#1A1A1A' }}>Pending assignments</span>
         </div>
         <div className="desk-table">
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse' }}>
             <thead>
-              <tr style={{ background: '#f9fafb' }}>
+              <tr style={{ background:'#f9fafb' }}>
                 {['Tree ID','Worker','Site','Species','Assigned','Status'].map(h => (
-                  <th key={h} style={{ padding: '10px 16px', fontSize: '12px', color: '#6B7280', fontWeight: 500, textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
+                  <th key={h} style={{ padding:'10px 16px', fontSize:'12px', color:'#6B7280', fontWeight:500, textAlign:'left', textTransform:'uppercase', letterSpacing:'0.04em' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {assignments.length === 0 ? (
-                <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af', fontSize: '14px' }}>No pending assignments</td></tr>
+                <tr><td colSpan={6} style={{ padding:'2rem', textAlign:'center', color:'#9ca3af', fontSize:'14px' }}>No pending assignments</td></tr>
               ) : assignments.map(a => (
-                <tr key={a.id} style={{ borderTop: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', fontFamily: 'monospace', color: '#1A1A1A' }}>{a.trees?.tree_id || '—'}</td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151' }}>{a.users?.name || '—'}</td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6B7280' }}>{a.sites?.name || '—'}</td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6B7280' }}>{a.trees?.species || '—'}</td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6B7280' }}>{new Date(a.assigned_at).toLocaleDateString('en-IN')}</td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <span style={{ background: '#fef3c7', color: '#92400e', fontSize: '12px', padding: '3px 8px', borderRadius: '6px', fontWeight: 500 }}>{a.status}</span>
+                <tr key={a.id} style={{ borderTop:'1px solid #f3f4f6' }}>
+                  <td style={{ padding:'12px 16px', fontSize:'13px', fontFamily:'monospace', color:'#1A1A1A' }}>{a.trees?.tree_id || '—'}</td>
+                  <td style={{ padding:'12px 16px', fontSize:'13px', color:'#374151' }}>{a.users?.name || '—'}</td>
+                  <td style={{ padding:'12px 16px', fontSize:'13px', color:'#6B7280' }}>{a.sites?.name || '—'}</td>
+                  <td style={{ padding:'12px 16px', fontSize:'13px', color:'#6B7280' }}>{a.trees?.species || '—'}</td>
+                  <td style={{ padding:'12px 16px', fontSize:'13px', color:'#6B7280' }}>{new Date(a.assigned_at).toLocaleDateString('en-IN')}</td>
+                  <td style={{ padding:'12px 16px' }}>
+                    <span style={{ background:'#fef3c7', color:'#92400e', fontSize:'12px', padding:'3px 8px', borderRadius:'6px', fontWeight:500 }}>{a.status}</span>
                   </td>
                 </tr>
               ))}
@@ -291,27 +341,27 @@ export default function AdminAssign() {
         </div>
         <div className="mob-cards">
           {assignments.map(a => (
-            <div key={a.id} style={{ padding: '1rem', borderTop: '1px solid #f3f4f6' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ fontSize: '13px', fontFamily: 'monospace', fontWeight: 500 }}>{a.trees?.tree_id || '—'}</span>
-                <span style={{ background: '#fef3c7', color: '#92400e', fontSize: '11px', padding: '2px 8px', borderRadius: '6px' }}>{a.status}</span>
+            <div key={a.id} style={{ padding:'1rem', borderTop:'1px solid #f3f4f6' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'6px' }}>
+                <span style={{ fontSize:'13px', fontFamily:'monospace', fontWeight:500 }}>{a.trees?.tree_id || '—'}</span>
+                <span style={{ background:'#fef3c7', color:'#92400e', fontSize:'11px', padding:'2px 8px', borderRadius:'6px' }}>{a.status}</span>
               </div>
-              <div style={{ fontSize: '13px', color: '#6B7280' }}>👷 {a.users?.name || '—'} · 📍 {a.sites?.name || '—'}</div>
-              <div style={{ fontSize: '13px', color: '#6B7280' }}>🌿 {a.trees?.species || '—'}</div>
+              <div style={{ fontSize:'13px', color:'#6B7280' }}>👷 {a.users?.name || '—'} · 📍 {a.sites?.name || '—'}</div>
+              <div style={{ fontSize:'13px', color:'#6B7280' }}>🌿 {a.trees?.species || '—'}</div>
             </div>
           ))}
-          {assignments.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af', fontSize: '14px' }}>No pending assignments</div>}
+          {assignments.length === 0 && <div style={{ padding:'2rem', textAlign:'center', color:'#9ca3af', fontSize:'14px' }}>No pending assignments</div>}
         </div>
       </div>
 
       <style>{`
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         .desk-table { display: block; }
-        .mob-cards { display: none; }
+        .mob-cards  { display: none; }
         @media (max-width: 768px) {
           .form-grid { grid-template-columns: 1fr; }
           .desk-table { display: none; }
-          .mob-cards { display: block; }
+          .mob-cards  { display: block; }
         }
         select:focus, input:focus { border-color: #2C5F2D !important; }
       `}</style>
