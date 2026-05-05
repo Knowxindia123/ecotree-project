@@ -11,7 +11,6 @@ const HEALTH_OPTIONS = [
   { id: 'damaged',     label: '⚠️ Damaged',      color: '#fef3c7', text: '#92400e' },
 ]
 
-// ── FIX 2: health text → numeric score ──
 const HEALTH_SCORE: Record<string, number> = {
   healthy:     85,
   needs_water: 60,
@@ -23,22 +22,23 @@ export default function FieldPlant() {
   const params = useParams()
   const assignmentId = params.id as string
 
-  const [step,          setStep]         = useState<Step>('before')
-  const [task,          setTask]         = useState<any>(null)
-  const [worker,        setWorker]       = useState<any>(null)
-  const [beforePhoto,   setBeforePhoto]  = useState<File | null>(null)
-  const [afterPhoto,    setAfterPhoto]   = useState<File | null>(null)
-  const [beforePreview, setBeforePreview] = useState('')
-  const [afterPreview,  setAfterPreview]  = useState('')
-  const [gps,           setGps]          = useState<{ lat: number; lng: number; source: 'exif' | 'manual' } | null>(null)
-  const [gpsLoading,    setGpsLoading]   = useState(false)
-  const [gpsError,      setGpsError]     = useState('')
-  const [health,        setHealth]       = useState('healthy')
-  const [notes,         setNotes]        = useState('')
-  const [treeId,        setTreeId]       = useState('')
-  const [error,         setError]        = useState('')
-  const [progress,      setProgress]     = useState(0)
-  const [exifData,      setExifData]     = useState<any>(null)
+  const [step,           setStep]          = useState<Step>('before')
+  const [task,           setTask]          = useState<any>(null)
+  const [worker,         setWorker]        = useState<any>(null)
+  const [beforePhoto,    setBeforePhoto]   = useState<File | null>(null)
+  const [afterPhoto,     setAfterPhoto]    = useState<File | null>(null)
+  const [beforePreview,  setBeforePreview] = useState('')
+  const [afterPreview,   setAfterPreview]  = useState('')
+  const [gps,            setGps]           = useState<{ lat: number; lng: number; source: 'exif' | 'manual' } | null>(null)
+  const [gpsLoading,     setGpsLoading]    = useState(false)
+  const [gpsError,       setGpsError]      = useState('')
+  const [health,         setHealth]        = useState('healthy')
+  const [notes,          setNotes]         = useState('')
+  const [treeId,         setTreeId]        = useState('')      // text id e.g. ET-BLR-2026-515536
+  const [treeNumericId,  setTreeNumericId] = useState<number | null>(null)  // ← FIX: numeric id stored at load time
+  const [error,          setError]         = useState('')
+  const [progress,       setProgress]      = useState(0)
+  const [exifData,       setExifData]      = useState<any>(null)
 
   const beforeRef = useRef<HTMLInputElement>(null)
   const afterRef  = useRef<HTMLInputElement>(null)
@@ -60,31 +60,28 @@ export default function FieldPlant() {
 
     const treeData = Array.isArray(assignment?.trees) ? assignment.trees[0] : assignment?.trees
     const siteData = Array.isArray(assignment?.sites) ? assignment.sites[0] : assignment?.sites
+
     setTask({ ...assignment, trees: treeData, sites: siteData })
     setTreeId(treeData?.tree_id || '')
+    setTreeNumericId(treeData?.id || null)  // ← FIX: store numeric id immediately at load time
   }
 
-  // ── FIX 1: EXIF GPS — properly returns GPS from both methods ──
+  // EXIF GPS extraction
   async function extractExifGPS(file: File): Promise<{ lat: number; lng: number } | null> {
     try {
       const exifr = (await import('exifr')).default
 
-      // Method 1: direct GPS extraction
       const gpsData = await exifr.gps(file).catch(() => null)
       if (gpsData?.latitude && gpsData?.longitude) {
         return { lat: gpsData.latitude, lng: gpsData.longitude }
       }
 
-      // Method 2: full EXIF parse fallback
       const fullExif = await exifr.parse(file, { gps: true, tiff: true }).catch(() => null)
       if (fullExif) {
         setExifData(fullExif)
-        // Check both possible GPS field names
         const lat = fullExif.latitude  || fullExif.GPSLatitude
         const lng = fullExif.longitude || fullExif.GPSLongitude
-        if (lat && lng) {
-          return { lat, lng }  // ← was returning null here before fix
-        }
+        if (lat && lng) return { lat, lng }
       }
 
       return null
@@ -127,8 +124,6 @@ export default function FieldPlant() {
     } else {
       setAfterPhoto(file)
       setAfterPreview(url)
-
-      // Try EXIF GPS extraction from after photo
       setGpsLoading(true)
       const exifGps = await extractExifGPS(file)
       if (exifGps) {
@@ -148,14 +143,19 @@ export default function FieldPlant() {
       setError('Both photos are required')
       return
     }
+
+    // ── SAFETY CHECK: tree numeric id must exist ──
+    if (!treeNumericId) {
+      setError('Tree data missing. Please go back to tasks and try again.')
+      return
+    }
+
     setStep('submitting')
     setError('')
 
     try {
-      const timestamp = Date.now()
-      const bucket    = 'tree-photos'
-
-      // ── FIX 2: compute health score from selection ──
+      const timestamp   = Date.now()
+      const bucket      = 'tree-photos'
       const healthScore = HEALTH_SCORE[health] ?? 80
 
       setProgress(20)
@@ -179,11 +179,9 @@ export default function FieldPlant() {
       const beforeUrl = supabase.storage.from(bucket).getPublicUrl(beforePath).data.publicUrl
       const afterUrl  = supabase.storage.from(bucket).getPublicUrl(afterPath).data.publicUrl
 
-      const treeRecord = Array.isArray(task?.trees) ? task.trees[0] : task?.trees
-
-      // ── FIX 2: insert tree_update with health score ──
-      await supabase.from('tree_updates').insert({
-        tree_id:          treeRecord?.id,
+      // ── FIX: use treeNumericId (stored at load time) not task?.trees?.id ──
+      const { error: insertErr } = await supabase.from('tree_updates').insert({
+        tree_id:          treeNumericId,
         worker_id:        worker?.id,
         before_photo_url: beforeUrl,
         after_photo_url:  afterUrl,
@@ -191,26 +189,28 @@ export default function FieldPlant() {
         latitude:         gps?.lat ?? null,
         longitude:        gps?.lng ?? null,
         notes:            `${health}${notes ? ' · ' + notes : ''}`,
-        ai_health_score:  healthScore,        // ← now saved
+        ai_health_score:  healthScore,
         is_verified:      false,
         verified_by:      'PENDING',
         update_date:      new Date().toISOString().split('T')[0],
         exif_data:        exifData || null,
       })
+      if (insertErr) throw insertErr
 
       setProgress(80)
 
-      // ── FIX 3: update trees with status PLANTED + GPS + health score ──
-      await supabase.from('trees').update({
-        status:              'PLANTED',        // ← was staying PENDING
+      // ── FIX: use treeNumericId for trees update too ──
+      const { error: updateErr } = await supabase.from('trees').update({
+        status:              'PLANTED',
         latitude:            gps?.lat ?? null,
         longitude:           gps?.lng ?? null,
         photo_url:           afterUrl,
         worker_id:           worker?.id,
         planting_date:       new Date().toISOString().split('T')[0],
-        latest_health_score: healthScore,      // ← now saved
+        latest_health_score: healthScore,
         latest_update_date:  new Date().toISOString().split('T')[0],
-      }).eq('id', treeRecord?.id)
+      }).eq('id', treeNumericId)
+      if (updateErr) throw updateErr
 
       // Save QR code
       const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`https://ecotrees.org/tree/${treeId}`)}`
@@ -305,7 +305,7 @@ export default function FieldPlant() {
     </Screen>
   )
 
-  // ── STEP: NOTES + GPS STATUS + SUBMIT ──
+  // ── STEP: NOTES + GPS + SUBMIT ──
   if (step === 'notes') return (
     <Screen title="Step 3 of 3" subtitle="Health check + submit" treeId={treeId} site={task?.sites?.name}>
       <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'1rem', padding:'1.25rem', overflowY:'auto' }}>
@@ -347,7 +347,7 @@ export default function FieldPlant() {
           </div>
         )}
 
-        {/* Health chips */}
+        {/* Health options */}
         <div>
           <div style={{ fontSize:'14px', fontWeight:500, color:'#374151', marginBottom:'10px' }}>Tree health condition</div>
           <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
@@ -356,9 +356,7 @@ export default function FieldPlant() {
                 style={{ padding:'0.875rem 1rem', background:health===opt.id?opt.color:'#f9fafb', border:`2px solid ${health===opt.id?opt.text:'#e5e7eb'}`, borderRadius:'12px', fontSize:'15px', fontWeight:health===opt.id?600:400, color:health===opt.id?opt.text:'#374151', cursor:'pointer', textAlign:'left' }}>
                 {opt.label}
                 {health === opt.id && (
-                  <span style={{ fontSize:'12px', marginLeft:'8px', opacity:0.8 }}>
-                    — Score: {HEALTH_SCORE[opt.id]}%
-                  </span>
+                  <span style={{ fontSize:'12px', marginLeft:'8px', opacity:0.8 }}>— Score: {HEALTH_SCORE[opt.id]}%</span>
                 )}
               </button>
             ))}
@@ -412,16 +410,14 @@ export default function FieldPlant() {
         </div>
       )}
 
-      {/* Health score summary */}
       <div style={{ fontSize:'13px', color:'rgba(255,255,255,0.6)', background:'rgba(255,255,255,0.08)', padding:'8px 16px', borderRadius:'8px' }}>
-        Health score saved: {HEALTH_SCORE[health]}% · {health.replace('_', ' ')}
+        Health score: {HEALTH_SCORE[health]}% · {health.replace('_', ' ')}
       </div>
 
       <div style={{ fontSize:'14px', color:'rgba(255,255,255,0.6)', maxWidth:'280px', lineHeight:1.6 }}>
         Photos uploaded. Admin will verify and donor will be notified.
       </div>
 
-      {/* QR Code */}
       <div style={{ background:'white', borderRadius:'16px', padding:'1.25rem', width:'100%', maxWidth:'280px', textAlign:'center' }}>
         <div style={{ fontSize:'13px', fontWeight:600, color:'#1A3C34', marginBottom:'8px' }}>🔗 Tree QR Code</div>
         <img
