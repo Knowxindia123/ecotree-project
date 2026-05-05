@@ -11,6 +11,13 @@ const HEALTH_OPTIONS = [
   { id: 'damaged',     label: '⚠️ Damaged',      color: '#fef3c7', text: '#92400e' },
 ]
 
+// ── FIX 2: health text → numeric score ──
+const HEALTH_SCORE: Record<string, number> = {
+  healthy:     85,
+  needs_water: 60,
+  damaged:     30,
+}
+
 export default function FieldPlant() {
   const router = useRouter()
   const params = useParams()
@@ -57,24 +64,36 @@ export default function FieldPlant() {
     setTreeId(treeData?.tree_id || '')
   }
 
-  // Extract GPS from photo EXIF
+  // ── FIX 1: EXIF GPS — properly returns GPS from both methods ──
   async function extractExifGPS(file: File): Promise<{ lat: number; lng: number } | null> {
     try {
       const exifr = (await import('exifr')).default
-      const gpsData = await exifr.gps(file)
+
+      // Method 1: direct GPS extraction
+      const gpsData = await exifr.gps(file).catch(() => null)
       if (gpsData?.latitude && gpsData?.longitude) {
         return { lat: gpsData.latitude, lng: gpsData.longitude }
       }
-      // Also try full EXIF for extra data storage
+
+      // Method 2: full EXIF parse fallback
       const fullExif = await exifr.parse(file, { gps: true, tiff: true }).catch(() => null)
-      setExifData(fullExif)
+      if (fullExif) {
+        setExifData(fullExif)
+        // Check both possible GPS field names
+        const lat = fullExif.latitude  || fullExif.GPSLatitude
+        const lng = fullExif.longitude || fullExif.GPSLongitude
+        if (lat && lng) {
+          return { lat, lng }  // ← was returning null here before fix
+        }
+      }
+
       return null
     } catch {
       return null
     }
   }
 
-  // Manual GPS capture fallback
+  // Manual GPS fallback
   function captureGPSManually() {
     setGpsLoading(true)
     setGpsError('')
@@ -136,6 +155,9 @@ export default function FieldPlant() {
       const timestamp = Date.now()
       const bucket    = 'tree-photos'
 
+      // ── FIX 2: compute health score from selection ──
+      const healthScore = HEALTH_SCORE[health] ?? 80
+
       setProgress(20)
 
       // Upload before photo
@@ -157,9 +179,11 @@ export default function FieldPlant() {
       const beforeUrl = supabase.storage.from(bucket).getPublicUrl(beforePath).data.publicUrl
       const afterUrl  = supabase.storage.from(bucket).getPublicUrl(afterPath).data.publicUrl
 
-      // Insert tree_update
+      const treeRecord = Array.isArray(task?.trees) ? task.trees[0] : task?.trees
+
+      // ── FIX 2: insert tree_update with health score ──
       await supabase.from('tree_updates').insert({
-        tree_id:          task?.trees?.id,
+        tree_id:          treeRecord?.id,
         worker_id:        worker?.id,
         before_photo_url: beforeUrl,
         after_photo_url:  afterUrl,
@@ -167,6 +191,7 @@ export default function FieldPlant() {
         latitude:         gps?.lat ?? null,
         longitude:        gps?.lng ?? null,
         notes:            `${health}${notes ? ' · ' + notes : ''}`,
+        ai_health_score:  healthScore,        // ← now saved
         is_verified:      false,
         verified_by:      'PENDING',
         update_date:      new Date().toISOString().split('T')[0],
@@ -175,15 +200,16 @@ export default function FieldPlant() {
 
       setProgress(80)
 
-      // Update tree
-      const treeRecord = Array.isArray(task?.trees) ? task.trees[0] : task?.trees
+      // ── FIX 3: update trees with status PLANTED + GPS + health score ──
       await supabase.from('trees').update({
-        status:        'PLANTED',
-        latitude:      gps?.lat ?? null,
-        longitude:     gps?.lng ?? null,
-        photo_url:     afterUrl,
-        worker_id:     worker?.id,
-        planting_date: new Date().toISOString().split('T')[0],
+        status:              'PLANTED',        // ← was staying PENDING
+        latitude:            gps?.lat ?? null,
+        longitude:           gps?.lng ?? null,
+        photo_url:           afterUrl,
+        worker_id:           worker?.id,
+        planting_date:       new Date().toISOString().split('T')[0],
+        latest_health_score: healthScore,      // ← now saved
+        latest_update_date:  new Date().toISOString().split('T')[0],
       }).eq('id', treeRecord?.id)
 
       // Save QR code
@@ -240,7 +266,7 @@ export default function FieldPlant() {
     </Screen>
   )
 
-  // ── STEP: AFTER PHOTO (GPS auto-extracted here) ──
+  // ── STEP: AFTER PHOTO ──
   if (step === 'after') return (
     <Screen title="Step 2 of 3" subtitle="Plant tree + take AFTER photo" treeId={treeId} site={task?.sites?.name}>
       <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'1rem', padding:'1.25rem' }}>
@@ -329,6 +355,11 @@ export default function FieldPlant() {
               <button key={opt.id} onClick={() => setHealth(opt.id)}
                 style={{ padding:'0.875rem 1rem', background:health===opt.id?opt.color:'#f9fafb', border:`2px solid ${health===opt.id?opt.text:'#e5e7eb'}`, borderRadius:'12px', fontSize:'15px', fontWeight:health===opt.id?600:400, color:health===opt.id?opt.text:'#374151', cursor:'pointer', textAlign:'left' }}>
                 {opt.label}
+                {health === opt.id && (
+                  <span style={{ fontSize:'12px', marginLeft:'8px', opacity:0.8 }}>
+                    — Score: {HEALTH_SCORE[opt.id]}%
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -374,13 +405,17 @@ export default function FieldPlant() {
       <div style={{ fontSize:'22px', fontWeight:700, color:'#97BC62' }}>Tree Planted!</div>
       <div style={{ fontFamily:'monospace', fontSize:'14px', color:'rgba(255,255,255,0.7)', background:'rgba(255,255,255,0.1)', padding:'8px 16px', borderRadius:'8px' }}>{treeId}</div>
 
-      {/* GPS source indicator */}
       {gps && (
         <div style={{ fontSize:'13px', color:'rgba(255,255,255,0.6)', background:'rgba(255,255,255,0.08)', padding:'8px 16px', borderRadius:'8px' }}>
           {gps.source === 'exif' ? '📷 GPS from photo EXIF' : '📍 GPS captured manually'}<br />
           <span style={{ fontFamily:'monospace', fontSize:'12px' }}>{gps.lat.toFixed(5)}° N, {gps.lng.toFixed(5)}° E</span>
         </div>
       )}
+
+      {/* Health score summary */}
+      <div style={{ fontSize:'13px', color:'rgba(255,255,255,0.6)', background:'rgba(255,255,255,0.08)', padding:'8px 16px', borderRadius:'8px' }}>
+        Health score saved: {HEALTH_SCORE[health]}% · {health.replace('_', ' ')}
+      </div>
 
       <div style={{ fontSize:'14px', color:'rgba(255,255,255,0.6)', maxWidth:'280px', lineHeight:1.6 }}>
         Photos uploaded. Admin will verify and donor will be notified.
