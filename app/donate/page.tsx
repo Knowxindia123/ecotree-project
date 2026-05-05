@@ -23,7 +23,6 @@ const occasions = [
   { id:'custom',      icon:'🎁', label:'Custom',      price:100 },
 ]
 
-// Species mapping from tier to actual species
 const TIER_SPECIES: Record<string, string[]> = {
   common:   ['Neem', 'Peepal', 'Banyan'],
   fruit:    ['Mango', 'Jamun', 'Guava'],
@@ -41,6 +40,20 @@ function generateTreeId() {
 
 function generatePassword(name: string) {
   return `${name.replace(/\s/g,'').slice(0,4)}@${Math.floor(1000+Math.random()*9000)}`
+}
+
+// ── Send email helper ──
+async function sendEmail(type: string, donor: Record<string, any>) {
+  try {
+    await fetch('/api/send-email', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ type, donor }),
+    })
+  } catch (err) {
+    console.error('Email send failed:', err)
+    // Non-blocking — don't throw, donor flow continues
+  }
 }
 
 export default function DonatePage() {
@@ -89,8 +102,10 @@ export default function DonatePage() {
     setLoading(true)
 
     try {
-      // ── Step 1: Create or get donor ──────────────────────────
+      // ── Step 1: Create or get donor ──
       let donorId: number
+      let isNewDonor = false
+      let tempPassword = ''
 
       const { data: existingDonor } = await supabase
         .from('donors')
@@ -100,7 +115,6 @@ export default function DonatePage() {
 
       if (existingDonor) {
         donorId = existingDonor.id
-        // Update donor totals
         await supabase.from('donors').update({
           total_trees:   (existingDonor.total_trees || 0) + qty,
           total_donated: (Number(existingDonor.total_donated) || 0) + total,
@@ -110,7 +124,6 @@ export default function DonatePage() {
           anniversary:   form.anniversary || null,
         }).eq('id', donorId)
       } else {
-        // Create new donor
         const { data: newDonor, error: donorError } = await supabase
           .from('donors')
           .insert({
@@ -128,26 +141,26 @@ export default function DonatePage() {
           .single()
 
         if (donorError || !newDonor) throw new Error(donorError?.message || 'Failed to create donor')
-        donorId = newDonor.id
+        donorId    = newDonor.id
+        isNewDonor = true
 
-        // Create Supabase Auth account for new donor
-        const tempPassword = generatePassword(form.name)
-        const { data: authData } = await fetch('/api/create-donor', {
-          method: 'POST',
+        // Create Supabase Auth account
+        tempPassword = generatePassword(form.name)
+        await fetch('/api/create-donor', {
+          method:  'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+          body:    JSON.stringify({
             email:    form.email,
             password: tempPassword,
             name:     form.name,
             donorId,
           })
-        }).then(r => r.json())
+        })
 
-        // Store temp password in session for thank-you page
         sessionStorage.setItem('donor_temp_password', tempPassword)
       }
 
-      // ── Step 2: Create trees ────────────────────────────────
+      // ── Step 2: Create trees ──
       const speciesList = TIER_SPECIES[tier.id] || ['Neem']
       const treeIds: string[] = []
 
@@ -166,12 +179,12 @@ export default function DonatePage() {
         })
       }
 
-      // ── Step 3: Create donation record ───────────────────────
+      // ── Step 3: Create donation record ──
       await supabase.from('donations').insert({
         cert_id:         certId,
         donor_id:        donorId,
-        tree_id:         null, // will be linked when tree is assigned
-        payment_status:  'PAID', // simulated — replace with PENDING when Razorpay connected
+        tree_id:         null,
+        payment_status:  'PAID',
         mode:            mode,
         tree_tier_id:    tier.id,
         tree_name:       tier.name,
@@ -179,7 +192,7 @@ export default function DonatePage() {
         co2_per_year:    tier.co2,
         quantity:        qty,
         amount:          total,
-        occasion_id:     mode === 'gift' ? occ.id   : null,
+        occasion_id:     mode === 'gift' ? occ.id    : null,
         occasion_label:  mode === 'gift' ? occ.label : null,
         recipient_name:  form.recipientName  || null,
         recipient_email: form.recipientEmail || null,
@@ -188,11 +201,22 @@ export default function DonatePage() {
         donor_email:     form.email,
         donor_phone:     form.phone,
         address:         form.address || null,
-        payment_ref:     `TEST-${certId}`, // replace with Razorpay ID later
+        payment_ref:     `TEST-${certId}`,
         payment_method:  'test',
       })
 
-      // ── Step 4: Save to session + redirect ──────────────────
+      // ── Step 4: Send welcome email (new donors only) ──
+      if (isNewDonor) {
+        await sendEmail('welcome', {
+          name:     form.name,
+          email:    form.email,
+          tree_id:  treeIds[0],
+          species:  speciesList[0],
+          password: tempPassword,
+        })
+      }
+
+      // ── Step 5: Save to session + redirect ──
       sessionStorage.setItem('ecotree_ty', JSON.stringify({
         certId,
         name:          form.name,
@@ -231,8 +255,8 @@ export default function DonatePage() {
         <div className="dn-c">
           <div className="dn-tb-r1">
             <div className="dn-tb-headline">
-              <span className="dn-tb-h">India&rsquo;s only NGO where you can <em>see your tree growing live.</em></span>
-              <span className="dn-tb-sub">₹100 · AI-verified · GPS-tagged · 3yr tracking · 80G</span>
+              <div className="dn-tb-h">India&rsquo;s only NGO where you can <em>see your tree growing live.</em></div>
+              <div className="dn-tb-sub">₹100 · AI-verified · GPS-tagged · 3yr tracking · 80G</div>
             </div>
             <div className="dn-tb-acts">
               <a href={`https://wa.me/?text=${WA_MSG}`} target="_blank" rel="noopener" className="dn-sbtn dn-sbtn--wa">
