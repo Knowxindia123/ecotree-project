@@ -22,6 +22,7 @@ interface ReviewItem {
     latitude: number | null
     longitude: number | null
     sites: { name: string } | null
+    donors: { id: number; name: string; email: string } | null  // ← NEW
   } | null
   users: { name: string; phone: string | null } | null
 }
@@ -34,6 +35,19 @@ interface PhotoPopup {
   health: number | null
   lat: number | null
   lng: number | null
+}
+
+// ── Send email helper ──
+async function sendEmail(type: string, donor: Record<string, any>) {
+  try {
+    await fetch('/api/send-email', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ type, donor }),
+    })
+  } catch (err) {
+    console.error('Email send failed:', err)
+  }
 }
 
 export default function AdminReview() {
@@ -54,7 +68,11 @@ export default function AdminReview() {
         ai_species_match, ai_gps_match,
         ai_duplicate_check, ai_timestamp_valid,
         notes, update_date,
-        trees(tree_id, species, latitude, longitude, sites(name)),
+        trees(
+          tree_id, species, latitude, longitude,
+          sites(name),
+          donors(id, name, email)
+        ),
         users(name, phone)
       `)
       .eq('is_verified', false)
@@ -66,6 +84,7 @@ export default function AdminReview() {
 
   async function handleDecision(id: number, approve: boolean) {
     setProcessing(true)
+
     await supabase.from('tree_updates').update({
       is_verified: approve,
       verified_by: approve ? 'HUMAN' : 'REJECTED'
@@ -74,13 +93,35 @@ export default function AdminReview() {
     if (approve) {
       const item = items.find(i => i.id === id)
       if (item?.trees) {
+        // Update tree status
         await supabase.from('trees').update({
           status:              'VERIFIED',
           latest_health_score: item.ai_health_score,
           latest_update_date:  item.update_date
         }).eq('tree_id', item.trees.tree_id)
+
+        // ── EMAIL 2: Send verified notification to donor ──
+        const donor = Array.isArray(item.trees.donors)
+          ? item.trees.donors[0]
+          : item.trees.donors
+
+        if (donor?.email) {
+          await sendEmail('verified', {
+            name:             donor.name,
+            email:            donor.email,
+            tree_id:          item.trees.tree_id,
+            species:          item.trees.species,
+            site:             item.trees.sites?.name || 'Bangalore',
+            health_score:     item.ai_health_score,
+            before_photo_url: item.before_photo_url,
+            after_photo_url:  item.after_photo_url || item.photo_url,
+            latitude:         item.latitude,
+            longitude:        item.longitude,
+          })
+        }
       }
     }
+
     setPhotoPopup(null)
     loadQueue()
     setProcessing(false)
@@ -124,16 +165,16 @@ export default function AdminReview() {
           <div style={{ fontSize: '13px', color: '#6B7280' }}>All recent photos passed AI verification</div>
         </div>
       ) : (
-        /* ── 2-COLUMN GRID ── */
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
           {items.map(item => {
-            const siteLat = item.trees?.latitude
-            const siteLng = item.trees?.longitude
-            const captLat = item.latitude
-            const captLng = item.longitude
-            const hasGPSCompare = siteLat && siteLng && captLat && captLng
-            const dist = hasGPSCompare ? gpsDistance(siteLat!, siteLng!, captLat!, captLng!) : null
+            const siteLat  = item.trees?.latitude
+            const siteLng  = item.trees?.longitude
+            const captLat  = item.latitude
+            const captLng  = item.longitude
+            const hasGPS   = siteLat && siteLng && captLat && captLng
+            const dist     = hasGPS ? gpsDistance(siteLat!, siteLng!, captLat!, captLng!) : null
             const afterUrl = item.after_photo_url || item.photo_url
+            const donor    = Array.isArray(item.trees?.donors) ? item.trees?.donors[0] : item.trees?.donors
 
             return (
               <div key={item.id} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden' }}>
@@ -144,28 +185,27 @@ export default function AdminReview() {
                     <div style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: 700, color: '#1A3C34' }}>{item.trees?.tree_id || '—'}</div>
                     <div style={{ fontSize: '11px', color: '#6B7280' }}>
                       👷 {item.users?.name || '—'} · 📍 {item.trees?.sites?.name || '—'}
+                      {donor && <span style={{ color: '#2C5F2D', marginLeft: '6px' }}>· 🌿 {donor.name}</span>}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '5px' }}>
                     <button onClick={() => handleDecision(item.id, true)} disabled={processing}
                       style={{ padding: '4px 12px', background: '#2C5F2D', color: 'white', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
-                      ✓
+                      ✓ Approve
                     </button>
                     <button onClick={() => handleDecision(item.id, false)} disabled={processing}
                       style={{ padding: '4px 12px', background: 'transparent', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
-                      ✕
+                      ✕ Reject
                     </button>
                   </div>
                 </div>
 
-                {/* ── BEFORE / AFTER PHOTOS side by side ── */}
+                {/* ── PHOTOS ── */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
 
                   {/* Before */}
                   <div style={{ borderRight: '1px solid #f3f4f6' }}>
-                    <div style={{ padding: '5px 8px 3px', fontSize: '10px', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      Before
-                    </div>
+                    <div style={{ padding: '5px 8px 3px', fontSize: '10px', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Before</div>
                     <div
                       onClick={() => item.before_photo_url && setPhotoPopup({
                         url: item.before_photo_url,
@@ -180,8 +220,7 @@ export default function AdminReview() {
                           ? `url(${item.before_photo_url}) center/cover`
                           : 'linear-gradient(135deg,#374151,#6b7280)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '2rem',
-                        cursor: item.before_photo_url ? 'pointer' : 'default',
+                        fontSize: '2rem', cursor: item.before_photo_url ? 'pointer' : 'default',
                         position: 'relative',
                       }}
                     >
@@ -191,17 +230,12 @@ export default function AdminReview() {
                           <span>Before</span><span>🔍 expand</span>
                         </div>
                       )}
-                      {!item.before_photo_url && (
-                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.5)', color: 'white', fontSize: '9px', padding: '3px 7px', textAlign: 'center' }}>No photo</div>
-                      )}
                     </div>
                   </div>
 
                   {/* After */}
                   <div>
-                    <div style={{ padding: '5px 8px 3px', fontSize: '10px', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      After
-                    </div>
+                    <div style={{ padding: '5px 8px 3px', fontSize: '10px', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>After</div>
                     <div
                       onClick={() => afterUrl && setPhotoPopup({
                         url: afterUrl,
@@ -216,8 +250,7 @@ export default function AdminReview() {
                           ? `url(${afterUrl}) center/cover`
                           : 'linear-gradient(135deg,#2d6a4f,#52b788)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '2rem',
-                        cursor: afterUrl ? 'pointer' : 'default',
+                        fontSize: '2rem', cursor: afterUrl ? 'pointer' : 'default',
                         position: 'relative',
                       }}
                     >
@@ -247,7 +280,7 @@ export default function AdminReview() {
                     <CheckBadge pass={item.ai_timestamp_valid} label="Timestamp" />
                   </div>
 
-                  {hasGPSCompare && dist && (
+                  {hasGPS && dist && (
                     <div style={{
                       background: item.ai_gps_match === false ? '#fee2e2' : '#f0fdf4',
                       border: `1px solid ${item.ai_gps_match === false ? '#fecaca' : '#86efac'}`,
@@ -259,6 +292,17 @@ export default function AdminReview() {
                       <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#6B7280' }}>
                         {captLat?.toFixed(3)}, {captLng?.toFixed(3)}
                       </span>
+                    </div>
+                  )}
+
+                  {/* Donor email indicator */}
+                  {donor ? (
+                    <div style={{ fontSize: '10px', color: '#166534', background: '#f0fdf4', padding: '3px 8px', borderRadius: 6 }}>
+                      📧 Verified email will go to {donor.email}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '10px', color: '#9ca3af', background: '#f9fafb', padding: '3px 8px', borderRadius: 6 }}>
+                      ⚠️ No donor linked — no email will be sent
                     </div>
                   )}
 
@@ -275,7 +319,7 @@ export default function AdminReview() {
         </div>
       )}
 
-      {/* ── PHOTO FULLSCREEN POPUP with Approve/Reject ── */}
+      {/* ── PHOTO FULLSCREEN POPUP ── */}
       {photoPopup && (
         <div
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '12px', padding: '1rem' }}
