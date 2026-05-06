@@ -596,7 +596,7 @@ export default function AdminAssign() {
         <div className="mob-cards">
           {assignments.map(a => {
             const tree = Array.isArray(a.trees) ? a.trees[0] : a.trees
-            const user = Array.isArray(a.users) ? a.users[0] : a.users
+            const user = workers.find(w => w.id === a.worker_id)
             const site = Array.isArray(a.sites) ? a.sites[0] : a.sites
             return (
               <div key={a.id} style={{ padding:'1rem', borderTop:'1px solid #f3f4f6' }}>
