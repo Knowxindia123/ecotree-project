@@ -95,6 +95,7 @@ export default function DonatePage() {
   }
 
   const handlePay = async () => {
+    if (loading) return  // 
     if (!form.name || !form.email || !form.phone) {
       alert('Please fill in Name, Email and Phone to continue.')
       return
