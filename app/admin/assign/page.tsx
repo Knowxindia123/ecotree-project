@@ -575,7 +575,7 @@ export default function AdminAssign() {
                 <tr><td colSpan={6} style={{ padding:'2rem', textAlign:'center', color:'#9ca3af', fontSize:'14px' }}>No pending assignments</td></tr>
               ) : assignments.map(a => {
                 const tree = Array.isArray(a.trees) ? a.trees[0] : a.trees
-                const user = Array.isArray(a.users) ? a.users[0] : a.users
+               const user = workers.find(w => w.id === a.worker_id)
                 const site = Array.isArray(a.sites) ? a.sites[0] : a.sites
                 return (
                   <tr key={a.id} style={{ borderTop:'1px solid #f3f4f6' }}>
