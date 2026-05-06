@@ -97,9 +97,7 @@ export default function AdminAssign() {
         return t?.tree_id
       }).filter(Boolean)
     )
-    const unassignedTrees = (unassignedRes.data || []).filter((t: any) =>
-      !assignedTreeIds.has(t.tree_id)
-    )
+   const unassignedTrees = unassignedRes.data || []
     setUnassigned(unassignedTrees as UnassignedTree[])
     setAssignments((assignmentsRes.data as unknown as Assignment[]) || [])
     setLoading(false)
