@@ -25,8 +25,8 @@ interface Assignment {
   id: number
   assigned_at: string
   status: string
+  worker_id: number  // ← ADD THIS
   trees: { tree_id: string; species: string } | null
-  users: { name: string } | null
   sites: { name: string } | null
 }
 
