@@ -2,16 +2,25 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
-const SPECIES = ['Neem','Peepal','Mango','Jamun','Guava','Rain Tree','Banyan','Gulmohar','Custom tree']
+const SPECIES   = ['Neem','Peepal','Mango','Jamun','Guava','Rain Tree','Banyan','Gulmohar','Custom tree']
 const TREE_TYPES = [
-  { id: 'common',  label: 'Common Species',     price: 100 },
-  { id: 'fruit',   label: 'Fruit Trees',        price: 250 },
-  { id: 'native',  label: 'Native Large Trees', price: 500 },
+  { id: 'common',  label: 'Common Species',     price: 100  },
+  { id: 'fruit',   label: 'Fruit Trees',        price: 250  },
+  { id: 'native',  label: 'Native Large Trees', price: 500  },
 ]
 
-interface Worker { id: number; name: string }
-interface Site   { id: number; name: string }
-interface Donor  { id: number; name: string; email: string }
+type Tab = 'donor' | 'csr' | 'direct'
+
+interface Worker     { id: number; name: string }
+interface Site       { id: number; name: string }
+interface CsrPartner { id: number; company_name: string; type: string }
+interface UnassignedTree {
+  id: number
+  tree_id: string
+  species: string
+  tree_type: string
+  donors: { id: number; name: string; email: string } | null
+}
 interface Assignment {
   id: number
   assigned_at: string
@@ -22,9 +31,11 @@ interface Assignment {
 }
 
 export default function AdminAssign() {
+  const [tab,         setTab]         = useState<Tab>('donor')
   const [workers,     setWorkers]     = useState<Worker[]>([])
   const [sites,       setSites]       = useState<Site[]>([])
-  const [donors,      setDonors]      = useState<Donor[]>([])   // ← NEW
+  const [csrPartners, setCsrPartners] = useState<CsrPartner[]>([])
+  const [unassigned,  setUnassigned]  = useState<UnassignedTree[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [loading,     setLoading]     = useState(true)
   const [saving,      setSaving]      = useState(false)
@@ -32,33 +43,67 @@ export default function AdminAssign() {
   const [error,       setError]       = useState('')
   const [showSiteForm,    setShowSiteForm]    = useState(false)
   const [gettingLocation, setGettingLocation] = useState(false)
+
   const [newSite, setNewSite] = useState({
-    name: '', description: '', city: 'Bangalore',
-    latitude: '', longitude: ''
-  })
-  const [form, setForm] = useState({
-    worker_id: '', site_id: '', species: 'Neem', tree_type: 'common',
-    due_date: '', notes: '', donor_id: '',   // ← donor_id replaces donor_name/email
+    name: '', description: '', city: 'Bangalore', latitude: '', longitude: ''
   })
 
-  useEffect(() => {
-    Promise.all([
+  // Tab 1 — Donor form
+  const [donorForm, setDonorForm] = useState({
+    tree_id: '', worker_id: '', site_id: '', due_date: '', notes: ''
+  })
+
+  // Tab 2 — CSR/NGO form
+  const [csrForm, setCsrForm] = useState({
+    csr_partner_id: '', worker_id: '', site_id: '', species: 'Neem',
+    tree_type: 'common', due_date: '', notes: ''
+  })
+
+  // Tab 3 — Direct form
+  const [directForm, setDirectForm] = useState({
+    worker_id: '', site_id: '', species: 'Neem', tree_type: 'common',
+    due_date: '', notes: ''
+  })
+
+  useEffect(() => { loadData() }, [])
+
+  async function loadData() {
+    setLoading(true)
+    const [workersRes, sitesRes, csrRes, unassignedRes, assignmentsRes] = await Promise.all([
       supabase.from('users').select('id, name').eq('role', 'WORKER').eq('is_active', true).order('name'),
       supabase.from('sites').select('id, name').eq('is_active', true).order('name'),
-      supabase.from('donors').select('id, name, email').order('name'),   // ← NEW
+      supabase.from('csr_partners').select('id, company_name, type').eq('is_active', true).order('company_name'),
+      // Unassigned donor trees — PENDING and not in assignments
+      supabase.from('trees')
+        .select('id, tree_id, species, tree_type, donors(id, name, email)')
+        .eq('status', 'PENDING')
+        .not('donor_id', 'is', null)
+        .order('created_at', { ascending: true }),
       supabase.from('assignments')
         .select('id, assigned_at, status, trees(tree_id, species), users(name), sites(name)')
         .eq('status', 'ASSIGNED')
         .order('assigned_at', { ascending: false })
         .limit(10)
-    ]).then(([w, s, d, a]) => {
-      setWorkers(w.data || [])
-      setSites(s.data || [])
-      setDonors(d.data || [])   // ← NEW
-      setAssignments((a.data as unknown as Assignment[]) || [])
-      setLoading(false)
-    })
-  }, [])
+    ])
+
+    setWorkers(workersRes.data || [])
+    setSites(sitesRes.data || [])
+    setCsrPartners(csrRes.data || [])
+
+    // Filter out trees already assigned
+    const assignedTreeIds = new Set(
+      (assignmentsRes.data || []).map((a: any) => {
+        const t = Array.isArray(a.trees) ? a.trees[0] : a.trees
+        return t?.tree_id
+      }).filter(Boolean)
+    )
+    const unassignedTrees = (unassignedRes.data || []).filter((t: any) =>
+      !assignedTreeIds.has(t.tree_id)
+    )
+    setUnassigned(unassignedTrees as UnassignedTree[])
+    setAssignments((assignmentsRes.data as unknown as Assignment[]) || [])
+    setLoading(false)
+  }
 
   async function handleCreateSite(e: React.FormEvent) {
     e.preventDefault()
@@ -72,8 +117,7 @@ export default function AdminAssign() {
     }).select('id, name').single()
     if (!siteError && site) {
       setSites(prev => [...prev, site])
-      setForm(f => ({ ...f, site_id: String(site.id) }))
-      setSuccess(`Site "${newSite.name}" created and selected!`)
+      setSuccess(`Site "${newSite.name}" created!`)
       setShowSiteForm(false)
       setNewSite({ name:'', description:'', city:'Bangalore', latitude:'', longitude:'' })
     } else {
@@ -85,37 +129,100 @@ export default function AdminAssign() {
     setGettingLocation(true)
     navigator.geolocation.getCurrentPosition(
       pos => {
-        setNewSite(s => ({
-          ...s,
-          latitude:  pos.coords.latitude.toFixed(6),
-          longitude: pos.coords.longitude.toFixed(6)
-        }))
+        setNewSite(s => ({ ...s, latitude: pos.coords.latitude.toFixed(6), longitude: pos.coords.longitude.toFixed(6) }))
         setGettingLocation(false)
       },
-      () => { setGettingLocation(false); alert('Could not get location. Enter manually.') },
+      () => { setGettingLocation(false); alert('Could not get location.') },
       { enableHighAccuracy: true }
     )
   }
 
-  async function handleAssign(e: React.FormEvent) {
+  // ── TAB 1: Assign existing donor tree ──
+  async function handleDonorAssign(e: React.FormEvent) {
     e.preventDefault()
-    setSaving(true)
-    setError('')
-    setSuccess('')
+    setSaving(true); setError(''); setSuccess('')
+
+    const tree = unassigned.find(t => String(t.id) === donorForm.tree_id)
+    if (!tree) { setError('Please select a tree'); setSaving(false); return }
+
+    // Update tree with site
+    await supabase.from('trees').update({
+      site_id:   Number(donorForm.site_id),
+      worker_id: Number(donorForm.worker_id),
+      status:    'ASSIGNED',
+    }).eq('id', tree.id)
+
+    // Create assignment
+    const { error: assignError } = await supabase.from('assignments').insert({
+      tree_id:   tree.id,
+      worker_id: Number(donorForm.worker_id),
+      site_id:   Number(donorForm.site_id),
+      status:    'ASSIGNED',
+      due_date:  donorForm.due_date || null,
+      notes:     donorForm.notes    || null,
+    })
+
+    if (assignError) { setError(assignError.message); setSaving(false); return }
+
+    const donor = Array.isArray(tree.donors) ? tree.donors[0] : tree.donors
+    setSuccess(`✅ ${tree.tree_id} assigned to worker! ${donor?.name ? `Linked to ${donor.name}.` : ''}`)
+    setDonorForm({ tree_id:'', worker_id:'', site_id:'', due_date:'', notes:'' })
+    loadData()
+    setSaving(false)
+  }
+
+  // ── TAB 2: Create CSR/NGO tree ──
+  async function handleCsrAssign(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true); setError(''); setSuccess('')
 
     const treeId   = `ET-BLR-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`
-    const treeType = TREE_TYPES.find(t => t.id === form.tree_type)
+    const treeType = TREE_TYPES.find(t => t.id === csrForm.tree_type)
 
-    // ── donor_id comes directly from dropdown selection ──
-    const donorId = form.donor_id ? Number(form.donor_id) : null
+    const { data: tree, error: treeError } = await supabase.from('trees').insert({
+      tree_id:        treeId,
+      csr_partner_id: Number(csrForm.csr_partner_id),
+      site_id:        Number(csrForm.site_id),
+      worker_id:      Number(csrForm.worker_id),
+      tree_type:      treeType?.label || csrForm.tree_type,
+      species:        csrForm.species,
+      status:         'ASSIGNED',
+    }).select('id').single()
+
+    if (treeError) { setError(treeError.message); setSaving(false); return }
+
+    const { error: assignError } = await supabase.from('assignments').insert({
+      tree_id:   tree.id,
+      worker_id: Number(csrForm.worker_id),
+      site_id:   Number(csrForm.site_id),
+      status:    'ASSIGNED',
+      due_date:  csrForm.due_date || null,
+      notes:     csrForm.notes    || null,
+    })
+
+    if (assignError) { setError(assignError.message); setSaving(false); return }
+
+    const partner = csrPartners.find(p => String(p.id) === csrForm.csr_partner_id)
+    setSuccess(`✅ ${treeId} created and assigned! Linked to ${partner?.company_name}.`)
+    setCsrForm({ csr_partner_id:'', worker_id:'', site_id:'', species:'Neem', tree_type:'common', due_date:'', notes:'' })
+    loadData()
+    setSaving(false)
+  }
+
+  // ── TAB 3: Create direct tree ──
+  async function handleDirectAssign(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true); setError(''); setSuccess('')
+
+    const treeId   = `ET-BLR-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`
+    const treeType = TREE_TYPES.find(t => t.id === directForm.tree_type)
 
     const { data: tree, error: treeError } = await supabase.from('trees').insert({
       tree_id:   treeId,
-      donor_id:  donorId,
-      site_id:   Number(form.site_id),
-      worker_id: Number(form.worker_id),
-      tree_type: treeType?.label || form.tree_type,
-      species:   form.species,
+      site_id:   Number(directForm.site_id),
+      worker_id: Number(directForm.worker_id),
+      tree_type: treeType?.label || directForm.tree_type,
+      species:   directForm.species,
       status:    'ASSIGNED',
     }).select('id').single()
 
@@ -123,194 +230,338 @@ export default function AdminAssign() {
 
     const { error: assignError } = await supabase.from('assignments').insert({
       tree_id:   tree.id,
-      worker_id: Number(form.worker_id),
-      site_id:   Number(form.site_id),
+      worker_id: Number(directForm.worker_id),
+      site_id:   Number(directForm.site_id),
       status:    'ASSIGNED',
-      due_date:  form.due_date || null,
-      notes:     form.notes    || null,
+      due_date:  directForm.due_date || null,
+      notes:     directForm.notes    || null,
     })
 
     if (assignError) { setError(assignError.message); setSaving(false); return }
 
-    // Show which donor this was linked to
-    const selectedDonor = donors.find(d => d.id === donorId)
-    setSuccess(`Tree ${treeId} assigned successfully!${selectedDonor ? ` Linked to ${selectedDonor.name}.` : ''}`)
-    setForm({ worker_id:'', site_id:'', species:'Neem', tree_type:'common', due_date:'', notes:'', donor_id:'' })
-
-    const { data: newAssignments } = await supabase.from('assignments')
-      .select('id, assigned_at, status, trees(tree_id, species), users(name), sites(name)')
-      .eq('status', 'ASSIGNED').order('assigned_at', { ascending: false }).limit(10)
-    setAssignments((newAssignments as unknown as Assignment[]) || [])
+    setSuccess(`✅ ${treeId} created and assigned!`)
+    setDirectForm({ worker_id:'', site_id:'', species:'Neem', tree_type:'common', due_date:'', notes:'' })
+    loadData()
     setSaving(false)
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '0.6rem 0.85rem', border: '1.5px solid #e5e7eb',
+    borderRadius: '8px', fontSize: '14px', outline: 'none'
+  }
+  const labelStyle: React.CSSProperties = {
+    display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px'
   }
 
   return (
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
         <h1 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1A1A1A', marginBottom: '4px' }}>Assign Trees</h1>
-        <p style={{ fontSize: '14px', color: '#6B7280' }}>Assign a tree to a field worker at a planting site</p>
+        <p style={{ fontSize: '14px', color: '#6B7280' }}>Assign trees to field workers for planting</p>
       </div>
 
-      <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.5rem' }}>
-        <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', marginBottom: '1rem' }}>New assignment</h3>
-        <form onSubmit={handleAssign}>
-          <div className="form-grid" style={{ marginBottom: '1rem' }}>
+      {/* ── TABS ── */}
+      <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb' }}>
+          {[
+            { id: 'donor',  label: '🌿 Donor Tree',  desc: 'Assign existing donor tree' },
+            { id: 'csr',    label: '🏢 CSR / NGO',   desc: 'Create tree for CSR partner' },
+            { id: 'direct', label: '🌱 Direct',       desc: 'NGO direct plantation'      },
+          ].map(t => (
+            <button key={t.id} onClick={() => { setTab(t.id as Tab); setError(''); setSuccess('') }}
+              style={{
+                flex: 1, padding: '0.875rem 1rem', border: 'none', cursor: 'pointer',
+                background: tab === t.id ? '#f0fdf4' : 'white',
+                borderBottom: tab === t.id ? '3px solid #2C5F2D' : '3px solid transparent',
+                fontSize: '13px', fontWeight: tab === t.id ? 700 : 400,
+                color: tab === t.id ? '#2C5F2D' : '#6B7280',
+                transition: 'all 0.15s',
+              }}>
+              <div>{t.label}</div>
+              <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '2px' }}>{t.desc}</div>
+            </button>
+          ))}
+        </div>
 
-            {/* Field worker */}
-            <div>
-              <label style={{ display:'block', fontSize:'13px', fontWeight:500, color:'#374151', marginBottom:'6px' }}>Field worker *</label>
-              <select required value={form.worker_id} onChange={e => setForm({...form, worker_id: e.target.value})}
-                style={{ width:'100%', padding:'0.6rem 0.85rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'14px', outline:'none' }}>
-                <option value="">Select worker</option>
-                {workers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
-            </div>
+        <div style={{ padding: '1.25rem' }}>
 
-            {/* Planting site */}
-            <div>
-              <label style={{ display:'block', fontSize:'13px', fontWeight:500, color:'#374151', marginBottom:'6px' }}>Planting site *</label>
-              <select required value={form.site_id} onChange={e => setForm({...form, site_id: e.target.value})}
-                style={{ width:'100%', padding:'0.6rem 0.85rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'14px', outline:'none' }}>
-                <option value="">Select site</option>
-                {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-              <button type="button" onClick={() => setShowSiteForm(!showSiteForm)}
-                style={{ fontSize:'12px', color:'#2C5F2D', background:'none', border:'none', cursor:'pointer', marginTop:'6px', textDecoration:'underline' }}>
-                + Create new site
+          {/* ── TAB 1: DONOR TREE ── */}
+          {tab === 'donor' && (
+            <form onSubmit={handleDonorAssign}>
+              <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', padding: '10px 14px', marginBottom: '1rem', fontSize: '13px', color: '#166534' }}>
+                ✅ Select an existing donor tree — no new tree will be created
+              </div>
+
+              {unassigned.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: '#9ca3af', fontSize: '14px' }}>
+                  🎉 All donor trees are assigned!
+                </div>
+              ) : (
+                <div className="form-grid">
+                  {/* Tree selector */}
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <label style={labelStyle}>Select donor tree * <span style={{ color: '#9ca3af', fontWeight: 400 }}>({unassigned.length} unassigned)</span></label>
+                    <select required value={donorForm.tree_id} onChange={e => setDonorForm({...donorForm, tree_id: e.target.value})} style={inputStyle}>
+                      <option value="">— Select tree to assign —</option>
+                      {unassigned.map(t => {
+                        const donor = Array.isArray(t.donors) ? t.donors[0] : t.donors
+                        return (
+                          <option key={t.id} value={t.id}>
+                            {t.tree_id} · {t.species} · {donor?.name || 'No donor'} {donor?.email ? `(${donor.email})` : ''}
+                          </option>
+                        )
+                      })}
+                    </select>
+                  </div>
+
+                  {/* Worker */}
+                  <div>
+                    <label style={labelStyle}>Field worker *</label>
+                    <select required value={donorForm.worker_id} onChange={e => setDonorForm({...donorForm, worker_id: e.target.value})} style={inputStyle}>
+                      <option value="">Select worker</option>
+                      {workers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Site */}
+                  <div>
+                    <label style={labelStyle}>Planting site *</label>
+                    <select required value={donorForm.site_id} onChange={e => setDonorForm({...donorForm, site_id: e.target.value})} style={inputStyle}>
+                      <option value="">Select site</option>
+                      {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                    <button type="button" onClick={() => setShowSiteForm(!showSiteForm)}
+                      style={{ fontSize:'12px', color:'#2C5F2D', background:'none', border:'none', cursor:'pointer', marginTop:'6px', textDecoration:'underline' }}>
+                      + Create new site
+                    </button>
+                  </div>
+
+                  {/* Due date */}
+                  <div>
+                    <label style={labelStyle}>Due date</label>
+                    <input type="date" value={donorForm.due_date} onChange={e => setDonorForm({...donorForm, due_date: e.target.value})} style={inputStyle} />
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <label style={labelStyle}>Notes</label>
+                    <input type="text" placeholder="e.g. Plant near entrance" value={donorForm.notes} onChange={e => setDonorForm({...donorForm, notes: e.target.value})} style={inputStyle} />
+                  </div>
+                </div>
+              )}
+
+              {error   && <div style={{ color:'#dc2626', fontSize:'13px', margin:'0.75rem 0' }}>{error}</div>}
+              {success && <div style={{ color:'#16a34a', fontSize:'13px', margin:'0.75rem 0' }}>{success}</div>}
+
+              {unassigned.length > 0 && (
+                <button type="submit" disabled={saving}
+                  style={{ marginTop:'1rem', padding:'10px 24px', background: saving?'#9ca3af':'#2C5F2D', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor: saving?'not-allowed':'pointer' }}>
+                  {saving ? 'Assigning...' : 'Assign tree →'}
+                </button>
+              )}
+            </form>
+          )}
+
+          {/* ── TAB 2: CSR/NGO ── */}
+          {tab === 'csr' && (
+            <form onSubmit={handleCsrAssign}>
+              <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '10px 14px', marginBottom: '1rem', fontSize: '13px', color: '#1e40af' }}>
+                🏢 Creates a new tree linked to a CSR/NGO partner
+              </div>
+
+              <div className="form-grid">
+                {/* CSR Partner */}
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label style={labelStyle}>CSR / NGO Partner *</label>
+                  <select required value={csrForm.csr_partner_id} onChange={e => setCsrForm({...csrForm, csr_partner_id: e.target.value})} style={inputStyle}>
+                    <option value="">— Select partner —</option>
+                    {csrPartners.map(p => <option key={p.id} value={p.id}>{p.company_name} ({p.type})</option>)}
+                  </select>
+                  {csrPartners.length === 0 && (
+                    <div style={{ fontSize:'12px', color:'#f59e0b', marginTop:'4px' }}>⚠️ No CSR/NGO partners yet — add them in the CSR Partners page</div>
+                  )}
+                </div>
+
+                {/* Worker */}
+                <div>
+                  <label style={labelStyle}>Field worker *</label>
+                  <select required value={csrForm.worker_id} onChange={e => setCsrForm({...csrForm, worker_id: e.target.value})} style={inputStyle}>
+                    <option value="">Select worker</option>
+                    {workers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  </select>
+                </div>
+
+                {/* Site */}
+                <div>
+                  <label style={labelStyle}>Planting site *</label>
+                  <select required value={csrForm.site_id} onChange={e => setCsrForm({...csrForm, site_id: e.target.value})} style={inputStyle}>
+                    <option value="">Select site</option>
+                    {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+
+                {/* Tree type */}
+                <div>
+                  <label style={labelStyle}>Tree type *</label>
+                  <select required value={csrForm.tree_type} onChange={e => setCsrForm({...csrForm, tree_type: e.target.value})} style={inputStyle}>
+                    {TREE_TYPES.map(t => <option key={t.id} value={t.id}>{t.label} — ₹{t.price}</option>)}
+                  </select>
+                </div>
+
+                {/* Species */}
+                <div>
+                  <label style={labelStyle}>Species *</label>
+                  <select required value={csrForm.species} onChange={e => setCsrForm({...csrForm, species: e.target.value})} style={inputStyle}>
+                    {SPECIES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+
+                {/* Due date */}
+                <div>
+                  <label style={labelStyle}>Due date</label>
+                  <input type="date" value={csrForm.due_date} onChange={e => setCsrForm({...csrForm, due_date: e.target.value})} style={inputStyle} />
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label style={labelStyle}>Notes</label>
+                  <input type="text" placeholder="e.g. Plant near entrance" value={csrForm.notes} onChange={e => setCsrForm({...csrForm, notes: e.target.value})} style={inputStyle} />
+                </div>
+              </div>
+
+              {error   && <div style={{ color:'#dc2626', fontSize:'13px', margin:'0.75rem 0' }}>{error}</div>}
+              {success && <div style={{ color:'#16a34a', fontSize:'13px', margin:'0.75rem 0' }}>{success}</div>}
+
+              <button type="submit" disabled={saving}
+                style={{ marginTop:'1rem', padding:'10px 24px', background: saving?'#9ca3af':'#1e40af', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor: saving?'not-allowed':'pointer' }}>
+                {saving ? 'Assigning...' : 'Create & assign tree →'}
               </button>
-              {showSiteForm && (
-                <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:'10px', padding:'1rem', marginTop:'0.5rem' }}>
-                  <div style={{ fontSize:'13px', fontWeight:600, color:'#1A3C34', marginBottom:'0.75rem' }}>Create new site</div>
-                  <form onSubmit={handleCreateSite}>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem', marginBottom:'0.75rem' }}>
-                      <div>
-                        <label style={{ fontSize:'12px', fontWeight:500, color:'#374151', display:'block', marginBottom:'4px' }}>Site name *</label>
-                        <input required type="text" placeholder="Vijayanagar Park" value={newSite.name}
-                          onChange={e => setNewSite(s => ({...s, name: e.target.value}))}
-                          style={{ width:'100%', padding:'0.5rem 0.75rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none' }} />
-                      </div>
-                      <div>
-                        <label style={{ fontSize:'12px', fontWeight:500, color:'#374151', display:'block', marginBottom:'4px' }}>City</label>
-                        <input type="text" placeholder="Bangalore" value={newSite.city}
-                          onChange={e => setNewSite(s => ({...s, city: e.target.value}))}
-                          style={{ width:'100%', padding:'0.5rem 0.75rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none' }} />
-                      </div>
-                      <div style={{ gridColumn:'span 2' }}>
-                        <label style={{ fontSize:'12px', fontWeight:500, color:'#374151', display:'block', marginBottom:'4px' }}>Description</label>
-                        <input type="text" placeholder="Near main entrance" value={newSite.description}
-                          onChange={e => setNewSite(s => ({...s, description: e.target.value}))}
-                          style={{ width:'100%', padding:'0.5rem 0.75rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none' }} />
-                      </div>
-                      <div style={{ gridColumn:'span 2' }}>
-                        <button type="button" onClick={getMyLocation}
-                          style={{ width:'100%', padding:'0.6rem', background:'#1A3C34', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
-                          {gettingLocation ? '📍 Getting location...' : '📍 Use my current location'}
-                        </button>
-                      </div>
-                      {newSite.latitude && (
-                        <div style={{ gridColumn:'span 2', fontSize:'12px', color:'#166634', background:'#dcfce7', padding:'6px 10px', borderRadius:'6px' }}>
-                          ✅ GPS: {newSite.latitude}° N, {newSite.longitude}° E
-                        </div>
-                      )}
-                      <div>
-                        <label style={{ fontSize:'12px', fontWeight:500, color:'#374151', display:'block', marginBottom:'4px' }}>Latitude (manual)</label>
-                        <input type="number" step="any" placeholder="12.9716" value={newSite.latitude}
-                          onChange={e => setNewSite(s => ({...s, latitude: e.target.value}))}
-                          style={{ width:'100%', padding:'0.5rem 0.75rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none' }} />
-                      </div>
-                      <div>
-                        <label style={{ fontSize:'12px', fontWeight:500, color:'#374151', display:'block', marginBottom:'4px' }}>Longitude (manual)</label>
-                        <input type="number" step="any" placeholder="77.5946" value={newSite.longitude}
-                          onChange={e => setNewSite(s => ({...s, longitude: e.target.value}))}
-                          style={{ width:'100%', padding:'0.5rem 0.75rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none' }} />
-                      </div>
+            </form>
+          )}
+
+          {/* ── TAB 3: DIRECT ── */}
+          {tab === 'direct' && (
+            <form onSubmit={handleDirectAssign}>
+              <div style={{ background: '#fef9c3', border: '1px solid #fde68a', borderRadius: '8px', padding: '10px 14px', marginBottom: '1rem', fontSize: '13px', color: '#92400e' }}>
+                🌱 NGO direct plantation — no donor or CSR partner linked
+              </div>
+
+              <div className="form-grid">
+                {/* Worker */}
+                <div>
+                  <label style={labelStyle}>Field worker *</label>
+                  <select required value={directForm.worker_id} onChange={e => setDirectForm({...directForm, worker_id: e.target.value})} style={inputStyle}>
+                    <option value="">Select worker</option>
+                    {workers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  </select>
+                </div>
+
+                {/* Site */}
+                <div>
+                  <label style={labelStyle}>Planting site *</label>
+                  <select required value={directForm.site_id} onChange={e => setDirectForm({...directForm, site_id: e.target.value})} style={inputStyle}>
+                    <option value="">Select site</option>
+                    {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+
+                {/* Tree type */}
+                <div>
+                  <label style={labelStyle}>Tree type *</label>
+                  <select required value={directForm.tree_type} onChange={e => setDirectForm({...directForm, tree_type: e.target.value})} style={inputStyle}>
+                    {TREE_TYPES.map(t => <option key={t.id} value={t.id}>{t.label} — ₹{t.price}</option>)}
+                  </select>
+                </div>
+
+                {/* Species */}
+                <div>
+                  <label style={labelStyle}>Species *</label>
+                  <select required value={directForm.species} onChange={e => setDirectForm({...directForm, species: e.target.value})} style={inputStyle}>
+                    {SPECIES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+
+                {/* Due date */}
+                <div>
+                  <label style={labelStyle}>Due date</label>
+                  <input type="date" value={directForm.due_date} onChange={e => setDirectForm({...directForm, due_date: e.target.value})} style={inputStyle} />
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label style={labelStyle}>Notes</label>
+                  <input type="text" placeholder="e.g. Plant near entrance" value={directForm.notes} onChange={e => setDirectForm({...directForm, notes: e.target.value})} style={inputStyle} />
+                </div>
+              </div>
+
+              {error   && <div style={{ color:'#dc2626', fontSize:'13px', margin:'0.75rem 0' }}>{error}</div>}
+              {success && <div style={{ color:'#16a34a', fontSize:'13px', margin:'0.75rem 0' }}>{success}</div>}
+
+              <button type="submit" disabled={saving}
+                style={{ marginTop:'1rem', padding:'10px 24px', background: saving?'#9ca3af':'#2C5F2D', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor: saving?'not-allowed':'pointer' }}>
+                {saving ? 'Assigning...' : 'Create & assign tree →'}
+              </button>
+            </form>
+          )}
+
+          {/* ── CREATE SITE FORM (shared across tabs) ── */}
+          {showSiteForm && (
+            <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:'10px', padding:'1rem', marginTop:'1rem' }}>
+              <div style={{ fontSize:'13px', fontWeight:600, color:'#1A3C34', marginBottom:'0.75rem' }}>Create new site</div>
+              <form onSubmit={handleCreateSite}>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem', marginBottom:'0.75rem' }}>
+                  <div>
+                    <label style={{ fontSize:'12px', fontWeight:500, color:'#374151', display:'block', marginBottom:'4px' }}>Site name *</label>
+                    <input required type="text" placeholder="Vijayanagar Park" value={newSite.name}
+                      onChange={e => setNewSite(s => ({...s, name: e.target.value}))}
+                      style={{ width:'100%', padding:'0.5rem 0.75rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize:'12px', fontWeight:500, color:'#374151', display:'block', marginBottom:'4px' }}>City</label>
+                    <input type="text" placeholder="Bangalore" value={newSite.city}
+                      onChange={e => setNewSite(s => ({...s, city: e.target.value}))}
+                      style={{ width:'100%', padding:'0.5rem 0.75rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none' }} />
+                  </div>
+                  <div style={{ gridColumn:'span 2' }}>
+                    <button type="button" onClick={getMyLocation}
+                      style={{ width:'100%', padding:'0.6rem', background:'#1A3C34', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
+                      {gettingLocation ? '📍 Getting location...' : '📍 Use my current location'}
+                    </button>
+                  </div>
+                  {newSite.latitude && (
+                    <div style={{ gridColumn:'span 2', fontSize:'12px', color:'#166634', background:'#dcfce7', padding:'6px 10px', borderRadius:'6px' }}>
+                      ✅ GPS: {newSite.latitude}° N, {newSite.longitude}° E
                     </div>
-                    <div style={{ display:'flex', gap:'0.5rem' }}>
-                      <button type="submit" style={{ padding:'8px 16px', background:'#2C5F2D', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>Create site</button>
-                      <button type="button" onClick={() => setShowSiteForm(false)} style={{ padding:'8px 16px', background:'transparent', color:'#6B7280', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', cursor:'pointer' }}>Cancel</button>
-                    </div>
-                  </form>
+                  )}
+                  <div>
+                    <label style={{ fontSize:'12px', fontWeight:500, color:'#374151', display:'block', marginBottom:'4px' }}>Latitude</label>
+                    <input type="number" step="any" placeholder="12.9716" value={newSite.latitude}
+                      onChange={e => setNewSite(s => ({...s, latitude: e.target.value}))}
+                      style={{ width:'100%', padding:'0.5rem 0.75rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize:'12px', fontWeight:500, color:'#374151', display:'block', marginBottom:'4px' }}>Longitude</label>
+                    <input type="number" step="any" placeholder="77.5946" value={newSite.longitude}
+                      onChange={e => setNewSite(s => ({...s, longitude: e.target.value}))}
+                      style={{ width:'100%', padding:'0.5rem 0.75rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none' }} />
+                  </div>
                 </div>
-              )}
-            </div>
-
-            {/* Tree type */}
-            <div>
-              <label style={{ display:'block', fontSize:'13px', fontWeight:500, color:'#374151', marginBottom:'6px' }}>Tree type *</label>
-              <select required value={form.tree_type} onChange={e => setForm({...form, tree_type: e.target.value})}
-                style={{ width:'100%', padding:'0.6rem 0.85rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'14px', outline:'none' }}>
-                {TREE_TYPES.map(t => <option key={t.id} value={t.id}>{t.label} — ₹{t.price}</option>)}
-              </select>
-            </div>
-
-            {/* Species */}
-            <div>
-              <label style={{ display:'block', fontSize:'13px', fontWeight:500, color:'#374151', marginBottom:'6px' }}>Species *</label>
-              <select required value={form.species} onChange={e => setForm({...form, species: e.target.value})}
-                style={{ width:'100%', padding:'0.6rem 0.85rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'14px', outline:'none' }}>
-                {SPECIES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-
-            {/* ── DONOR DROPDOWN — NEW ── */}
-            <div style={{ gridColumn: 'span 2' }}>
-              <label style={{ display:'block', fontSize:'13px', fontWeight:500, color:'#374151', marginBottom:'6px' }}>
-                Donor <span style={{ color:'#9ca3af', fontWeight:400 }}>(links tree to donor dashboard)</span>
-              </label>
-              <select
-                value={form.donor_id}
-                onChange={e => setForm({...form, donor_id: e.target.value})}
-                style={{ width:'100%', padding:'0.6rem 0.85rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'14px', outline:'none' }}
-              >
-                <option value="">— Select donor (optional) —</option>
-                {donors.map(d => (
-                  <option key={d.id} value={d.id}>
-                    {d.name} — {d.email}
-                  </option>
-                ))}
-              </select>
-              {form.donor_id && (
-                <div style={{ fontSize:'12px', color:'#166534', background:'#dcfce7', padding:'5px 10px', borderRadius:'6px', marginTop:'6px' }}>
-                  ✅ Tree will appear on this donor's my-tree dashboard after planting
+                <div style={{ display:'flex', gap:'0.5rem' }}>
+                  <button type="submit" style={{ padding:'8px 16px', background:'#2C5F2D', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>Create site</button>
+                  <button type="button" onClick={() => setShowSiteForm(false)} style={{ padding:'8px 16px', background:'transparent', color:'#6B7280', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', cursor:'pointer' }}>Cancel</button>
                 </div>
-              )}
-              {!form.donor_id && (
-                <div style={{ fontSize:'12px', color:'#9ca3af', marginTop:'4px' }}>
-                  If not selected — tree won't appear on any donor dashboard
-                </div>
-              )}
+              </form>
             </div>
+          )}
 
-            {/* Due date */}
-            <div>
-              <label style={{ display:'block', fontSize:'13px', fontWeight:500, color:'#374151', marginBottom:'6px' }}>Due date</label>
-              <input type="date" value={form.due_date} onChange={e => setForm({...form, due_date: e.target.value})}
-                style={{ width:'100%', padding:'0.6rem 0.85rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'14px', outline:'none' }} />
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label style={{ display:'block', fontSize:'13px', fontWeight:500, color:'#374151', marginBottom:'6px' }}>Notes</label>
-              <input type="text" placeholder="e.g. Plant near entrance" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})}
-                style={{ width:'100%', padding:'0.6rem 0.85rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'14px', outline:'none' }} />
-            </div>
-
-          </div>
-
-          {error   && <div style={{ color:'#dc2626', fontSize:'13px', marginBottom:'0.75rem' }}>{error}</div>}
-          {success && <div style={{ color:'#16a34a', fontSize:'13px', marginBottom:'0.75rem' }}>{success}</div>}
-
-          <button type="submit" disabled={saving}
-            style={{ padding:'10px 24px', background: saving ? '#9ca3af' : '#2C5F2D', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor: saving ? 'not-allowed' : 'pointer' }}>
-            {saving ? 'Assigning...' : 'Assign tree →'}
-          </button>
-        </form>
+        </div>
       </div>
 
-      {/* Pending assignments table */}
+      {/* ── PENDING ASSIGNMENTS TABLE ── */}
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e5e7eb', overflow:'hidden' }}>
-        <div style={{ padding:'1rem 1.25rem', borderBottom:'1px solid #e5e7eb' }}>
+        <div style={{ padding:'1rem 1.25rem', borderBottom:'1px solid #e5e7eb', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <span style={{ fontSize:'14px', fontWeight:600, color:'#1A1A1A' }}>Pending assignments</span>
+          <span style={{ fontSize:'13px', color:'#6B7280' }}>{assignments.length} active</span>
         </div>
         <div className="desk-table">
           <table style={{ width:'100%', borderCollapse:'collapse' }}>
@@ -324,32 +575,42 @@ export default function AdminAssign() {
             <tbody>
               {assignments.length === 0 ? (
                 <tr><td colSpan={6} style={{ padding:'2rem', textAlign:'center', color:'#9ca3af', fontSize:'14px' }}>No pending assignments</td></tr>
-              ) : assignments.map(a => (
-                <tr key={a.id} style={{ borderTop:'1px solid #f3f4f6' }}>
-                  <td style={{ padding:'12px 16px', fontSize:'13px', fontFamily:'monospace', color:'#1A1A1A' }}>{a.trees?.tree_id || '—'}</td>
-                  <td style={{ padding:'12px 16px', fontSize:'13px', color:'#374151' }}>{a.users?.name || '—'}</td>
-                  <td style={{ padding:'12px 16px', fontSize:'13px', color:'#6B7280' }}>{a.sites?.name || '—'}</td>
-                  <td style={{ padding:'12px 16px', fontSize:'13px', color:'#6B7280' }}>{a.trees?.species || '—'}</td>
-                  <td style={{ padding:'12px 16px', fontSize:'13px', color:'#6B7280' }}>{new Date(a.assigned_at).toLocaleDateString('en-IN')}</td>
-                  <td style={{ padding:'12px 16px' }}>
-                    <span style={{ background:'#fef3c7', color:'#92400e', fontSize:'12px', padding:'3px 8px', borderRadius:'6px', fontWeight:500 }}>{a.status}</span>
-                  </td>
-                </tr>
-              ))}
+              ) : assignments.map(a => {
+                const tree = Array.isArray(a.trees) ? a.trees[0] : a.trees
+                const user = Array.isArray(a.users) ? a.users[0] : a.users
+                const site = Array.isArray(a.sites) ? a.sites[0] : a.sites
+                return (
+                  <tr key={a.id} style={{ borderTop:'1px solid #f3f4f6' }}>
+                    <td style={{ padding:'12px 16px', fontSize:'13px', fontFamily:'monospace', color:'#1A1A1A' }}>{tree?.tree_id || '—'}</td>
+                    <td style={{ padding:'12px 16px', fontSize:'13px', color:'#374151' }}>{user?.name || '—'}</td>
+                    <td style={{ padding:'12px 16px', fontSize:'13px', color:'#6B7280' }}>{site?.name || '—'}</td>
+                    <td style={{ padding:'12px 16px', fontSize:'13px', color:'#6B7280' }}>{tree?.species || '—'}</td>
+                    <td style={{ padding:'12px 16px', fontSize:'13px', color:'#6B7280' }}>{new Date(a.assigned_at).toLocaleDateString('en-IN')}</td>
+                    <td style={{ padding:'12px 16px' }}>
+                      <span style={{ background:'#fef3c7', color:'#92400e', fontSize:'12px', padding:'3px 8px', borderRadius:'6px', fontWeight:500 }}>{a.status}</span>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
         <div className="mob-cards">
-          {assignments.map(a => (
-            <div key={a.id} style={{ padding:'1rem', borderTop:'1px solid #f3f4f6' }}>
-              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'6px' }}>
-                <span style={{ fontSize:'13px', fontFamily:'monospace', fontWeight:500 }}>{a.trees?.tree_id || '—'}</span>
-                <span style={{ background:'#fef3c7', color:'#92400e', fontSize:'11px', padding:'2px 8px', borderRadius:'6px' }}>{a.status}</span>
+          {assignments.map(a => {
+            const tree = Array.isArray(a.trees) ? a.trees[0] : a.trees
+            const user = Array.isArray(a.users) ? a.users[0] : a.users
+            const site = Array.isArray(a.sites) ? a.sites[0] : a.sites
+            return (
+              <div key={a.id} style={{ padding:'1rem', borderTop:'1px solid #f3f4f6' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'6px' }}>
+                  <span style={{ fontSize:'13px', fontFamily:'monospace', fontWeight:500 }}>{tree?.tree_id || '—'}</span>
+                  <span style={{ background:'#fef3c7', color:'#92400e', fontSize:'11px', padding:'2px 8px', borderRadius:'6px' }}>{a.status}</span>
+                </div>
+                <div style={{ fontSize:'13px', color:'#6B7280' }}>👷 {user?.name || '—'} · 📍 {site?.name || '—'}</div>
+                <div style={{ fontSize:'13px', color:'#6B7280' }}>🌿 {tree?.species || '—'}</div>
               </div>
-              <div style={{ fontSize:'13px', color:'#6B7280' }}>👷 {a.users?.name || '—'} · 📍 {a.sites?.name || '—'}</div>
-              <div style={{ fontSize:'13px', color:'#6B7280' }}>🌿 {a.trees?.species || '—'}</div>
-            </div>
-          ))}
+            )
+          })}
           {assignments.length === 0 && <div style={{ padding:'2rem', textAlign:'center', color:'#9ca3af', fontSize:'14px' }}>No pending assignments</div>}
         </div>
       </div>
@@ -357,10 +618,10 @@ export default function AdminAssign() {
       <style>{`
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         .desk-table { display: block; }
-        .mob-cards  { display: none; }
+        .mob-cards  { display: none;  }
         @media (max-width: 768px) {
           .form-grid { grid-template-columns: 1fr; }
-          .desk-table { display: none; }
+          .desk-table { display: none;  }
           .mob-cards  { display: block; }
         }
         select:focus, input:focus { border-color: #2C5F2D !important; }
