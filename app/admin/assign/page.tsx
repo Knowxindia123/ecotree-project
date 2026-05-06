@@ -19,7 +19,7 @@ interface UnassignedTree {
   tree_id: string
   species: string
   tree_type: string
-  donors: { id: number; name: string; email: string } | null
+  donors: { id: number; name: string; email: string } | { id: number; name: string; email: string }[] | null
 }
 interface Assignment {
   id: number
