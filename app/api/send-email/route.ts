@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
                   </tr>
                   <tr>
                     <td style="padding:4px 0;font-size:14px;color:rgba(255,255,255,0.6);">Password</td>
-                    <td style="padding:4px 0;font-size:14px;font-weight:600;color:#97BC62;text-align:right;">1234 (change after login)</td>
+                    <td style="padding:4px 0;font-size:14px;font-weight:600;color:#97BC62;text-align:right;">123456 (change after login)</td>
                   </tr>
                 </table>
               </div>
