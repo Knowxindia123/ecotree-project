@@ -145,7 +145,7 @@ export default function DonatePage() {
         isNewDonor = true
 
         // Create Supabase Auth account
-        tempPassword = '1234'
+        tempPassword = '123456'
         await fetch('/api/create-donor', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
