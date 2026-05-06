@@ -80,7 +80,7 @@ export default function AdminAssign() {
         .not('donor_id', 'is', null)
         .order('created_at', { ascending: true }),
       supabase.from('assignments')
-        .select('id, assigned_at, status, trees(tree_id, species), workers:users(name), sites(name)')
+  .select('id, assigned_at, status, worker_id, trees(tree_id, species), sites(name)')
         .eq('status', 'ASSIGNED')
         .order('assigned_at', { ascending: false })
         .limit(10)
