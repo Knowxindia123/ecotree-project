@@ -546,7 +546,7 @@ export default function AdminAssign() {
                 </div>
                 <div style={{ display:'flex', gap:'0.5rem' }}>
                   <button type="submit" style={{ padding:'8px 16px', background:'#2C5F2D', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>Create site</button>
-                  <button type="button" onClick={() => setShowSiteForm(false)} style={{ padding:'8px 16px', background:'transparent', color:'#6B7280', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', cursor:'pointer' }}>Cancel</button>
+                  <button type="button" onClick={() => setShowSiteForm(false)} style={{ padding:'8px 16px', background:'transparent', color:'#374151', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', cursor:'pointer' }}>Cancel</button>
                 </div>
               </form>
             </div>
