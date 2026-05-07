@@ -267,17 +267,33 @@ export async function POST(req: NextRequest) {
   </table>
 </body>
 </html>`
-    } else {
-      return NextResponse.json({ error: 'Invalid email type' }, { status: 400 })
-    }
-
-    const { data, error } = await resend.emails.send({
-      from:     'EcoTree <hello@ecotrees.org>',
-      to:       donor.email,
-      replyTo:  'bhimsen.g@gmail.com',
-      subject,
-      html,
-    })
+   } else if (type === 'csr_enquiry') {
+  subject = `CSR Proposal Request Received — EcoTree`
+  html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+      <div style="background:#1A3C34;padding:24px;text-align:center;border-radius:12px 12px 0 0;">
+        <h1 style="color:white;margin:0;font-size:20px;">Thank you, ${donor.name}!</h1>
+        <p style="color:#97BC62;margin:8px 0 0;">CSR Proposal Request Received</p>
+      </div>
+      <div style="background:white;padding:24px;border:1px solid #e5e7eb;border-radius:0 0 12px 12px;">
+        <p style="color:#374151;">Hi <strong>${donor.name}</strong>,</p>
+        <p style="color:#6B7280;line-height:1.6;">We have received your CSR proposal request for <strong>${donor.company}</strong>. Our team will reach out within <strong>24 hours</strong> with a customised proposal.</p>
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;margin:16px 0;">
+          <p style="margin:0 0 8px;font-size:13px;color:#166534;font-weight:600;">YOUR REQUEST SUMMARY</p>
+          <p style="margin:4px 0;font-size:14px;color:#374151;">Company: ${donor.company}</p>
+          <p style="margin:4px 0;font-size:14px;color:#374151;">Budget: ${donor.budget}</p>
+          <p style="margin:4px 0;font-size:14px;color:#374151;">Trees: ${donor.trees}</p>
+          <p style="margin:4px 0;font-size:14px;color:#374151;">Interests: ${donor.interests}</p>
+        </div>
+        <div style="text-align:center;margin-top:20px;">
+          <a href="https://ecotrees.org/csr-ngo" style="background:#1A3C34;color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;">Visit EcoTree</a>
+        </div>
+        <p style="font-size:12px;color:#9ca3af;text-align:center;margin-top:16px;">EcoTree Impact Foundation · Bangalore · 80G Approved · BRSR-Ready</p>
+      </div>
+    </div>`
+} else {
+  return NextResponse.json({ error: 'Invalid email type' }, { status: 400 })
+}
 
     if (error) {
       console.error('Resend error:', error)
