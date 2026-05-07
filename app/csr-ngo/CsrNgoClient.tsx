@@ -169,11 +169,37 @@ export default function CsrNgoPage() {
 
     // Send confirmation email — non-blocking
     try {
-      await fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: form.contact_email,
+  await fetch('/api/send-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      type: 'csr_enquiry',
+      donor: {
+        name:      form.contact_name,
+        email:     form.contact_email,
+        company:   form.company_name,
+        budget:    form.budget,
+        trees:     form.tree_count,
+        interests: form.project_type.join(', '),
+      },
+    }),
+  })
+  await fetch('/api/send-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      type: 'csr_enquiry',
+      donor: {
+        name:      'Admin',
+        email:     'hello@ecotrees.org',
+        company:   form.company_name,
+        budget:    form.budget,
+        trees:     form.tree_count,
+        interests: form.project_type.join(', '),
+      },
+    }),
+  })
+} catch (_) {}
           subject: `CSR Proposal Request Received — EcoTree`,
           html: `<p>Hi ${form.contact_name},</p>
 <p>Thank you for your interest in partnering with EcoTree for your CSR initiative.</p>
