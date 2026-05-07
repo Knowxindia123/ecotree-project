@@ -145,7 +145,7 @@ export default function CsrNgoPage() {
 
     if (existing) setDupWarn(true)
 
-   const { data: insertData, error } = await supabase.from('csr_partners').insert({
+    const { error } = await supabase.from('csr_partners').insert({
       contact_name:  form.contact_name.trim(),
       designation:   form.designation.trim() || null,
       company_name:  form.company_name.trim(),
@@ -162,50 +162,26 @@ export default function CsrNgoPage() {
     })
 
     if (error) {
-     setSubmitErr(error.message + ' | code: ' + error.code)
+      setSubmitErr('Something went wrong. Please try again or WhatsApp us.')
       setSaving(false)
       return
     }
 
     // Send confirmation email — non-blocking
     try {
-  await fetch('/api/send-email', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      type: 'csr_enquiry',
-      donor: {
-        name:      form.contact_name,
-        email:     form.contact_email,
-        company:   form.company_name,
-        budget:    form.budget,
-        trees:     form.tree_count,
-        interests: form.project_type.join(', '),
-      },
-    }),
-  })
-  await fetch('/api/send-email', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      type: 'csr_enquiry',
-      donor: {
-        name:      'Admin',
-        email:     'hello@ecotrees.org',
-        company:   form.company_name,
-        budget:    form.budget,
-        trees:     form.tree_count,
-        interests: form.project_type.join(', '),
-      },
-    }),
-  })
-} catch (_) {}
-          subject: `CSR Proposal Request Received — EcoTree`,
-          html: `<p>Hi ${form.contact_name},</p>
-<p>Thank you for your interest in partnering with EcoTree for your CSR initiative.</p>
-<p>We've received your request for <strong>${form.company_name}</strong> and our team will reach out within <strong>24 hours</strong> with a customised proposal.</p>
-<p>Project interests: ${form.project_type.join(', ')}<br/>Budget range: ${form.budget}<br/>Tree count: ${form.tree_count}</p>
-<p>— Team EcoTree<br/><a href="https://ecotrees.org">ecotrees.org</a></p>`,
+      await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'csr_enquiry',
+          donor: {
+            name:      form.contact_name,
+            email:     form.contact_email,
+            company:   form.company_name,
+            budget:    form.budget,
+            trees:     form.tree_count,
+            interests: form.project_type.join(', '),
+          },
         }),
       })
       // Admin alert
@@ -213,10 +189,15 @@ export default function CsrNgoPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to: 'hello@ecotrees.org',
-          subject: `New CSR enquiry — ${form.company_name}`,
-          html: `<p><strong>New CSR partner registration</strong></p>
-<p>Company: ${form.company_name}<br/>Contact: ${form.contact_name} (${form.designation || '—'})<br/>Email: ${form.contact_email}<br/>Phone: ${form.contact_phone}<br/>Budget: ${form.budget}<br/>Trees: ${form.tree_count}<br/>Interests: ${form.project_type.join(', ')}<br/>Message: ${form.message || '—'}</p>`,
+          type: 'csr_enquiry',
+          donor: {
+            name:      'Admin',
+            email:     'hello@ecotrees.org',
+            company:   form.company_name,
+            budget:    form.budget,
+            trees:     form.tree_count,
+            interests: form.project_type.join(', '),
+          },
         }),
       })
     } catch (_) {}
