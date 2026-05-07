@@ -145,7 +145,7 @@ export default function CsrNgoPage() {
 
     if (existing) setDupWarn(true)
 
-    const { error } = await supabase.from('csr_partners').insert({
+   const { data: insertData, error } = await supabase.from('csr_partners').insert({
       contact_name:  form.contact_name.trim(),
       designation:   form.designation.trim() || null,
       company_name:  form.company_name.trim(),
@@ -162,7 +162,7 @@ export default function CsrNgoPage() {
     })
 
     if (error) {
-      setSubmitErr('Something went wrong. Please try again or WhatsApp us.')
+     setSubmitErr(error.message + ' | code: ' + error.code)
       setSaving(false)
       return
     }
