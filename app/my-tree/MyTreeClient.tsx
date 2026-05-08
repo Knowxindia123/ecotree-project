@@ -29,52 +29,31 @@ export default function MyTreeClient() {
   const [timeline, setTimeline] = useState<any[]>([]);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
-  // Photo popup state
   const [photoPopup, setPhotoPopup] = useState<{ url: string; label: string; treeId: string } | null>(null);
-  // Map popup state
-  const [mapPopup, setMapPopup] = useState<{ lat: number; lng: number; tree: DonorTree } | null>(null);
+  const [mapPopup,   setMapPopup]   = useState<{ lat: number; lng: number; tree: DonorTree } | null>(null);
 
-  // ── ADMIN VIEW STATE ──
-  const [isAdminView,      setIsAdminView]      = useState(false);
+  const [isAdminView,        setIsAdminView]        = useState(false);
   const [adminViewDonorName, setAdminViewDonorName] = useState('');
 
   useEffect(() => { init() }, []);
 
-  // ── MODIFIED INIT — supports admin bypass via ?donor_id=X&admin_view=true ──
   async function init() {
     setLoading(true);
-
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { window.location.replace('/my-tree/login'); return; }
 
-    const donorId  = searchParams.get('donor_id');
+    const donorId   = searchParams.get('donor_id');
     const adminView = searchParams.get('admin_view') === 'true';
 
     if (donorId && adminView) {
-      // ── ADMIN BYPASS FLOW ──
-      // 1. Verify the current session user is an ADMIN
       const { data: currentUser } = await supabase
-        .from('users')
-        .select('role')
-        .eq('email', session.user.email)
-        .single();
+        .from('users').select('role').eq('email', session.user.email).single();
+      if (currentUser?.role !== 'ADMIN') { window.location.replace('/my-tree/login'); return; }
 
-      if (currentUser?.role !== 'ADMIN') {
-        // Not an admin — block access
-        window.location.replace('/my-tree/login');
-        return;
-      }
-
-      // 2. Fetch the donor email from donors table using donor_id
       const { data: donorRow } = await supabase
-        .from('donors')
-        .select('email, name')
-        .eq('id', donorId)
-        .single();
-
+        .from('donors').select('email, name').eq('id', donorId).single();
       if (!donorRow) { window.location.replace('/admin/donors'); return; }
 
-      // 3. Load donor data using their email (Option B — no change to getDonorData)
       const { donor, myTrees, occasionTimeline } = await getDonorData(donorRow.email);
       if (!donor) { window.location.replace('/admin/donors'); return; }
 
@@ -84,9 +63,7 @@ export default function MyTreeClient() {
       setMyTrees(myTrees);
       setTimeline(occasionTimeline);
       setPhotoUrl(donor.photo_url);
-
     } else {
-      // ── NORMAL DONOR FLOW (unchanged) ──
       const { donor, myTrees, occasionTimeline } = await getDonorData(session.user.email!);
       if (!donor) { window.location.replace('/my-tree/login'); return; }
       setDonor(donor);
@@ -94,7 +71,6 @@ export default function MyTreeClient() {
       setTimeline(occasionTimeline);
       setPhotoUrl(donor.photo_url);
     }
-
     setLoading(false);
   }
 
@@ -255,11 +231,11 @@ export default function MyTreeClient() {
         .mt-h2--light{color:#fff;}
         .mt-sub{font-size:.95rem;color:#6B7280;line-height:1.6;max-width:560px;margin-bottom:2rem;}
         .tree-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;}
-        @media(max-width:900px){.tree-grid{grid-template-columns:repeat(3,1fr);}}
+        @media(max-width:900px){.tree-grid{grid-template-columns:repeat(2,1fr);}}
         @media(max-width:600px){.tree-grid{grid-template-columns:1fr;}}
         .tree-card{border:1px solid #e5e7eb;border-radius:16px;padding:1.25rem;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.05);transition:box-shadow .2s,transform .2s;}
         .tree-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.1);transform:translateY(-2px);}
-        .photo-thumb{border-radius:8px;overflow:hidden;aspect-ratio:4/3;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;font-size:1.5rem;transition:transform 0.15s;}
+        .photo-thumb{border-radius:8px;overflow:hidden;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;font-size:1.5rem;transition:transform 0.15s;}
         .photo-thumb:hover{transform:scale(1.03);}
         .photo-thumb .lbl{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.55);color:white;font-size:10px;font-weight:600;padding:3px 6px;text-align:center;}
         .photo-thumb .zoom{position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.5);color:white;border-radius:4px;font-size:10px;padding:2px 5px;}
@@ -324,33 +300,17 @@ export default function MyTreeClient() {
 
       <main className="mt-page">
 
-        {/* ── ADMIN BANNER — shown only when admin is viewing a donor ── */}
+        {/* ADMIN BANNER */}
         {isAdminView && (
-          <div style={{
-            background: '#1A3C34',
-            borderBottom: '3px solid #97BC62',
-            padding: '0.75rem 1.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '1rem',
-            flexWrap: 'wrap',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '18px' }}>👁</span>
+          <div style={{ background:'#1A3C34', borderBottom:'3px solid #97BC62', padding:'0.75rem 1.5rem', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'1rem', flexWrap:'wrap' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+              <span style={{ fontSize:'18px' }}>👁</span>
               <div>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#97BC62' }}>
-                  Admin View — {adminViewDonorName}
-                </div>
-                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>
-                  {donor.email} · {donor.total_trees} trees · Read-only
-                </div>
+                <div style={{ fontSize:'13px', fontWeight:700, color:'#97BC62' }}>Admin View — {adminViewDonorName}</div>
+                <div style={{ fontSize:'11px', color:'rgba(255,255,255,0.5)' }}>{donor.email} · {donor.total_trees} trees · Read-only</div>
               </div>
             </div>
-            <button
-              onClick={() => window.close()}
-              style={{ padding: '6px 14px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', color: 'white', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-            >
+            <button onClick={() => window.close()} style={{ padding:'6px 14px', background:'rgba(255,255,255,0.1)', border:'1px solid rgba(255,255,255,0.2)', borderRadius:'8px', color:'white', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
               ← Close Tab
             </button>
           </div>
@@ -365,19 +325,14 @@ export default function MyTreeClient() {
               </div>
               {!isAdminView && <input ref={photoRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display:'none' }} />}
               <div className="mt-hero__text">
-                <div className="mt-hero__eyebrow">
-                  <span className="live-dot" /> My EcoTree Dashboard
-                  {uploading && <span style={{ fontSize:'0.65rem', color:'rgba(255,255,255,0.4)' }}>Uploading...</span>}
-                </div>
+                <div className="mt-hero__eyebrow"><span className="live-dot" /> My EcoTree Dashboard{uploading && <span style={{ fontSize:'0.65rem', color:'rgba(255,255,255,0.4)' }}>Uploading...</span>}</div>
                 <h1 className="mt-hero__h1">{donor.first_name}, your forest is <em>growing</em> 🌳</h1>
                 <p className="mt-hero__sub">{donor.total_trees} trees planted · {donor.co2_kg} kg CO₂ offset · {donor.location}</p>
                 <div className="mt-hero__meta">
                   <span>🪪 <strong>{donor.id}</strong></span>
                   <span>📅 Member since <strong>{donor.since}</strong></span>
                   <span>📍 <strong>{donor.location}</strong></span>
-                  {!isAdminView && (
-                    <span onClick={handleLogout} style={{ cursor:'pointer', color:'rgba(255,255,255,0.4)', marginLeft:'1rem' }}>Sign out</span>
-                  )}
+                  {!isAdminView && <span onClick={handleLogout} style={{ cursor:'pointer', color:'rgba(255,255,255,0.4)', marginLeft:'1rem' }}>Sign out</span>}
                 </div>
               </div>
             </div>
@@ -389,10 +344,10 @@ export default function MyTreeClient() {
         <section className="mt-counters">
           <div className="mt-counters__inner">
             {[
-              { icon:'🌳', val:donor.total_trees,                            label:'My Trees',          sub:'GPS verified'         },
-              { icon:'🌿', val:`${donor.co2_kg} kg`,                         label:'CO₂ Offset',        sub:'ISFR · 22 kg/tree/yr' },
-              { icon:'💧', val:`${(donor.water_litres/1000).toFixed(1)}K L`, label:'Water Saved',       sub:'3,785 L per tree/yr'  },
-              { icon:'🌍', val:`${donor.km_equivalent.toLocaleString()} km`, label:'Driving Equivalent',sub:'less CO₂ on roads'    },
+              { icon:'🌳', val:donor.total_trees,                            label:'My Trees',           sub:'GPS verified'         },
+              { icon:'🌿', val:`${donor.co2_kg} kg`,                         label:'CO₂ Offset',         sub:'ISFR · 22 kg/tree/yr' },
+              { icon:'💧', val:`${(donor.water_litres/1000).toFixed(1)}K L`, label:'Water Saved',        sub:'3,785 L per tree/yr'  },
+              { icon:'🌍', val:`${donor.km_equivalent.toLocaleString()} km`, label:'Driving Equivalent', sub:'less CO₂ on roads'    },
             ].map(c => (
               <div className="mt-counter" key={c.label}>
                 <span className="mt-counter__icon">{c.icon}</span>
@@ -419,7 +374,7 @@ export default function MyTreeClient() {
                 initialViewState={{ longitude:centerLng, latitude:centerLat, zoom:11 }}
                 style={{ width:'100%', height:'100%' }} mapStyle={MAP_STYLES[mapStyle]}>
                 <NavigationControl position="bottom-right" />
-                {treesWithGPS.map((t, i) => (
+                {treesWithGPS.map((t) => (
                   <Marker key={t.id} longitude={t.lng!} latitude={t.lat!} anchor="bottom"
                     onClick={e => { e.originalEvent.stopPropagation(); setPopup(t); }}>
                     <div style={{ width:34, height:34, background:SPECIES_COLOR[t.species]||"#2C5F2D", borderRadius:"50% 50% 50% 0", transform:"rotate(-45deg)", border:"2.5px solid rgba(255,255,255,.95)", boxShadow:t.pulse?"0 0 0 8px rgba(44,95,45,.2),0 3px 10px rgba(0,0,0,.3)":"0 3px 10px rgba(0,0,0,.25)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
@@ -432,11 +387,7 @@ export default function MyTreeClient() {
                     <div className="pu-title">{SPECIES_EMOJI[popup.species]||'🌱'} {popup.species}</div>
                     <div className="pu-row"><span>Zone</span><strong>{popup.zone}</strong></div>
                     <div className="pu-row"><span>Planted</span><strong>{popup.planted}</strong></div>
-                    <div>
-                      <span className="pu-health" style={{ background:HEALTH_COLOR(popup.health)+"22", color:HEALTH_COLOR(popup.health) }}>
-                        Health: {popup.health}% {popup.health>=85?"🟢":popup.health>=70?"🟡":"🔴"}
-                      </span>
-                    </div>
+                    <div><span className="pu-health" style={{ background:HEALTH_COLOR(popup.health)+"22", color:HEALTH_COLOR(popup.health) }}>Health: {popup.health}% {popup.health>=85?"🟢":popup.health>=70?"🟡":"🔴"}</span></div>
                   </Popup>
                 )}
               </Map>
@@ -445,12 +396,12 @@ export default function MyTreeClient() {
           </section>
         )}
 
-        {/* TREE CARDS */}
+        {/* ── TREE CARDS ── */}
         <section className="mt-section mt-section--cream">
           <div className="mt-inner">
             <p className="mt-eyebrow">Your Forest</p>
             <h2 className="mt-h2">All {donor.total_trees} of your trees</h2>
-            <p className="mt-sub">Click any photo to view full screen. Tap GPS to open in Google Maps.</p>
+            <p className="mt-sub">Your trees update as they are planted and verified.</p>
             {myTrees.length === 0 ? (
               <div style={{ textAlign:'center', padding:'3rem', color:'#6B7280' }}>
                 <div style={{ fontSize:'3rem', marginBottom:'0.75rem' }}>🌱</div>
@@ -461,52 +412,96 @@ export default function MyTreeClient() {
               <div className="tree-grid">
                 {myTrees.map(t => (
                   <div key={t.id} className="tree-card">
-                    <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'8px' }}>
+
+                    {/* Tree header — always shown */}
+                    <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px' }}>
                       <span style={{ fontSize:'1.5rem' }}>{SPECIES_EMOJI[t.species]||'🌱'}</span>
                       <div>
                         <div style={{ fontSize:'14px', fontWeight:700, color:'#1A1A1A' }}>{t.species}</div>
                         <div style={{ fontSize:'11px', fontFamily:'monospace', color:'#97BC62' }}>{t.tree_id}</div>
                       </div>
                     </div>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'5px', marginBottom:'8px' }}>
-                      <div className="photo-thumb" style={{ height:'72px', background: t.before_photo_url ? `url(${t.before_photo_url}) center/cover` : 'linear-gradient(135deg,#374151,#6b7280)' }}
-                        onClick={() => t.before_photo_url && setPhotoPopup({ url: t.before_photo_url, label: `Before planting · ${t.species}`, treeId: t.tree_id })}>
-                        {!t.before_photo_url && '🏗️'}
-                        <div className="lbl">Before</div>
-                        {t.before_photo_url && <div className="zoom">🔍</div>}
+
+                    {/* ── PENDING ── */}
+                    {t.status === 'PENDING' && (
+                      <div style={{ background:'#fef9c3', border:'1px solid #fde68a', borderRadius:'10px', padding:'14px', textAlign:'center', marginBottom:'10px' }}>
+                        <div style={{ fontSize:'1.75rem', marginBottom:'6px' }}>⏳</div>
+                        <div style={{ fontSize:'13px', fontWeight:600, color:'#92400e', marginBottom:'4px' }}>Being Prepared</div>
+                        <div style={{ fontSize:'12px', color:'#a16207', lineHeight:1.5 }}>Your tree is being prepared for plantation. We will notify you once it is assigned to a field worker.</div>
                       </div>
-                      <div className="photo-thumb" style={{ height:'72px', background: t.after_photo_url ? `url(${t.after_photo_url}) center/cover` : 'linear-gradient(135deg,#2d6a4f,#52b788)' }}
-                        onClick={() => t.after_photo_url && setPhotoPopup({ url: t.after_photo_url, label: `After planting · ${t.species}`, treeId: t.tree_id })}>
-                        {!t.after_photo_url && '🌳'}
-                        <div className="lbl">After</div>
-                        {t.after_photo_url && <div className="zoom">🔍</div>}
-                      </div>
-                    </div>
-                    <div style={{ fontSize:'12px', color:'#6B7280', marginBottom:'5px' }}>📍 {t.zone}</div>
-                    <div style={{ background:'#f3f4f6', borderRadius:'999px', height:'5px', overflow:'hidden', marginBottom:'4px' }}>
-                      <div style={{ width:`${t.health}%`, height:'100%', background:HEALTH_COLOR(t.health), borderRadius:'999px' }} />
-                    </div>
-                    <div style={{ fontSize:'11px', fontWeight:600, color:HEALTH_COLOR(t.health), marginBottom:'6px' }}>
-                      Health {t.health}% {t.health>=85?"🟢":t.health>=70?"🟡":"🔴"}
-                    </div>
-                    {t.lat && t.lng && (
-                      <button className="gps-btn" onClick={() => setMapPopup({ lat: t.lat!, lng: t.lng!, tree: t })}>
-                        <span style={{ fontSize:'12px' }}>📍</span>
-                        <span style={{ fontFamily:'monospace', fontSize:'10px', color:'#2C5F2D', fontWeight:600 }}>
-                          {t.lat.toFixed(4)}° N, {t.lng.toFixed(4)}° E
-                        </span>
-                        <span style={{ marginLeft:'auto', fontSize:'10px', color:'#2C5F2D' }}>Map →</span>
-                      </button>
                     )}
+
+                    {/* ── ASSIGNED ── */}
+                    {t.status === 'ASSIGNED' && (
+                      <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'10px', padding:'14px', textAlign:'center', marginBottom:'10px' }}>
+                        <div style={{ fontSize:'1.75rem', marginBottom:'6px' }}>👷</div>
+                        <div style={{ fontSize:'13px', fontWeight:600, color:'#1e40af', marginBottom:'4px' }}>Assigned to Field Worker</div>
+                        <div style={{ fontSize:'12px', color:'#1d4ed8', lineHeight:1.5 }}>A field worker has been assigned to plant your tree. Plantation will happen within 7 days.</div>
+                      </div>
+                    )}
+
+                    {/* ── PLANTED ── */}
+                    {t.status === 'PLANTED' && (
+                      <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:'10px', padding:'14px', textAlign:'center', marginBottom:'10px' }}>
+                        <div style={{ fontSize:'1.75rem', marginBottom:'6px' }}>🌱</div>
+                        <div style={{ fontSize:'13px', fontWeight:600, color:'#166534', marginBottom:'4px' }}>Planted — Awaiting Verification</div>
+                        <div style={{ fontSize:'12px', color:'#15803d', lineHeight:1.5 }}>Your tree has been planted! Our team is verifying photos and GPS. You will receive an email once verified.</div>
+                      </div>
+                    )}
+
+                    {/* ── VERIFIED — full details ── */}
+                    {(t.status === 'VERIFIED' || t.status === 'HEALTHY') && (
+                      <>
+                        {/* Before & After photos */}
+                        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'6px', marginBottom:'10px' }}>
+                          <div className="photo-thumb"
+                            style={{ height:'90px', background: t.before_photo_url ? `url(${t.before_photo_url}) center/cover` : 'linear-gradient(135deg,#374151,#6b7280)' }}
+                            onClick={() => t.before_photo_url && setPhotoPopup({ url: t.before_photo_url, label: `Before planting · ${t.species}`, treeId: t.tree_id })}>
+                            {!t.before_photo_url && '🏗️'}
+                            <div className="lbl">Before</div>
+                            {t.before_photo_url && <div className="zoom">🔍</div>}
+                          </div>
+                          <div className="photo-thumb"
+                            style={{ height:'90px', background: t.after_photo_url ? `url(${t.after_photo_url}) center/cover` : 'linear-gradient(135deg,#2d6a4f,#52b788)' }}
+                            onClick={() => t.after_photo_url && setPhotoPopup({ url: t.after_photo_url, label: `After planting · ${t.species}`, treeId: t.tree_id })}>
+                            {!t.after_photo_url && '🌳'}
+                            <div className="lbl">After</div>
+                            {t.after_photo_url && <div className="zoom">🔍</div>}
+                          </div>
+                        </div>
+
+                        {/* Location */}
+                        <div style={{ fontSize:'12px', color:'#6B7280', marginBottom:'6px' }}>📍 {t.zone}</div>
+
+                        {/* Health bar */}
+                        <div style={{ background:'#f3f4f6', borderRadius:'999px', height:'5px', overflow:'hidden', marginBottom:'4px' }}>
+                          <div style={{ width:`${t.health}%`, height:'100%', background:HEALTH_COLOR(t.health), borderRadius:'999px' }} />
+                        </div>
+                        <div style={{ fontSize:'11px', fontWeight:600, color:HEALTH_COLOR(t.health), marginBottom:'8px' }}>
+                          Health {t.health}% {t.health>=85?"🟢":t.health>=70?"🟡":"🔴"}
+                        </div>
+
+                        {/* GPS button */}
+                        {t.lat && t.lng && (
+                          <button className="gps-btn" onClick={() => setMapPopup({ lat: t.lat!, lng: t.lng!, tree: t })}>
+                            <span style={{ fontSize:'12px' }}>📍</span>
+                            <span style={{ fontFamily:'monospace', fontSize:'10px', color:'#2C5F2D', fontWeight:600 }}>{t.lat.toFixed(4)}° N, {t.lng.toFixed(4)}° E</span>
+                            <span style={{ marginLeft:'auto', fontSize:'10px', color:'#2C5F2D' }}>Map →</span>
+                          </button>
+                        )}
+
+                        {/* Tree profile link */}
+                        <div style={{ marginTop:'8px', textAlign:'center' }}>
+                          <a href={`/tree/${t.tree_id}`} target="_blank" rel="noopener noreferrer" style={{ fontSize:'11px', color:'#2C5F2D', fontWeight:600, textDecoration:'none' }}>
+                            View tree profile →
+                          </a>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Occasion + date — always shown */}
                     <div className="tree-card__occasion">{getOccasionIcon(t.occasion)} {t.occasion}</div>
                     <div className="tree-card__date">Planted {t.planted}</div>
-                    {t.qr_code_url && (
-                      <div style={{ marginTop:'8px', textAlign:'center' }}>
-                        <a href={`/tree/${t.tree_id}`} target="_blank" rel="noopener noreferrer" style={{ fontSize:'11px', color:'#2C5F2D', fontWeight:600, textDecoration:'none' }}>
-                          View tree profile →
-                        </a>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -569,7 +564,7 @@ export default function MyTreeClient() {
           </div>
         </section>
 
-        {/* SOCIAL SHARE — hidden in admin view */}
+        {/* SOCIAL SHARE */}
         {!isAdminView && (
           <section className="mt-section mt-section--white">
             <div className="mt-inner">
@@ -589,7 +584,7 @@ export default function MyTreeClient() {
           </section>
         )}
 
-        {/* PLANT MORE — hidden in admin view */}
+        {/* PLANT MORE */}
         {!isAdminView && (
           <section className="mt-section mt-section--cream">
             <div className="mt-inner">
@@ -612,7 +607,7 @@ export default function MyTreeClient() {
           </section>
         )}
 
-        {/* REFER — hidden in admin view */}
+        {/* REFER */}
         {!isAdminView && (
           <section className="mt-section mt-section--dark">
             <div className="mt-inner">
@@ -640,8 +635,7 @@ export default function MyTreeClient() {
           <div style={{ color:'rgba(255,255,255,0.5)', fontSize:'11px', textTransform:'uppercase', letterSpacing:'0.08em' }}>Tap anywhere to close</div>
           <div style={{ position:'relative' }} onClick={e => e.stopPropagation()}>
             <img src={photoPopup.url} alt={photoPopup.label} className="photo-overlay-img" />
-            <button onClick={() => setPhotoPopup(null)}
-              style={{ position:'absolute', top:'-12px', right:'-12px', width:'28px', height:'28px', borderRadius:'50%', background:'#dc2626', border:'none', color:'white', fontSize:'14px', cursor:'pointer', fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
+            <button onClick={() => setPhotoPopup(null)} style={{ position:'absolute', top:'-12px', right:'-12px', width:'28px', height:'28px', borderRadius:'50%', background:'#dc2626', border:'none', color:'white', fontSize:'14px', cursor:'pointer', fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
           </div>
           <div style={{ background:'rgba(255,255,255,0.1)', borderRadius:'12px', padding:'10px 16px', color:'white', fontSize:'12px', textAlign:'center', width:'min(90vw,400px)' }}>
             <div style={{ fontWeight:600, color:'#97BC62', marginBottom:'4px' }}>{photoPopup.label}</div>
@@ -680,9 +674,7 @@ export default function MyTreeClient() {
                 style={{ display:'block', width:'100%', padding:'10px', background:'#2C5F2D', color:'white', borderRadius:8, fontSize:'13px', fontWeight:600, textDecoration:'none', textAlign:'center', marginBottom:8 }}>
                 🗺️ Open in Google Maps
               </a>
-              <button onClick={() => setMapPopup(null)} style={{ width:'100%', padding:'8px', background:'transparent', color:'#6B7280', border:'1px solid #e5e7eb', borderRadius:8, fontSize:'13px', cursor:'pointer' }}>
-                Close
-              </button>
+              <button onClick={() => setMapPopup(null)} style={{ width:'100%', padding:'8px', background:'transparent', color:'#6B7280', border:'1px solid #e5e7eb', borderRadius:8, fontSize:'13px', cursor:'pointer' }}>Close</button>
             </div>
           </div>
         </div>
