@@ -207,15 +207,24 @@ export default function DonatePage() {
       })
 
       // ── Step 4: Send welcome email (new donors only) ──
-      if (isNewDonor) {
-        await sendEmail('welcome', {
-          name:     form.name,
-          email:    form.email,
-          tree_id:  treeIds[0],
-          species:  speciesList[0],
-          password: tempPassword,
-        })
-      }
+      // ── Step 4: Send email ──
+if (isNewDonor) {
+  await sendEmail('welcome', {
+    name:     form.name,
+    email:    form.email,
+    tree_id:  treeIds[0],
+    species:  speciesList[0],
+    password: tempPassword,
+  })
+} else {
+  await sendEmail('welcome', {
+    name:     form.name,
+    email:    form.email,
+    tree_id:  treeIds[0],
+    species:  speciesList[0],
+    password: null,
+  })
+}
 
       // ── Step 5: Save to session + redirect ──
       sessionStorage.setItem('ecotree_ty', JSON.stringify({
