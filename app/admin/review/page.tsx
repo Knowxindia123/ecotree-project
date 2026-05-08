@@ -178,17 +178,30 @@ export default function AdminReview() {
       status:          batch.trees_planted >= (batch.tree_count || 0) ? 'COMPLETED' : 'ASSIGNED',
     }).eq('id', batch.id)
 
-    if (!error && batch.contact_email) {
-      // Send Email 2 — CSR verified notification
-      await sendEmail('csr_enquiry', {
-        name:      batch.contact_name || batch.company_name,
-        email:     batch.contact_email,
-        company:   batch.company_name,
-        budget:    '—',
-        trees:     batch.trees_planted,
-        interests: batch.project_type || 'Tree Plantation',
-      })
-    }
+   if (!error && batch.contact_email) {
+  // Create auth account for CSR contact
+  await fetch('/api/create-donor', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email:    batch.contact_email,
+      password: '123456',
+      name:     batch.contact_name || batch.company_name,
+      donorId:  0,
+    }),
+  })
+  // Send verified email with login credentials
+  await sendEmail('csr_verified', {
+    name:          batch.contact_name || batch.company_name,
+    email:         batch.contact_email,
+    company:       batch.company_name,
+    trees_planted: batch.trees_planted,
+    tree_count:    batch.tree_count,
+    site:          batch.sites?.name || 'Bangalore',
+    project_type:  batch.project_type || 'Tree Plantation',
+    after_photo:   batch.after_photos?.[0] || null,
+  })
+}
 
     loadQueue()
     setProcessing(false)
