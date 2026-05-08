@@ -84,9 +84,10 @@ export async function POST(req: NextRequest) {
                     <td style="padding:4px 0;font-size:14px;font-weight:600;color:white;text-align:right;">${donor.email}</td>
                   </tr>
                   <tr>
-                    <td style="padding:4px 0;font-size:14px;color:rgba(255,255,255,0.6);">Password</td>
-                    <td style="padding:4px 0;font-size:14px;font-weight:600;color:#97BC62;text-align:right;">123456 (change after login)</td>
-                  </tr>
+                    <tr>
+  <td style="padding:4px 0;font-size:14px;color:rgba(255,255,255,0.6);">Password</td>
+  <td style="padding:4px 0;font-size:14px;font-weight:600;color:#97BC62;text-align:right;">${donor.password} (change after login)</td>
+</tr>` : ''}
                 </table>
               </div>
 
