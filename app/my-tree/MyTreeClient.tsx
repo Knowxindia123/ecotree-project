@@ -256,7 +256,7 @@ export default function MyTreeClient() {
         .mt-sub{font-size:.95rem;color:#6B7280;line-height:1.6;max-width:560px;margin-bottom:2rem;}
         .tree-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;}
         @media(max-width:900px){.tree-grid{grid-template-columns:repeat(3,1fr);}}
-        @media(max-width:600px){.tree-grid{grid-template-columns:repeat(2,1fr);}}
+        @media(max-width:600px){.tree-grid{grid-template-columns:1fr;}}
         .tree-card{border:1px solid #e5e7eb;border-radius:16px;padding:1.25rem;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.05);transition:box-shadow .2s,transform .2s;}
         .tree-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.1);transform:translateY(-2px);}
         .photo-thumb{border-radius:8px;overflow:hidden;aspect-ratio:4/3;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;font-size:1.5rem;transition:transform 0.15s;}
