@@ -107,8 +107,8 @@ export default function AdminReview() {
 
     if (csrData && csrData.length > 0) {
       // Fetch sites and workers
-      const siteIds   = [...new Set(csrData.map((c: any) => c.site_id).filter(Boolean))]
-      const workerIds = [...new Set(csrData.map((c: any) => c.worker_id).filter(Boolean))]
+      const siteIds   = Array.from(new Set(csrData.map((c: any) => c.site_id).filter(Boolean)))
+      const workerIds = Array.from(new Set(csrData.map((c: any) => c.worker_id).filter(Boolean)))
       const [sitesRes, workersRes] = await Promise.all([
         siteIds.length   > 0 ? supabase.from('sites').select('id, name').in('id', siteIds) : { data: [] },
         workerIds.length > 0 ? supabase.from('users').select('id, name').in('id', workerIds) : { data: [] },
