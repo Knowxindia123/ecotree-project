@@ -318,7 +318,7 @@ export default function MyTreeClient() {
           .mt-hero__inner{flex-direction:column;align-items:flex-start;}
           .share-card{flex-direction:column;}
           .share-btns{flex-direction:row;min-width:auto;}
-          .tree-grid{grid-template-columns:repeat(2,1fr);}
+          .tree-grid{grid-template-columns:1fr;}
         }
       `}</style>
 
