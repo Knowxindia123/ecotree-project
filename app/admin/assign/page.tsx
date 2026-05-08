@@ -9,11 +9,10 @@ const TREE_TYPES = [
   { id: 'native',  label: 'Native Large Trees', price: 500  },
 ]
 
-type Tab = 'donor' | 'csr' | 'direct'
+type Tab = 'donor' | 'direct'
 
-interface Worker     { id: number; name: string }
-interface Site       { id: number; name: string }
-interface CsrPartner { id: number; company_name: string; type: string }
+interface Worker { id: number; name: string }
+interface Site   { id: number; name: string }
 interface UnassignedTree {
   id: number
   tree_id: string
@@ -25,22 +24,21 @@ interface Assignment {
   id: number
   assigned_at: string
   status: string
-  worker_id: number  // ← ADD THIS
+  worker_id: number
   trees: { tree_id: string; species: string } | null
   sites: { name: string } | null
 }
 
 export default function AdminAssign() {
-  const [tab,         setTab]         = useState<Tab>('donor')
-  const [workers,     setWorkers]     = useState<Worker[]>([])
-  const [sites,       setSites]       = useState<Site[]>([])
-  const [csrPartners, setCsrPartners] = useState<CsrPartner[]>([])
-  const [unassigned,  setUnassigned]  = useState<UnassignedTree[]>([])
-  const [assignments, setAssignments] = useState<Assignment[]>([])
-  const [loading,     setLoading]     = useState(true)
-  const [saving,      setSaving]      = useState(false)
-  const [success,     setSuccess]     = useState('')
-  const [error,       setError]       = useState('')
+  const [tab,        setTab]        = useState<Tab>('donor')
+  const [workers,    setWorkers]    = useState<Worker[]>([])
+  const [sites,      setSites]      = useState<Site[]>([])
+  const [unassigned, setUnassigned] = useState<UnassignedTree[]>([])
+  const [assignments,setAssignments]= useState<Assignment[]>([])
+  const [loading,    setLoading]    = useState(true)
+  const [saving,     setSaving]     = useState(false)
+  const [success,    setSuccess]    = useState('')
+  const [error,      setError]      = useState('')
   const [showSiteForm,    setShowSiteForm]    = useState(false)
   const [gettingLocation, setGettingLocation] = useState(false)
 
@@ -53,13 +51,7 @@ export default function AdminAssign() {
     tree_id: '', worker_id: '', site_id: '', due_date: '', notes: ''
   })
 
-  // Tab 2 — CSR/NGO form
-  const [csrForm, setCsrForm] = useState({
-    csr_partner_id: '', worker_id: '', site_id: '', species: 'Neem',
-    tree_type: 'common', due_date: '', notes: ''
-  })
-
-  // Tab 3 — Direct form
+  // Tab 2 — Direct form
   const [directForm, setDirectForm] = useState({
     worker_id: '', site_id: '', species: 'Neem', tree_type: 'common',
     due_date: '', notes: ''
@@ -69,18 +61,16 @@ export default function AdminAssign() {
 
   async function loadData() {
     setLoading(true)
-    const [workersRes, sitesRes, csrRes, unassignedRes, assignmentsRes] = await Promise.all([
+    const [workersRes, sitesRes, unassignedRes, assignmentsRes] = await Promise.all([
       supabase.from('users').select('id, name').eq('role', 'WORKER').eq('is_active', true).order('name'),
       supabase.from('sites').select('id, name').eq('is_active', true).order('name'),
-      supabase.from('csr_partners').select('id, company_name, type').eq('is_active', true).order('company_name'),
-      // Unassigned donor trees — PENDING and not in assignments
       supabase.from('trees')
         .select('id, tree_id, species, tree_type, donors(id, name, email)')
         .eq('status', 'PENDING')
         .not('donor_id', 'is', null)
         .order('created_at', { ascending: true }),
       supabase.from('assignments')
-  .select('id, assigned_at, status, worker_id, trees(tree_id, species), sites(name)')
+        .select('id, assigned_at, status, worker_id, trees(tree_id, species), sites(name)')
         .eq('status', 'ASSIGNED')
         .order('assigned_at', { ascending: false })
         .limit(10)
@@ -88,17 +78,7 @@ export default function AdminAssign() {
 
     setWorkers(workersRes.data || [])
     setSites(sitesRes.data || [])
-    setCsrPartners(csrRes.data || [])
-
-    // Filter out trees already assigned
-    const assignedTreeIds = new Set(
-      (assignmentsRes.data || []).map((a: any) => {
-        const t = Array.isArray(a.trees) ? a.trees[0] : a.trees
-        return t?.tree_id
-      }).filter(Boolean)
-    )
-   const unassignedTrees = unassignedRes.data || []
-    setUnassigned(unassignedTrees as UnassignedTree[])
+    setUnassigned(unassignedRes.data as UnassignedTree[] || [])
     setAssignments((assignmentsRes.data as unknown as Assignment[]) || [])
     setLoading(false)
   }
@@ -143,14 +123,12 @@ export default function AdminAssign() {
     const tree = unassigned.find(t => String(t.id) === donorForm.tree_id)
     if (!tree) { setError('Please select a tree'); setSaving(false); return }
 
-    // Update tree with site
     await supabase.from('trees').update({
       site_id:   Number(donorForm.site_id),
       worker_id: Number(donorForm.worker_id),
       status:    'ASSIGNED',
     }).eq('id', tree.id)
 
-    // Create assignment
     const { error: assignError } = await supabase.from('assignments').insert({
       tree_id:   tree.id,
       worker_id: Number(donorForm.worker_id),
@@ -169,45 +147,7 @@ export default function AdminAssign() {
     setSaving(false)
   }
 
-  // ── TAB 2: Create CSR/NGO tree ──
-  async function handleCsrAssign(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true); setError(''); setSuccess('')
-
-    const treeId   = `ET-BLR-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`
-    const treeType = TREE_TYPES.find(t => t.id === csrForm.tree_type)
-
-    const { data: tree, error: treeError } = await supabase.from('trees').insert({
-      tree_id:        treeId,
-      csr_partner_id: Number(csrForm.csr_partner_id),
-      site_id:        Number(csrForm.site_id),
-      worker_id:      Number(csrForm.worker_id),
-      tree_type:      treeType?.label || csrForm.tree_type,
-      species:        csrForm.species,
-      status:         'ASSIGNED',
-    }).select('id').single()
-
-    if (treeError) { setError(treeError.message); setSaving(false); return }
-
-    const { error: assignError } = await supabase.from('assignments').insert({
-      tree_id:   tree.id,
-      worker_id: Number(csrForm.worker_id),
-      site_id:   Number(csrForm.site_id),
-      status:    'ASSIGNED',
-      due_date:  csrForm.due_date || null,
-      notes:     csrForm.notes    || null,
-    })
-
-    if (assignError) { setError(assignError.message); setSaving(false); return }
-
-    const partner = csrPartners.find(p => String(p.id) === csrForm.csr_partner_id)
-    setSuccess(`✅ ${treeId} created and assigned! Linked to ${partner?.company_name}.`)
-    setCsrForm({ csr_partner_id:'', worker_id:'', site_id:'', species:'Neem', tree_type:'common', due_date:'', notes:'' })
-    loadData()
-    setSaving(false)
-  }
-
-  // ── TAB 3: Create direct tree ──
+  // ── TAB 2: Create direct tree ──
   async function handleDirectAssign(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true); setError(''); setSuccess('')
@@ -258,13 +198,27 @@ export default function AdminAssign() {
         <p style={{ fontSize: '14px', color: '#6B7280' }}>Assign trees to field workers for planting</p>
       </div>
 
+      {/* ── CSR NOTICE ── */}
+      <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '12px 16px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '18px' }}>🏢</span>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#1e40af' }}>CSR / NGO batch assignments have moved</div>
+            <div style={{ fontSize: '12px', color: '#3b82f6' }}>Use the CSR Partners page to assign batches — select a paid partner and click Assign Batch</div>
+          </div>
+        </div>
+        <a href="/admin/csr"
+          style={{ padding: '8px 16px', background: '#1e40af', color: 'white', borderRadius: '8px', fontSize: '13px', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+          Go to CSR Partners →
+        </a>
+      </div>
+
       {/* ── TABS ── */}
       <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb' }}>
           {[
-            { id: 'donor',  label: '🌿 Donor Tree',  desc: 'Assign existing donor tree' },
-            { id: 'csr',    label: '🏢 CSR / NGO',   desc: 'Create tree for CSR partner' },
-            { id: 'direct', label: '🌱 Direct',       desc: 'NGO direct plantation'      },
+            { id: 'donor',  label: '🌿 Donor Tree', desc: 'Assign existing donor tree' },
+            { id: 'direct', label: '🌱 Direct',      desc: 'NGO direct plantation'     },
           ].map(t => (
             <button key={t.id} onClick={() => { setTab(t.id as Tab); setError(''); setSuccess('') }}
               style={{
@@ -296,7 +250,6 @@ export default function AdminAssign() {
                 </div>
               ) : (
                 <div className="form-grid">
-                  {/* Tree selector */}
                   <div style={{ gridColumn: 'span 2' }}>
                     <label style={labelStyle}>Select donor tree * <span style={{ color: '#9ca3af', fontWeight: 400 }}>({unassigned.length} unassigned)</span></label>
                     <select required value={donorForm.tree_id} onChange={e => setDonorForm({...donorForm, tree_id: e.target.value})} style={inputStyle}>
@@ -312,7 +265,6 @@ export default function AdminAssign() {
                     </select>
                   </div>
 
-                  {/* Worker */}
                   <div>
                     <label style={labelStyle}>Field worker *</label>
                     <select required value={donorForm.worker_id} onChange={e => setDonorForm({...donorForm, worker_id: e.target.value})} style={inputStyle}>
@@ -321,7 +273,6 @@ export default function AdminAssign() {
                     </select>
                   </div>
 
-                  {/* Site */}
                   <div>
                     <label style={labelStyle}>Planting site *</label>
                     <select required value={donorForm.site_id} onChange={e => setDonorForm({...donorForm, site_id: e.target.value})} style={inputStyle}>
@@ -334,13 +285,11 @@ export default function AdminAssign() {
                     </button>
                   </div>
 
-                  {/* Due date */}
                   <div>
                     <label style={labelStyle}>Due date</label>
                     <input type="date" value={donorForm.due_date} onChange={e => setDonorForm({...donorForm, due_date: e.target.value})} style={inputStyle} />
                   </div>
 
-                  {/* Notes */}
                   <div>
                     <label style={labelStyle}>Notes</label>
                     <input type="text" placeholder="e.g. Plant near entrance" value={donorForm.notes} onChange={e => setDonorForm({...donorForm, notes: e.target.value})} style={inputStyle} />
@@ -360,84 +309,7 @@ export default function AdminAssign() {
             </form>
           )}
 
-          {/* ── TAB 2: CSR/NGO ── */}
-          {tab === 'csr' && (
-            <form onSubmit={handleCsrAssign}>
-              <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '10px 14px', marginBottom: '1rem', fontSize: '13px', color: '#1e40af' }}>
-                🏢 Creates a new tree linked to a CSR/NGO partner
-              </div>
-
-              <div className="form-grid">
-                {/* CSR Partner */}
-                <div style={{ gridColumn: 'span 2' }}>
-                  <label style={labelStyle}>CSR / NGO Partner *</label>
-                  <select required value={csrForm.csr_partner_id} onChange={e => setCsrForm({...csrForm, csr_partner_id: e.target.value})} style={inputStyle}>
-                    <option value="">— Select partner —</option>
-                    {csrPartners.map(p => <option key={p.id} value={p.id}>{p.company_name} ({p.type})</option>)}
-                  </select>
-                  {csrPartners.length === 0 && (
-                    <div style={{ fontSize:'12px', color:'#f59e0b', marginTop:'4px' }}>⚠️ No CSR/NGO partners yet — add them in the CSR Partners page</div>
-                  )}
-                </div>
-
-                {/* Worker */}
-                <div>
-                  <label style={labelStyle}>Field worker *</label>
-                  <select required value={csrForm.worker_id} onChange={e => setCsrForm({...csrForm, worker_id: e.target.value})} style={inputStyle}>
-                    <option value="">Select worker</option>
-                    {workers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                  </select>
-                </div>
-
-                {/* Site */}
-                <div>
-                  <label style={labelStyle}>Planting site *</label>
-                  <select required value={csrForm.site_id} onChange={e => setCsrForm({...csrForm, site_id: e.target.value})} style={inputStyle}>
-                    <option value="">Select site</option>
-                    {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-
-                {/* Tree type */}
-                <div>
-                  <label style={labelStyle}>Tree type *</label>
-                  <select required value={csrForm.tree_type} onChange={e => setCsrForm({...csrForm, tree_type: e.target.value})} style={inputStyle}>
-                    {TREE_TYPES.map(t => <option key={t.id} value={t.id}>{t.label} — ₹{t.price}</option>)}
-                  </select>
-                </div>
-
-                {/* Species */}
-                <div>
-                  <label style={labelStyle}>Species *</label>
-                  <select required value={csrForm.species} onChange={e => setCsrForm({...csrForm, species: e.target.value})} style={inputStyle}>
-                    {SPECIES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-
-                {/* Due date */}
-                <div>
-                  <label style={labelStyle}>Due date</label>
-                  <input type="date" value={csrForm.due_date} onChange={e => setCsrForm({...csrForm, due_date: e.target.value})} style={inputStyle} />
-                </div>
-
-                {/* Notes */}
-                <div>
-                  <label style={labelStyle}>Notes</label>
-                  <input type="text" placeholder="e.g. Plant near entrance" value={csrForm.notes} onChange={e => setCsrForm({...csrForm, notes: e.target.value})} style={inputStyle} />
-                </div>
-              </div>
-
-              {error   && <div style={{ color:'#dc2626', fontSize:'13px', margin:'0.75rem 0' }}>{error}</div>}
-              {success && <div style={{ color:'#16a34a', fontSize:'13px', margin:'0.75rem 0' }}>{success}</div>}
-
-              <button type="submit" disabled={saving}
-                style={{ marginTop:'1rem', padding:'10px 24px', background: saving?'#9ca3af':'#1e40af', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor: saving?'not-allowed':'pointer' }}>
-                {saving ? 'Assigning...' : 'Create & assign tree →'}
-              </button>
-            </form>
-          )}
-
-          {/* ── TAB 3: DIRECT ── */}
+          {/* ── TAB 2: DIRECT ── */}
           {tab === 'direct' && (
             <form onSubmit={handleDirectAssign}>
               <div style={{ background: '#fef9c3', border: '1px solid #fde68a', borderRadius: '8px', padding: '10px 14px', marginBottom: '1rem', fontSize: '13px', color: '#92400e' }}>
@@ -445,7 +317,6 @@ export default function AdminAssign() {
               </div>
 
               <div className="form-grid">
-                {/* Worker */}
                 <div>
                   <label style={labelStyle}>Field worker *</label>
                   <select required value={directForm.worker_id} onChange={e => setDirectForm({...directForm, worker_id: e.target.value})} style={inputStyle}>
@@ -454,7 +325,6 @@ export default function AdminAssign() {
                   </select>
                 </div>
 
-                {/* Site */}
                 <div>
                   <label style={labelStyle}>Planting site *</label>
                   <select required value={directForm.site_id} onChange={e => setDirectForm({...directForm, site_id: e.target.value})} style={inputStyle}>
@@ -463,7 +333,6 @@ export default function AdminAssign() {
                   </select>
                 </div>
 
-                {/* Tree type */}
                 <div>
                   <label style={labelStyle}>Tree type *</label>
                   <select required value={directForm.tree_type} onChange={e => setDirectForm({...directForm, tree_type: e.target.value})} style={inputStyle}>
@@ -471,7 +340,6 @@ export default function AdminAssign() {
                   </select>
                 </div>
 
-                {/* Species */}
                 <div>
                   <label style={labelStyle}>Species *</label>
                   <select required value={directForm.species} onChange={e => setDirectForm({...directForm, species: e.target.value})} style={inputStyle}>
@@ -479,13 +347,11 @@ export default function AdminAssign() {
                   </select>
                 </div>
 
-                {/* Due date */}
                 <div>
                   <label style={labelStyle}>Due date</label>
                   <input type="date" value={directForm.due_date} onChange={e => setDirectForm({...directForm, due_date: e.target.value})} style={inputStyle} />
                 </div>
 
-                {/* Notes */}
                 <div>
                   <label style={labelStyle}>Notes</label>
                   <input type="text" placeholder="e.g. Plant near entrance" value={directForm.notes} onChange={e => setDirectForm({...directForm, notes: e.target.value})} style={inputStyle} />
@@ -502,7 +368,7 @@ export default function AdminAssign() {
             </form>
           )}
 
-          {/* ── CREATE SITE FORM (shared across tabs) ── */}
+          {/* ── CREATE SITE FORM ── */}
           {showSiteForm && (
             <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:'10px', padding:'1rem', marginTop:'1rem' }}>
               <div style={{ fontSize:'13px', fontWeight:600, color:'#1A3C34', marginBottom:'0.75rem' }}>Create new site</div>
@@ -575,7 +441,7 @@ export default function AdminAssign() {
                 <tr><td colSpan={6} style={{ padding:'2rem', textAlign:'center', color:'#9ca3af', fontSize:'14px' }}>No pending assignments</td></tr>
               ) : assignments.map(a => {
                 const tree = Array.isArray(a.trees) ? a.trees[0] : a.trees
-               const user = workers.find(w => w.id === a.worker_id)
+                const user = workers.find(w => w.id === a.worker_id)
                 const site = Array.isArray(a.sites) ? a.sites[0] : a.sites
                 return (
                   <tr key={a.id} style={{ borderTop:'1px solid #f3f4f6' }}>
@@ -616,10 +482,10 @@ export default function AdminAssign() {
       <style>{`
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         .desk-table { display: block; }
-        .mob-cards  { display: none;  }
+        .mob-cards  { display: none; }
         @media (max-width: 768px) {
           .form-grid { grid-template-columns: 1fr; }
-          .desk-table { display: none;  }
+          .desk-table { display: none; }
           .mob-cards  { display: block; }
         }
         select:focus, input:focus { border-color: #2C5F2D !important; }
