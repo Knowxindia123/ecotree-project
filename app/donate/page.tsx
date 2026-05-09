@@ -86,6 +86,7 @@ export default function DonatePage() {
   const [tier, setTier]       = useState(TIERS[3])
   const [occ, setOcc]         = useState(OCCASIONS[0])
   const [species, setSpecies] = useState('')
+  const [qty, setQty] = useState(1)
   const [loading, setLoading] = useState(false)
   const [copied, setCopied]   = useState(false)
   const [errors, setErrors]   = useState<FormErrors>({})
@@ -102,13 +103,14 @@ export default function DonatePage() {
     if (errors[k as keyof FormErrors]) setErrors(p => ({...p, [k]: undefined}))
   }
 
-  const total = mode === 'gift' ? occ.price : tier.price
+  const total = mode === 'gift' ? occ.price : tier.price * qty
 
   const availableOccasions = OCCASIONS.filter(o => tier.occasionIds.includes(o.id))
 
   const pickTier = (t: typeof TIERS[0]) => {
     setTier(t)
     setSpecies('')
+    setQty(1)
     if (t.occasionIds.length > 0) setOcc(OCCASIONS.find(o => t.occasionIds.includes(o.id)) || OCCASIONS[0])
     if (window.innerWidth < 900) setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
   }
@@ -439,7 +441,16 @@ export default function DonatePage() {
                       <div className="dn-tbody">
                         <div className="dn-ttop">
                           <span className="dn-tname">{t.icon} {t.name}</span>
-                          <span className="dn-tprice">₹{t.price.toLocaleString('en-IN')}</span>
+                          {tier.id === t.id ? (
+                            <div className="dn-tinline-qty" onClick={e => e.stopPropagation()}>
+                              <button className="dn-qb" onClick={()=>setQty(q=>Math.max(1,q-1))}>−</button>
+                              <span className="dn-qn">{qty}</span>
+                              <button className="dn-qb" onClick={()=>setQty(q=>Math.min(t.id==='miyawaki_5000'||t.id==='joint_500'?10:100,q+1))}>+</button>
+                              <span className="dn-tprice">₹{(t.price*qty).toLocaleString('en-IN')}</span>
+                            </div>
+                          ) : (
+                            <span className="dn-tprice">₹{t.price.toLocaleString('en-IN')}</span>
+                          )}
                         </div>
                         <div className="dn-tdesc">{t.desc}</div>
                         <ul className="dn-twhat">
@@ -798,6 +809,9 @@ export default function DonatePage() {
         .dn-btn{display:inline-flex;align-items:center;justify-content:center;gap:0.4rem;font-size:0.88rem;font-weight:600;padding:0.6rem 1.3rem;border-radius:999px;text-decoration:none;cursor:pointer;border:none;transition:all 0.2s;font-family:inherit;white-space:nowrap;}
         .dn-btn--p{background:#2C5F2D;color:#fff;}
         .dn-btn--wa{background:#25D366;color:#fff;}
+        .dn-tinline-qty{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+        .dn-qb{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--md);background:#fff;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gd);font-family:inherit;flex-shrink:0;line-height:1;}
+        .dn-qn{min-width:24px;text-align:center;font-size:0.9rem;font-weight:800;color:var(--gd);}
         @media(max-width:480px){.dn-sec{padding:2rem 0;}.dn-split-bg{padding:1.25rem 0;}.dn-tb-r1{flex-wrap:wrap;gap:0.5rem;}.dn-tb-trust{display:none;}.dn-rcard{padding:1.1rem;position:static;}.dn-bcta__in{flex-direction:column;align-items:stretch;}.dn-bcta__btns{flex-direction:column;}}
       `}</style>
     </main>
