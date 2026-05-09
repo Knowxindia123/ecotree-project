@@ -217,7 +217,7 @@ export default function CsrDashboard() {
               </div>
             </div>
             <div style={{height:'420px',maxWidth:'1200px',margin:'0 auto',overflow:'hidden'}}>
-              <Map mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN} initialViewState={{longitude:partner.longitude!,latitude:partner.latitude!,zoom:14}} style={{width:'100%',height:'100%'}} mapStyle={MAP_STYLES[mapStyle]}>
+              <Map mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN} initialViewState={{longitude:partner.longitude!,latitude:partner.latitude!,zoom:16}} style={{width:'100%',height:'100%'}} mapStyle={MAP_STYLES[mapStyle]}>
                 <NavigationControl position="bottom-right"/>
                 <Marker longitude={partner.longitude!} latitude={partner.latitude!} anchor="bottom">
                   <div style={{width:40,height:40,background:'#2C5F2D',borderRadius:'50% 50% 50% 0',transform:'rotate(-45deg)',border:'3px solid white',boxShadow:'0 3px 12px rgba(0,0,0,.3)',display:'flex',alignItems:'center',justifyContent:'center'}}>
