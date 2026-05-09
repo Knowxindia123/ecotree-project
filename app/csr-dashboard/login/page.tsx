@@ -23,7 +23,7 @@ export default function CsrLogin() {
       .from('csr_partners')
       .select('id, company_name, is_active')
       .eq('contact_email', email.toLowerCase().trim())
-      .single()
+      .order('created_at', { ascending: false }).limit(1).maybeSingle()
 
     if (!partner) {
       await supabase.auth.signOut()
