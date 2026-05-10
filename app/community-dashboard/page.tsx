@@ -64,17 +64,17 @@ export default function CommunityDashboard() {
       .not('latitude', 'is', null).not('longitude', 'is', null)
     setSitePins(sites || [])
 
-    // Site photos from csr_partners
-    const { data: csrData } = await supabase
-      .from('csr_partners').select('site_photos, after_photos')
-      .not('site_photos', 'eq', '{}')
-      .limit(5)
-    const photos: string[] = []
-    csrData?.forEach((c: any) => {
-      if (c.site_photos?.length) photos.push(...c.site_photos.slice(0, 2))
-      if (c.after_photos?.length) photos.push(...c.after_photos.slice(0, 2))
-    })
-    setSitePhotos(photos.slice(0, 8))
+   // Community plantation photos from admin updates
+const { data: communityUpdates } = await supabase
+  .from('community_updates')
+  .select('photos')
+  .order('created_at', { ascending: false })
+  .limit(5)
+const photos: string[] = []
+communityUpdates?.forEach((u: any) => {
+  if (u.photos?.length) photos.push(...u.photos.slice(0, 3))
+})
+setSitePhotos(photos.slice(0, 8))
 
     setLoading(false)
   }
