@@ -161,8 +161,10 @@ export default function DonatePage() {
           phone:         form.phone,
           address:       form.address || null,
           birthday:      form.birthday || null,
-          anniversary:   form.anniversary || null,
-        }).eq('id', donorId)
+          anniversary: form.anniversary || null,
+tier:        tier.tier,
+}).eq('id', donorId)
+        
       } else {
         const { data: newDonor, error: donorErr } = await supabase
           .from('donors').insert({
