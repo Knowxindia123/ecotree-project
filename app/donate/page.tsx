@@ -9,7 +9,7 @@ const WA_MSG = encodeURIComponent(`India's only NGO where you can see your tree 
 const TIERS = [
   {
     id: 'community_100', tier: '100', icon: '🌿', name: 'Community Contributor',
-    price: 100, tag: '❤️ Most Accessible', tagColor: '#52B788',
+    price: 100, co2: '~5kg', tag: '❤️ Most Accessible', tagColor: '#52B788',
     desc: 'Join our community forest. Certificate in your name.',
     what: ['Community forest certificate', 'Impact dashboard access', 'Project participation invites', 'Community tree tracking'],
     img: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=600&q=80',
@@ -18,7 +18,7 @@ const TIERS = [
   },
   {
     id: 'community_250', tier: '250', icon: '🌱', name: 'Community Supporter',
-    price: 250, tag: '🌿 Great Value', tagColor: '#2D6A4F',
+    price: 250, co2: '~5kg', tag: '🌿 Great Value', tagColor: '#2D6A4F',
     desc: 'Support our community forest with greater impact.',
     what: ['Community forest certificate', 'Impact dashboard access', 'Priority project invites', 'Community tree tracking'],
     img: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=600&q=80',
@@ -27,7 +27,7 @@ const TIERS = [
   },
   {
     id: 'joint_500', tier: '500', icon: '🤝', name: 'Joint Tree Donor',
-    price: 500, tag: '👥 Share a Tree', tagColor: '#F59E0B',
+    price: 500, co2: '~11kg', tag: '👥 Share a Tree', tagColor: '#F59E0B',
     desc: 'Pool with 1 stranger — together you plant 1 tree.',
     what: ['Individual tree certificate', 'Shared tree dashboard', 'GPS location on map', 'Before & after photos', 'Species preference'],
     img: 'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=600&q=80',
@@ -36,7 +36,7 @@ const TIERS = [
   },
   {
     id: 'individual_1000', tier: '1000', icon: '🌳', name: 'Individual Tree',
-    price: 1000, tag: '⭐ Most Popular', tagColor: '#1B4332',
+    price: 1000, co2: '~22kg', tag: '⭐ Most Popular', tagColor: '#1B4332',
     desc: 'Your own tree. Full dashboard. GPS tracked for 3 years.',
     what: ['Individual tree certificate', 'Personal tree dashboard', 'GPS location on map', 'Before & after photos', 'AI health score', '80G tax receipt', 'Guaranteed species'],
     img: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=600&q=80',
@@ -45,7 +45,7 @@ const TIERS = [
   },
   {
     id: 'miyawaki_5000', tier: '5000', icon: '🏙️', name: 'Miyawaki Forest',
-    price: 5000, tag: '🔥 Premium Impact', tagColor: '#7C3AED',
+    price: 5000, co2: '~200kg', tag: '🔥 Premium Impact', tagColor: '#7C3AED',
     desc: '30+ native species. Dense urban forest. 10x faster growth.',
     what: ['Forest impact certificate', 'Miyawaki forest dashboard', 'GPS forest location', 'Species diversity report', 'BRSR-compatible report', '80G tax receipt', 'Donor wall recognition'],
     img: 'https://images.unsplash.com/photo-1425913397330-cf8af2ff40a1?w=600&q=80',
@@ -376,7 +376,7 @@ export default function DonatePage() {
       sessionStorage.setItem('ecotree_ty', JSON.stringify({
         certId, name: form.name, email: form.email, phone: form.phone,
         treeName: mode === 'gift' ? `${occ.icon} ${occ.label} Gift` : tier.name,
-        species: species || tier.name, amount: total, mode,
+        species: species || tier.name, co2: tier.co2 || '~22kg', amount: total, mode,
         tierId: tier.id, tierBadge: tier.badge,
         recipientName: form.recipientName, recipientEmail: form.recipientEmail,
         occasion: occ.label, giftMessage: form.giftMessage,
