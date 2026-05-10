@@ -267,7 +267,7 @@ setSitePhotos(photos.slice(0, 8))
     )}
   </div>
 </section>
-        )}
+        
 
         {/* MAP */}
         {sitePins.length > 0 && (
