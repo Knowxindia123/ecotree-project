@@ -42,9 +42,23 @@ export default function MiyawakiDashboard() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { window.location.replace('/my-tree/login'); return }
 
-    const { data: donorData } = await supabase
-      .from('donors').select('*').eq('email', session.user.email)
-      .order('created_at', { ascending: false }).limit(1).maybeSingle()
+    const params = new URLSearchParams(window.location.search)
+    const donorIdParam = params.get('donor_id')
+    const adminView = params.get('admin_view') === 'true'
+
+    let donorData: any = null
+
+    if (donorIdParam && adminView) {
+      const { data: d } = await supabase
+        .from('donors').select('*').eq('id', donorIdParam).single()
+      donorData = d
+    } else {
+      const { data: d } = await supabase
+        .from('donors').select('*').eq('email', session.user.email)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle()
+      donorData = d
+    }
+
     if (!donorData) { window.location.replace('/my-tree/login'); return }
     setDonor(donorData)
 
