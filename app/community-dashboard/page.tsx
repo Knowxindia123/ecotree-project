@@ -36,11 +36,24 @@ export default function CommunityDashboard() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { window.location.replace('/my-tree/login'); return }
 
-    const { data: donorData } = await supabase
-      .from('donors').select('*')
-      .eq('email', session.user.email)
-      .order('created_at', { ascending: false })
-      .limit(1).maybeSingle()
+    const params = new URLSearchParams(window.location.search)
+    const donorIdParam = params.get('donor_id')
+    const adminView = params.get('admin_view') === 'true'
+
+    let donorData: any = null
+
+    if (donorIdParam && adminView) {
+      const { data: d } = await supabase
+        .from('donors').select('*').eq('id', donorIdParam).single()
+      donorData = d
+    } else {
+      const { data: d } = await supabase
+        .from('donors').select('*')
+        .eq('email', session.user.email)
+        .order('created_at', { ascending: false })
+        .limit(1).maybeSingle()
+      donorData = d
+    }
 
     if (!donorData) { window.location.replace('/my-tree/login'); return }
     setDonor(donorData)
@@ -64,17 +77,17 @@ export default function CommunityDashboard() {
       .not('latitude', 'is', null).not('longitude', 'is', null)
     setSitePins(sites || [])
 
-   // Community plantation photos from admin updates
-const { data: communityUpdates } = await supabase
-  .from('community_updates')
-  .select('photos')
-  .order('created_at', { ascending: false })
-  .limit(5)
-const photos: string[] = []
-communityUpdates?.forEach((u: any) => {
-  if (u.photos?.length) photos.push(...u.photos.slice(0, 3))
-})
-setSitePhotos(photos.slice(0, 8))
+    // Site photos from csr_partners
+    const { data: csrData } = await supabase
+      .from('csr_partners').select('site_photos, after_photos')
+      .not('site_photos', 'eq', '{}')
+      .limit(5)
+    const photos: string[] = []
+    csrData?.forEach((c: any) => {
+      if (c.site_photos?.length) photos.push(...c.site_photos.slice(0, 2))
+      if (c.after_photos?.length) photos.push(...c.after_photos.slice(0, 2))
+    })
+    setSitePhotos(photos.slice(0, 8))
 
     setLoading(false)
   }
@@ -245,29 +258,22 @@ setSitePhotos(photos.slice(0, 8))
         </section>
 
         {/* PHOTOS */}
-       <section className="cd-sec" style={{background:'white'}}>
-  <div className="cd-in">
-    <p className="cd-ey">Community forest photos</p>
-    <h2 className="cd-h2">Your forest growing in Bangalore</h2>
-    {sitePhotos.length > 0 ? (
-      <div className="pg">
-        {sitePhotos.map((url,i)=>(
-          <div key={i} className="pt" onClick={()=>setPhotoPopup({url,label:'Community forest · Bangalore'})}>
-            <img src={url} alt="" loading="lazy"/>
-            <div className="ptz">expand</div>
-          </div>
-        ))}
-      </div>
-    ) : (
-      <div style={{background:'#f9fafb',borderRadius:'12px',padding:'2rem',textAlign:'center',border:'1px dashed #d1d5db'}}>
-        <div style={{fontSize:'2rem',marginBottom:'0.5rem'}}>🌱</div>
-        <div style={{fontSize:'14px',fontWeight:600,color:'#1A1A1A',marginBottom:'4px'}}>Photos coming soon</div>
-        <div style={{fontSize:'13px',color:'#6B7280'}}>Community plantation photos will appear here as trees are planted</div>
-      </div>
-    )}
-  </div>
-</section>
-        
+        {sitePhotos.length > 0 && (
+          <section className="cd-sec" style={{background:'white'}}>
+            <div className="cd-in">
+              <p className="cd-ey">Community forest photos</p>
+              <h2 className="cd-h2">Your forest growing in Bangalore</h2>
+              <div className="pg">
+                {sitePhotos.map((url,i)=>(
+                  <div key={i} className="pt" onClick={()=>setPhotoPopup({url,label:'Community forest · Bangalore'})}>
+                    <img src={url} alt="" loading="lazy"/>
+                    <div className="ptz">expand</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* MAP */}
         {sitePins.length > 0 && (
