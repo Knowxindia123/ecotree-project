@@ -48,7 +48,7 @@ export default function MyTreeClient() {
 
     if (donorId && adminView) {
       const { data: currentUser } = await supabase
-        .from('users').select('role').eq('email', session.user.email).single();
+       .from('users').select('role').eq('email', session?.user?.email || '').single();
       if (currentUser?.role !== 'ADMIN') { window.location.replace('/my-tree/login'); return; }
 
       const { data: donorRow } = await supabase
