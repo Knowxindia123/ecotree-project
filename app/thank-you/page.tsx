@@ -411,7 +411,9 @@ const boxes = [
             {isGift ? `Your gift tree is on its way to ${data.recipientName}!` : 'Payment Confirmed! Your tree is on its way.'}
           </h1>
           <p className="ty-success__sub">
-            Tree ID <strong>{data.certId}</strong> · Planted within 7 days · Certificate emailed to {data.email}
+            {(data.tierId === 'community_100' || data.tierId === 'community_250') 
+  ? <>Certificate <strong>{data.certId}</strong> · Community Forest Initiative</>
+  : <>Tree ID <strong>{data.certId}</strong> · Planted within 7 days</>}
             {isGift && data.recipientEmail && ` and ${data.recipientEmail}`}
           </p>
         </div>
@@ -515,7 +517,7 @@ const boxes = [
               <div className="ty-card__title">🌱 Your Impact</div>
               <div className="ty-impact-grid">
                 <div className="ty-impact-item"><span>🌳</span><span>{data.treeName}</span></div>
-                <div className="ty-impact-item"><span>🌍</span><span>{data.co2} CO₂/yr</span></div>
+                <div className="ty-impact-item"><span>🌍</span><span>{(data.tierId === 'community_100' || data.tierId === 'community_250') ? '~5kg CO₂/tree/yr' : `${data.co2} CO₂/yr`}</span></div>
                 <div className="ty-impact-item"><span>📅</span><span>3-year tracking</span></div>
                 <div className="ty-impact-item"><span>🤖</span><span>AI-verified</span></div>
               </div>
