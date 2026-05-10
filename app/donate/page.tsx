@@ -156,15 +156,13 @@ export default function DonatePage() {
       if (existing) {
         donorId = existing.id
         await supabase.from('donors').update({
-          total_trees:   (existing.total_trees || 0) + qty,
+          total_trees:   (existing.total_trees || 0) + 1,
           total_donated: (Number(existing.total_donated) || 0) + total,
           phone:         form.phone,
           address:       form.address || null,
           birthday:      form.birthday || null,
-          anniversary: form.anniversary || null,
-tier:        tier.tier,
-}).eq('id', donorId)
-        
+          anniversary:   form.anniversary || null,
+        }).eq('id', donorId)
       } else {
         const { data: newDonor, error: donorErr } = await supabase
           .from('donors').insert({
@@ -174,7 +172,7 @@ tier:        tier.tier,
             address:       form.address || null,
             birthday:      form.birthday || null,
             anniversary:   form.anniversary || null,
-            total_trees:   qty,
+            total_trees:   1,
             total_donated: total,
             city:          'Bangalore',
             is_gift:       mode === 'gift',
@@ -215,6 +213,8 @@ tier:        tier.tier,
           name: form.name, email: form.email,
           tree_id: certId, species: 'Community Forest',
           password: isNewDonor ? '123456' : null,
+          tier: tier.tier,
+          dashboard: tier.dashboard,
         })
 
       } else if (tier.id === 'joint_500') {
@@ -263,6 +263,8 @@ tier:        tier.tier,
                   tree_id:  treeId,
                   species:  species || 'Neem',
                   password: '123456',
+                  tier: '500',
+                  dashboard: '/my-tree',
                 })
               }
             }
@@ -276,6 +278,8 @@ tier:        tier.tier,
               name: form.name, email: form.email,
               tree_id: certId, species: species || 'Any native species',
               password: isNewDonor ? '123456' : null,
+              tier: tier.tier,
+              dashboard: tier.dashboard,
             })
           }
         } else {
@@ -294,6 +298,8 @@ tier:        tier.tier,
             name: form.name, email: form.email,
             tree_id: certId, species: species || 'Any native species',
             password: isNewDonor ? '123456' : null,
+            tier: tier.tier,
+            dashboard: tier.dashboard,
           })
         }
 
@@ -334,6 +340,8 @@ tier:        tier.tier,
           name: form.name, email: form.email,
           tree_id: treeId, species: species || 'Neem',
           password: isNewDonor ? '123456' : null,
+          tier: tier.tier,
+          dashboard: tier.dashboard,
         })
 
       } else if (tier.id === 'miyawaki_5000') {
@@ -359,6 +367,8 @@ tier:        tier.tier,
           name: form.name, email: form.email,
           tree_id: certId, species: '30+ native species (Miyawaki)',
           password: isNewDonor ? '123456' : null,
+          tier: tier.tier,
+          dashboard: tier.dashboard,
         })
       }
 
