@@ -29,6 +29,8 @@ interface TYData {
   qty: number; mode: string; recipientName?: string
   recipientEmail?: string; occasion?: string; occasionId?: string
   giftMessage?: string
+tierId?: string
+dashboard?: string
 }
 
 export default function ThankYouPage() {
@@ -95,6 +97,10 @@ export default function ThankYouPage() {
     try {
       const { jsPDF } = await import('jspdf' as any)
       const isGift = data.mode === 'gift'
+      const tierId = data.tierId || 'individual_1000'
+const isCommunity = tierId === 'community_100' || tierId === 'community_250'
+const isMiyawaki = tierId === 'miyawaki_5000'
+const isJoint = tierId === 'joint_500'
       const quote = isGift
         ? giftQuotes[data.occasionId || 'custom']
         : donationQuotes[Math.floor(Math.random() * donationQuotes.length)]
@@ -292,12 +298,13 @@ export default function ThankYouPage() {
         doc.setTextColor(60, 80, 60)
         doc.setFontSize(11)
         doc.setFont('helvetica', 'normal')
-        doc.text(`for planting ${data.qty} ${data.treeName} tree${data.qty > 1 ? 's' : ''} in Bangalore, India`, W / 2, 88, { align: 'center' })
+        doc.text(isCommunity ? `for contributing to EcoTree's Community Forest Initiative` : `for planting ${data.qty} ${data.treeName} tree${data.qty > 1 ? 's' : ''} in Bangalore, India`, W / 2, 88, { align: 'center' })
 
         // Details row — 4 boxes
-        const boxes = [
-          { label: 'Tree ID', value: data.certId },
-          { label: 'CO₂ Offset', value: `${data.co2}/year` },
+       const co2Val = isCommunity ? '~5kg/tree/yr' : `${data.co2}/year`
+const boxes = [
+  { label: isCommunity ? 'Certificate' : 'Tree ID', value: isCommunity ? 'Community Forest' : data.certId },
+{ label: 'CO₂ Offset', value: isCommunity ? '~5kg/tree/yr' : `${data.co2}/yr` },
           { label: 'Species', value: data.species.split('·')[0].trim() },
           { label: 'Tracking', value: '3 Years · AI' },
         ]
@@ -460,7 +467,7 @@ export default function ThankYouPage() {
                         <div className="tyc-award__name">{data.name}</div>
                         <div className="tyc-award__name-line" />
                         <div className="tyc-award__for">
-                          for planting {data.qty} {data.treeName} tree{data.qty > 1 ? 's' : ''} in Bangalore, India
+                          {isCommunity ? "for contributing to EcoTree's Community Forest Initiative" : `for planting ${data.qty} ${data.treeName} tree${data.qty > 1 ? 's' : ''} in Bangalore, India`}
                         </div>
                         <div className="tyc-award__details">
                           <div className="tyc-award__detail">
