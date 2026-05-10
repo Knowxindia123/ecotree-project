@@ -96,9 +96,7 @@ export async function POST(req: NextRequest) {
         <tr>
           <td style="padding:32px 40px;">
             <p style="margin:0 0 16px;font-size:16px;color:#374151;">Hi <strong>${donor.name}</strong>,</p>
-            <p style="margin:0 0 24px;font-size:15px;color:#6B7280;line-height:1.6;">
-              ${isCommuntiy ? 'Thank you for supporting EcoTree's community forest initiative! Your contribution is helping us plant trees collectively across Bangalore.' : isMiyawaki ? 'Thank you for sponsoring a Miyawaki forest! Our team will assign your forest patch and update you once planting begins.' : isJoint ? 'Thank you for joining our joint tree pool! Once matched with another donor, your tree will be planted within 7 days.' : 'Thank you for planting a tree with us! Your contribution is making Bangalore greener.'}
-            </p>
+            <p style="margin:0 0 24px;font-size:15px;color:#6B7280;line-height:1.6;">Thank you for your contribution! Your support is making Bangalore greener.</p>
             ${treeDetailsSection}
             <div style="background:#1A3C34;border-radius:12px;padding:20px 24px;margin-bottom:24px;">
               <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#97BC62;margin-bottom:12px;">🔐 Your Dashboard Login</div>
