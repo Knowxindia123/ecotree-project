@@ -216,7 +216,8 @@ export default function DonatePage() {
         })
 
       } else if (tier.id === 'joint_500') {
-        // Pool logic — find open pool or create new
+        // Pool logic — loop for qty (each unit joins/creates a separate pool)
+        for (let qi = 0; qi < qty; qi++) {
         const { data: openPool } = await supabase
           .from('tree_pools').select('*')
           .eq('tier', '500').eq('status', 'OPEN')
@@ -246,7 +247,7 @@ export default function DonatePage() {
               completed_at: new Date().toISOString(),
             }).eq('id', openPool.id)
 
-            // Get all members and notify both
+            // Get all members and notify both with dashboard login
             const { data: members } = await supabase
               .from('tree_pool_members').select('donor_id, donors(name, email)')
               .eq('pool_id', openPool.id)
@@ -254,10 +255,12 @@ export default function DonatePage() {
             for (const m of members || []) {
               const d = Array.isArray(m.donors) ? m.donors[0] : m.donors as any
               if (d?.email) {
-                await sendEmail('verified', {
-                  name: d.name, email: d.email,
-                  tree_id: treeId, species: species || 'Neem',
-                  site: 'Bangalore', health_score: null, password: '123456',
+                await sendEmail('welcome', {
+                  name:     d.name,
+                  email:    d.email,
+                  tree_id:  treeId,
+                  species:  species || 'Neem',
+                  password: '123456',
                 })
               }
             }
@@ -292,6 +295,8 @@ export default function DonatePage() {
           })
         }
 
+        } // end qty loop for joint_500
+
         await supabase.from('donations').insert({
           cert_id: certId, donor_id: donorId, payment_status: 'PAID',
           mode, tree_tier_id: tier.id, tree_name: tier.name,
@@ -304,13 +309,15 @@ export default function DonatePage() {
         })
 
       } else if (tier.id === 'individual_1000') {
-        // Individual tree
+        // Individual trees — one per qty
+        for (let qi = 0; qi < qty; qi++) {
         treeId = generateTreeId()
         await supabase.from('trees').insert({
           tree_id: treeId, donor_id: donorId,
           tree_type: tier.name, species: species || 'Neem',
           status: 'PENDING', planting_date: new Date().toISOString().split('T')[0],
         })
+        } // end qty loop
         await supabase.from('donations').insert({
           cert_id: certId, donor_id: donorId, payment_status: 'PAID',
           mode, tree_tier_id: tier.id, tree_name: tier.name, species: species || 'Neem',
