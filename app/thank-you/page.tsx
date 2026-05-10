@@ -467,7 +467,7 @@ const boxes = [
                         <div className="tyc-award__name">{data.name}</div>
                         <div className="tyc-award__name-line" />
                         <div className="tyc-award__for">
-                          {isCommunity ? "for contributing to EcoTree's Community Forest Initiative" : `for planting ${data.qty} ${data.treeName} tree${data.qty > 1 ? 's' : ''} in Bangalore, India`}
+                          {(data.tierId === 'community_100' || data.tierId === 'community_250') ? "for contributing to EcoTree's Community Forest Initiative" : `for planting ${data.qty} ${data.treeName} tree${data.qty > 1 ? 's' : ''} in Bangalore, India`}
                         </div>
                         <div className="tyc-award__details">
                           <div className="tyc-award__detail">
