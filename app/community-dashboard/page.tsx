@@ -245,21 +245,28 @@ setSitePhotos(photos.slice(0, 8))
         </section>
 
         {/* PHOTOS */}
-        {sitePhotos.length > 0 && (
-          <section className="cd-sec" style={{background:'white'}}>
-            <div className="cd-in">
-              <p className="cd-ey">Community forest photos</p>
-              <h2 className="cd-h2">Your forest growing in Bangalore</h2>
-              <div className="pg">
-                {sitePhotos.map((url,i)=>(
-                  <div key={i} className="pt" onClick={()=>setPhotoPopup({url,label:'Community forest · Bangalore'})}>
-                    <img src={url} alt="" loading="lazy"/>
-                    <div className="ptz">expand</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
+       <section className="cd-sec" style={{background:'white'}}>
+  <div className="cd-in">
+    <p className="cd-ey">Community forest photos</p>
+    <h2 className="cd-h2">Your forest growing in Bangalore</h2>
+    {sitePhotos.length > 0 ? (
+      <div className="pg">
+        {sitePhotos.map((url,i)=>(
+          <div key={i} className="pt" onClick={()=>setPhotoPopup({url,label:'Community forest · Bangalore'})}>
+            <img src={url} alt="" loading="lazy"/>
+            <div className="ptz">expand</div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div style={{background:'#f9fafb',borderRadius:'12px',padding:'2rem',textAlign:'center',border:'1px dashed #d1d5db'}}>
+        <div style={{fontSize:'2rem',marginBottom:'0.5rem'}}>🌱</div>
+        <div style={{fontSize:'14px',fontWeight:600,color:'#1A1A1A',marginBottom:'4px'}}>Photos coming soon</div>
+        <div style={{fontSize:'13px',color:'#6B7280'}}>Community plantation photos will appear here as trees are planted</div>
+      </div>
+    )}
+  </div>
+</section>
         )}
 
         {/* MAP */}
