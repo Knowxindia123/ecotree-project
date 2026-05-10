@@ -40,10 +40,11 @@ export default function MyTreeClient() {
   async function init() {
     setLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { window.location.replace('/my-tree/login'); return; }
-
-    const donorId   = searchParams.get('donor_id');
+   const donorId   = searchParams.get('donor_id');
     const adminView = searchParams.get('admin_view') === 'true';
+
+    if (!session && !adminView) { window.location.replace('/my-tree/login'); return; }
+    if (adminView && !session) { window.location.replace('/admin/login'); return; }
 
     if (donorId && adminView) {
       const { data: currentUser } = await supabase
