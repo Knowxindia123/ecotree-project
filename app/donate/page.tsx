@@ -156,7 +156,7 @@ export default function DonatePage() {
       if (existing) {
         donorId = existing.id
         await supabase.from('donors').update({
-          total_trees:   (existing.total_trees || 0) + 1,
+          total_trees:   (existing.total_trees || 0) + qty,
           total_donated: (Number(existing.total_donated) || 0) + total,
           phone:         form.phone,
           address:       form.address || null,
@@ -172,7 +172,7 @@ export default function DonatePage() {
             address:       form.address || null,
             birthday:      form.birthday || null,
             anniversary:   form.anniversary || null,
-            total_trees:   1,
+            total_trees:   qty,
             total_donated: total,
             city:          'Bangalore',
             is_gift:       mode === 'gift',
