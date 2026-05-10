@@ -65,7 +65,7 @@ export default function MyTreeClient() {
       setTimeline(occasionTimeline);
       setPhotoUrl(donor.photo_url);
     } else {
-      const { donor, myTrees, occasionTimeline } = await getDonorData(session.user.email!);
+     const { donor, myTrees, occasionTimeline } = await getDonorData(session?.user?.email || '');
       if (!donor) { window.location.replace('/my-tree/login'); return; }
       setDonor(donor);
       setMyTrees(myTrees);
