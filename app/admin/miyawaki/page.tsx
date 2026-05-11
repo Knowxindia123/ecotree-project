@@ -191,6 +191,7 @@ export default function AdminMiyawaki() {
                   <td style={{ padding:'10px 12px', fontSize:'12px', color:'#6B7280' }}>{d.is_gift ? `🎁 ${d.gift_from_name}` : '—'}</td>
                   <td style={{ padding:'10px 12px' }}>
                     {forests.length > 0 ? (
+                     <select
                       onChange={async e => {
   if (!e.target.value) return
   if (!confirm(`Assign ${d.name} to this forest and send email?`)) return
