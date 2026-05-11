@@ -98,32 +98,49 @@ export default function MiyawakiDashboard() {
   async function handleLogout() { await supabase.auth.signOut(); window.location.replace('/my-tree/login') }
 
   async function downloadCertificate() {
-    if (!donor || !forest) return
+    if (!donor) return
     const { jsPDF } = await import('jspdf')
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
     const W = 297
     doc.setFillColor(26,60,52); doc.rect(0,0,W,210,'F')
     doc.setDrawColor(151,188,98); doc.setLineWidth(1.5); doc.rect(8,8,W-16,194)
     doc.setFontSize(10); doc.setTextColor(151,188,98); doc.text('ECOTREE IMPACT FOUNDATION',W/2,28,{align:'center'})
-    doc.setFontSize(20); doc.setTextColor(151,188,98); doc.text('Miyawaki Forest Certificate',W/2,56,{align:'center'})
-    doc.setFontSize(20); doc.setTextColor(255,255,255); doc.text(donor.name,W/2,82,{align:'center'})
+    doc.setFontSize(20); doc.setTextColor(151,188,98); doc.text('Miyawaki Forest Sponsorship Certificate',W/2,56,{align:'center'})
+    doc.setFontSize(10); doc.setTextColor(200,200,200); doc.text('This certifies that',W/2,72,{align:'center'})
+    doc.setFontSize(22); doc.setTextColor(255,255,255); doc.text(donor.name,W/2,86,{align:'center'})
     doc.setFontSize(10); doc.setTextColor(200,200,200)
-    doc.text('has sponsored the '+forest.forest_name+' Miyawaki Forest',W/2,94,{align:'center'})
-    doc.text('at '+(forest.sites?.name||'Bangalore')+', Karnataka, India',W/2,102,{align:'center'})
-    const co2 = (forest.trees_planted||0)*22
-    const stats = [
-      {val:String(forest.trees_planted||0),label:'Trees Planted',x:55},
-      {val:String(forest.species_count||30)+'+',label:'Species',x:120},
-      {val:co2+'kg',label:'CO2 Offset/yr',x:185},
-      {val:'80G',label:'Tax Benefit',x:240},
-    ]
-    stats.forEach(s=>{
-      doc.setFillColor(44,95,45); doc.roundedRect(s.x,112,55,22,2,2,'F')
-      doc.setFontSize(13); doc.setTextColor(255,255,255); doc.text(s.val,s.x+27.5,121,{align:'center'})
-      doc.setFontSize(7); doc.setTextColor(151,188,98); doc.text(s.label,s.x+27.5,129,{align:'center'})
-    })
+    if (forest) {
+      doc.text('has sponsored the '+forest.forest_name+' Miyawaki Forest',W/2,98,{align:'center'})
+      doc.text('at '+(forest.sites?.name||'Bangalore')+', Karnataka, India',W/2,106,{align:'center'})
+      const co2 = (forest.trees_planted||0)*22
+      const stats = [
+        {val:String(forest.trees_planted||0),label:'Trees Planted',x:55},
+        {val:String(forest.species_count||30)+'+',label:'Species',x:120},
+        {val:co2+'kg',label:'CO2 Offset/yr',x:185},
+        {val:'80G',label:'Tax Benefit',x:240},
+      ]
+      stats.forEach(s=>{
+        doc.setFillColor(44,95,45); doc.roundedRect(s.x,112,55,22,2,2,'F')
+        doc.setFontSize(13); doc.setTextColor(255,255,255); doc.text(s.val,s.x+27.5,121,{align:'center'})
+        doc.setFontSize(7); doc.setTextColor(151,188,98); doc.text(s.label,s.x+27.5,129,{align:'center'})
+      })
+    } else {
+      doc.text('has sponsored a Miyawaki Forest with EcoTree Impact Foundation',W/2,98,{align:'center'})
+      doc.text('Bangalore, Karnataka, India · Forest assignment in progress',W/2,106,{align:'center'})
+      const stats = [
+        {val:'₹5,000',label:'Contributed',x:55},
+        {val:'30+',label:'Species',x:120},
+        {val:'Pending',label:'Trees Planted',x:185},
+        {val:'80G',label:'Tax Benefit',x:240},
+      ]
+      stats.forEach(s=>{
+        doc.setFillColor(44,95,45); doc.roundedRect(s.x,112,55,22,2,2,'F')
+        doc.setFontSize(13); doc.setTextColor(255,255,255); doc.text(s.val,s.x+27.5,121,{align:'center'})
+        doc.setFontSize(7); doc.setTextColor(151,188,98); doc.text(s.label,s.x+27.5,129,{align:'center'})
+      })
+    }
     doc.setFontSize(7); doc.setTextColor(151,188,98); doc.text('ecotrees.org',W/2,158,{align:'center'})
-    doc.save('EcoTree-Miyawaki-'+forest.forest_name.replace(/\s/g,'-')+'.pdf')
+    doc.save('EcoTree-Miyawaki-Certificate-' + donor.name.replace(/\s/g,'-') + '.pdf')
   }
 
   function shareWA() {
@@ -347,6 +364,21 @@ export default function MiyawakiDashboard() {
             <div className="ms"><span className="ld"/>GPS: {forest.latitude?.toFixed(6)}N, {forest.longitude?.toFixed(6)}E · {forest.sites?.name||'Forest site'} · {forest.sites?.city||'Bangalore'}</div>
           </section>
         )}
+
+        {/* CERTIFICATE — always visible */}
+        <section className="md-sec" style={{background:'var(--cream)'}}>
+          <div className="md-in">
+            <p className="md-ey">Your certificate</p>
+            <h2 className="md-h2">Miyawaki Forest Certificate</h2>
+            <p style={{fontSize:'14px',color:'#6B7280',marginBottom:'1rem'}}>
+              {forest ? `Sponsoring ${forest.forest_name} · ${forest.trees_planted} trees planted` : 'Forest assignment pending — certificate available now'}
+            </p>
+            <button onClick={downloadCertificate}
+              style={{background:'#1A3C34',color:'white',border:'none',borderRadius:'10px',padding:'12px 24px',fontSize:'14px',fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>
+              ⬇️ Download Certificate PDF
+            </button>
+          </div>
+        </section>
 
         {/* BRSR */}
         {forest && (
