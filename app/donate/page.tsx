@@ -135,7 +135,6 @@ export default function DonatePage() {
     return Object.keys(e).length === 0
   }
 
-
   const handlePay = async () => {
     if (loading) return
     if (!validate()) {
@@ -196,8 +195,8 @@ export default function DonatePage() {
       // Step 2: Handle by tier
       let treeId = ''
 
+      // ─────────────────────────────────────────────────────────────────
       if (tier.id === 'community_100' || tier.id === 'community_250') {
-        // Community — no individual tree, just donation record
         await supabase.from('donations').insert({
           cert_id: certId, donor_id: donorId, payment_status: 'PAID',
           mode, tree_tier_id: tier.id, tree_name: tier.name,
@@ -217,124 +216,168 @@ export default function DonatePage() {
           dashboard: tier.dashboard,
         })
 
+      // ─────────────────────────────────────────────────────────────────
       } else if (tier.id === 'joint_500') {
-        // Pool logic — loop for qty (each unit joins/creates a separate pool)
+
         for (let qi = 0; qi < qty; qi++) {
-        const { data: openPool } = await supabase
-          .from('tree_pools').select('*')
-          .eq('tier', '500').eq('status', 'OPEN')
-          .order('created_at', { ascending: true }).limit(1).maybeSingle()
+          const { data: openPool } = await supabase
+            .from('tree_pools').select('*')
+            .eq('tier', '500').eq('status', 'OPEN')
+            .order('created_at', { ascending: true }).limit(1).maybeSingle()
 
-        if (openPool) {
-          // Join existing pool
-          await supabase.from('tree_pool_members').insert({
-            pool_id: openPool.id, donor_id: donorId, amount: 500,
-            is_gift: mode === 'gift', gift_from_name: mode === 'gift' ? form.name : null,
-            gift_occasion: mode === 'gift' ? occ.label : null,
-          })
-          const newFilled = openPool.slots_filled + 1
-          const newCollected = openPool.amount_collected + 500
+          if (openPool) {
+            // ── JOIN existing pool ──
+            await supabase.from('tree_pool_members').insert({
+              pool_id: openPool.id, donor_id: donorId, amount: 500,
+              is_gift: mode === 'gift', gift_from_name: mode === 'gift' ? form.name : null,
+              gift_occasion: mode === 'gift' ? occ.label : null,
+            })
+            const newFilled    = openPool.slots_filled + 1
+            const newCollected = openPool.amount_collected + 500
 
-          if (newFilled >= openPool.slots_total) {
-            // Pool complete — create tree
-            treeId = generateTreeId()
-            const { data: newTree } = await supabase.from('trees').insert({
-              tree_id: treeId, tree_type: 'Joint Tree', species: species || 'Neem', status: 'PENDING',
-              planting_date: new Date().toISOString().split('T')[0],
+            if (newFilled >= openPool.slots_total) {
+              // ── POOL COMPLETE — create shared tree ──
+              treeId = generateTreeId()
+
+              // FIX: set donor_id to FIRST member so Donor 1 also finds tree directly
+              const { data: firstMember } = await supabase
+                .from('tree_pool_members')
+                .select('donor_id')
+                .eq('pool_id', openPool.id)
+                .order('created_at', { ascending: true })
+                .limit(1)
+                .single()
+
+              const { data: newTree } = await supabase.from('trees').insert({
+                tree_id:       treeId,
+                tree_type:     'Joint Tree',
+                species:       species || 'Neem',
+                status:        'PENDING',
+                donor_id:      firstMember?.donor_id || donorId, // ← FIX: link to Donor 1
+                planting_date: new Date().toISOString().split('T')[0],
+              }).select('id').single()
+
+              await supabase.from('tree_pools').update({
+                slots_filled:  newFilled,
+                amount_collected: newCollected,
+                status:        'COMPLETE',
+                tree_id:       newTree?.id,
+                completed_at:  new Date().toISOString(),
+              }).eq('id', openPool.id)
+
+              // Get ALL members and send email to BOTH
+              const { data: members } = await supabase
+                .from('tree_pool_members')
+                .select('donor_id, donors(name, email)')
+                .eq('pool_id', openPool.id)
+
+              for (const m of members || []) {
+                const d = Array.isArray(m.donors) ? m.donors[0] : m.donors as any
+                if (d?.email) {
+                  await sendEmail('welcome', {
+                    name:      d.name,
+                    email:     d.email,
+                    tree_id:   treeId,
+                    species:   species || 'Neem',
+                    password:  '123456',
+                    tier:      '500',
+                    dashboard: '/my-tree',
+                    joint:     true,
+                    partner:   members
+                      ?.filter((mm: any) => {
+                        const dd = Array.isArray(mm.donors) ? mm.donors[0] : mm.donors as any
+                        return dd?.email !== d.email
+                      })
+                      .map((mm: any) => {
+                        const dd = Array.isArray(mm.donors) ? mm.donors[0] : mm.donors as any
+                        return dd?.name
+                      })[0] || 'your co-donor',
+                  })
+                }
+              }
+
+            } else {
+              // Pool still open — update count, send waiting email
+              await supabase.from('tree_pools').update({
+                slots_filled:     newFilled,
+                amount_collected: newCollected,
+              }).eq('id', openPool.id)
+
+              await sendEmail('welcome', {
+                name:     form.name,
+                email:    form.email,
+                tree_id:  certId,
+                species:  species || 'Any native species',
+                password: isNewDonor ? '123456' : null,
+                tier:     tier.tier,
+                dashboard: tier.dashboard,
+                waiting:  true,
+              })
+            }
+
+          } else {
+            // ── CREATE new pool (Donor 1) ──
+            const { data: newPool } = await supabase.from('tree_pools').insert({
+              tier:             '500',
+              slots_total:      2,
+              slots_filled:     1,
+              amount_collected: 500,
+              target_amount:    1000,
+              status:           'OPEN',
             }).select('id').single()
 
-            await supabase.from('tree_pools').update({
-              slots_filled: newFilled, amount_collected: newCollected,
-              status: 'COMPLETE', tree_id: newTree?.id,
-              completed_at: new Date().toISOString(),
-            }).eq('id', openPool.id)
+            await supabase.from('tree_pool_members').insert({
+              pool_id:        newPool?.id,
+              donor_id:       donorId,
+              amount:         500,
+              is_gift:        mode === 'gift',
+              gift_from_name: mode === 'gift' ? form.name : null,
+              gift_occasion:  mode === 'gift' ? occ.label : null,
+            })
 
-            // Get all members and notify both with dashboard login
-            const { data: members } = await supabase
-              .from('tree_pool_members').select('donor_id, donors(name, email)')
-              .eq('pool_id', openPool.id)
-
-            for (const m of members || []) {
-              const d = Array.isArray(m.donors) ? m.donors[0] : m.donors as any
-              if (d?.email) {
-                await sendEmail('welcome', {
-                  name:     d.name,
-                  email:    d.email,
-                  tree_id:  treeId,
-                  species:  species || 'Neem',
-                  password: '123456',
-                  tier: '500',
-                  dashboard: '/my-tree',
-                })
-              }
-            }
-          } else {
-            // Pool still open — update count
-            await supabase.from('tree_pools').update({
-              slots_filled: newFilled, amount_collected: newCollected,
-            }).eq('id', openPool.id)
-            // Send certificate email (waiting for partner)
             await sendEmail('welcome', {
-              name: form.name, email: form.email,
-              tree_id: certId, species: species || 'Any native species',
+              name:     form.name,
+              email:    form.email,
+              tree_id:  certId,
+              species:  species || 'Any native species',
               password: isNewDonor ? '123456' : null,
-              tier: tier.tier,
+              tier:     tier.tier,
               dashboard: tier.dashboard,
+              waiting:  true,
             })
           }
-        } else {
-          // Create new pool
-          const { data: newPool } = await supabase.from('tree_pools').insert({
-            tier: '500', slots_total: 2, slots_filled: 1,
-            amount_collected: 500, target_amount: 1000, status: 'OPEN',
-          }).select('id').single()
-
-          await supabase.from('tree_pool_members').insert({
-            pool_id: newPool?.id, donor_id: donorId, amount: 500,
-            is_gift: mode === 'gift', gift_from_name: mode === 'gift' ? form.name : null,
-            gift_occasion: mode === 'gift' ? occ.label : null,
-          })
-          await sendEmail('welcome', {
-            name: form.name, email: form.email,
-            tree_id: certId, species: species || 'Any native species',
-            password: isNewDonor ? '123456' : null,
-            tier: tier.tier,
-            dashboard: tier.dashboard,
-          })
-        }
-
-        } // end qty loop for joint_500
+        } // end qty loop
 
         await supabase.from('donations').insert({
           cert_id: certId, donor_id: donorId, payment_status: 'PAID',
           mode, tree_tier_id: tier.id, tree_name: tier.name,
           amount: total, donor_name: form.name, donor_email: form.email,
           donor_phone: form.phone, payment_ref: `TEST-${certId}`, payment_method: 'test',
-          occasion_id: mode === 'gift' ? occ.id : null,
-          recipient_name: form.recipientName || null,
+          occasion_id:    mode === 'gift' ? occ.id   : null,
+          recipient_name:  form.recipientName || null,
           recipient_email: form.recipientEmail || null,
-          gift_message: form.giftMessage || null,
+          gift_message:    form.giftMessage || null,
         })
 
+      // ─────────────────────────────────────────────────────────────────
       } else if (tier.id === 'individual_1000') {
-        // Individual trees — one per qty
         for (let qi = 0; qi < qty; qi++) {
-        treeId = generateTreeId()
-        await supabase.from('trees').insert({
-          tree_id: treeId, donor_id: donorId,
-          tree_type: tier.name, species: species || 'Neem',
-          status: 'PENDING', planting_date: new Date().toISOString().split('T')[0],
-        })
-        } // end qty loop
+          treeId = generateTreeId()
+          await supabase.from('trees').insert({
+            tree_id: treeId, donor_id: donorId,
+            tree_type: tier.name, species: species || 'Neem',
+            status: 'PENDING', planting_date: new Date().toISOString().split('T')[0],
+          })
+        }
         await supabase.from('donations').insert({
           cert_id: certId, donor_id: donorId, payment_status: 'PAID',
           mode, tree_tier_id: tier.id, tree_name: tier.name, species: species || 'Neem',
           amount: total, donor_name: form.name, donor_email: form.email,
           donor_phone: form.phone, payment_ref: `TEST-${certId}`, payment_method: 'test',
-          occasion_id: mode === 'gift' ? occ.id : null,
-          recipient_name: form.recipientName || null,
+          occasion_id:    mode === 'gift' ? occ.id   : null,
+          recipient_name:  form.recipientName || null,
           recipient_email: form.recipientEmail || null,
-          gift_message: form.giftMessage || null,
+          gift_message:    form.giftMessage || null,
         })
         await sendEmail('welcome', {
           name: form.name, email: form.email,
@@ -344,24 +387,25 @@ export default function DonatePage() {
           dashboard: tier.dashboard,
         })
 
+      // ─────────────────────────────────────────────────────────────────
       } else if (tier.id === 'miyawaki_5000') {
-        // Miyawaki — add to donors queue, admin assigns forest
         const { data: donorRow } = await supabase.from('donors').select('id').eq('email', form.email).single()
         await supabase.from('miyawaki_donors').insert({
-          donor_id: donorRow?.id || donorId, amount: 5000,
-          is_gift: mode === 'gift',
-          gift_from_name: mode === 'gift' ? form.name : null,
-          gift_occasion: mode === 'gift' ? occ.label : null,
+          donor_id:       donorRow?.id || donorId,
+          amount:         5000,
+          is_gift:        mode === 'gift',
+          gift_from_name: mode === 'gift' ? form.name  : null,
+          gift_occasion:  mode === 'gift' ? occ.label  : null,
         })
         await supabase.from('donations').insert({
           cert_id: certId, donor_id: donorId, payment_status: 'PAID',
           mode, tree_tier_id: tier.id, tree_name: tier.name,
           amount: total, donor_name: form.name, donor_email: form.email,
           donor_phone: form.phone, payment_ref: `TEST-${certId}`, payment_method: 'test',
-          occasion_id: mode === 'gift' ? occ.id : null,
-          recipient_name: form.recipientName || null,
+          occasion_id:    mode === 'gift' ? occ.id   : null,
+          recipient_name:  form.recipientName || null,
           recipient_email: form.recipientEmail || null,
-          gift_message: form.giftMessage || null,
+          gift_message:    form.giftMessage || null,
         })
         await sendEmail('welcome', {
           name: form.name, email: form.email,
@@ -392,7 +436,6 @@ export default function DonatePage() {
       setLoading(false)
     }
   }
-
 
   const payBtnLabel = () => {
     if (loading) return '⏳ Saving...'
@@ -480,7 +523,6 @@ export default function DonatePage() {
                   ))}
                 </div>
 
-                {/* Species selector */}
                 {tier.species && (
                   <div className="dn-species">
                     <label className="dn-sl">
@@ -543,7 +585,6 @@ export default function DonatePage() {
           {/* RIGHT — ORDER FORM */}
           <div className="dn-right" ref={formRef}>
             <div className="dn-rcard">
-              {/* Order summary */}
               <div className="dn-sum">
                 <div className="dn-sum-t">Your order</div>
                 <div className="dn-sum-row">
@@ -568,7 +609,6 @@ export default function DonatePage() {
 
               <div className="dn-div"/>
 
-              {/* Form */}
               <div className="dn-ptitle">Your details</div>
               <div className="dn-form">
                 <div className="dn-frow">
@@ -706,7 +746,6 @@ export default function DonatePage() {
           </div>
         </div>
       </div>
-
 
       <style>{`
         .dn{--gd:#1B4332;--gm:#2D6A4F;--ga:#52B788;--gl:#74C69D;--mt:#D8F3DC;--md:#B7E4C7;--ow:#F4F7F4;--td:#0D1F17;--tb:#2D3B36;--tm:#5C7268;--r:0.875rem;font-family:var(--font-body,'Segoe UI',system-ui,sans-serif);color:var(--td);}
