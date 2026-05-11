@@ -155,7 +155,7 @@ export default function DonatePage() {
       if (existing) {
         donorId = existing.id
         await supabase.from('donors').update({
-          total_trees:   (existing.total_trees || 0) + 1,
+          total_trees:   tier.id === 'joint_500' ? (existing.total_trees || 0) : (existing.total_trees || 0) + 1,
           total_donated: (Number(existing.total_donated) || 0) + total,
           phone:         form.phone,
           address:       form.address || null,
@@ -171,7 +171,7 @@ export default function DonatePage() {
             address:       form.address || null,
             birthday:      form.birthday || null,
             anniversary:   form.anniversary || null,
-            total_trees:   1,
+            total_trees:   tier.id === 'joint_500' ? 0 : 1,
             total_donated: total,
             city:          'Bangalore',
             is_gift:       mode === 'gift',
@@ -268,11 +268,15 @@ export default function DonatePage() {
               // Get ALL members and send email to BOTH
               const { data: members } = await supabase
                 .from('tree_pool_members')
-                .select('donor_id, donors(name, email)')
+                .select('donor_id, donors(name, email, total_trees)')
                 .eq('pool_id', openPool.id)
 
               for (const m of members || []) {
                 const d = Array.isArray(m.donors) ? m.donors[0] : m.donors as any
+                // ── FIX: increment total_trees for each member on pool complete ──
+                await supabase.from('donors')
+                  .update({ total_trees: (d?.total_trees || 0) + 1 })
+                  .eq('id', m.donor_id)
                 if (d?.email) {
                   await sendEmail('welcome', {
                     name:      d.name,
