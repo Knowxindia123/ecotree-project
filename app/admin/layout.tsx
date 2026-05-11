@@ -12,6 +12,7 @@ const NAV = [
   { href: '/admin/donors',    label: 'Donors',        icon: '❤️' },
   { href: '/admin/csr',       label: 'CSR Partners',  icon: '🏢' },
   { href: '/admin/community', label: 'Community',     icon: '🌿' },
+  { href: '/admin/miyawaki',  label: 'Miyawaki',      icon: '🏙️' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
