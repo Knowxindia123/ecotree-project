@@ -191,11 +191,36 @@ export default function AdminMiyawaki() {
                   <td style={{ padding:'10px 12px', fontSize:'12px', color:'#6B7280' }}>{d.is_gift ? `🎁 ${d.gift_from_name}` : '—'}</td>
                   <td style={{ padding:'10px 12px' }}>
                     {forests.length > 0 ? (
-                      <select onChange={async e => {
-                        if (!e.target.value) return
-                        setSelectedDonor(String(d.id))
-                        setShowAssignModal(Number(e.target.value))
-                      }} defaultValue="" style={{ ...inp, width:'auto', fontSize:'12px', padding:'4px 8px' }}>
+                      onChange={async e => {
+  if (!e.target.value) return
+  if (!confirm(`Assign ${d.name} to this forest and send email?`)) return
+  setAssigning(true)
+  const { error: updateErr } = await supabase
+    .from('miyawaki_donors')
+    .update({ forest_id: Number(e.target.value) })
+    .eq('donor_id', d.id)
+    .is('forest_id', null)
+  if (updateErr) { setError(updateErr.message); setAssigning(false); return }
+  const forest = forests.find(f => f.id === Number(e.target.value))
+  await fetch('/api/send-email', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      type: 'miyawaki_assigned',
+      donor: {
+        name: d.name, email: d.email,
+        forest_name: forest?.forest_name || 'Miyawaki Forest',
+        site: forest?.sites?.name || 'Bangalore',
+        trees_target: forest?.trees_target || 0,
+        species_count: forest?.species_count || 30,
+        password: '123456', dashboard: '/miyawaki-dashboard',
+      }
+    })
+  })
+  setAssigning(false)
+  setSuccess('Donor assigned and email sent!')
+  loadData()
+}}
+                        defaultValue="" style={{ ...inp, width:'auto', fontSize:'12px', padding:'4px 8px' }}>
                         <option value="">Assign to forest →</option>
                         {forests.map(f => <option key={f.id} value={f.id}>{f.forest_name}</option>)}
                       </select>
