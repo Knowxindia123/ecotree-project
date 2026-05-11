@@ -136,6 +136,7 @@ export default function DonatePage() {
   }
 
   const handlePay = async () => {
+    console.log('TIER ID:', tier.id) 
     if (loading) return
     if (!validate()) {
       formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
