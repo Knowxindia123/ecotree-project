@@ -257,15 +257,16 @@ export default function AdminDonors() {
                             {joinDate ? new Date(joinDate).toLocaleDateString('en-IN') : '—'}
                           </td>
                           <td style={{ padding: '10px 12px' }}>
-                            {isComplete ? (
-                              <span style={{ padding: '4px 10px', background: '#F59E0B', color: 'white', borderRadius: '6px', fontSize: '11px', fontWeight: 600, display: 'inline-block' }}>
-                                🤝 Joint ✅
-                              </span>
-                            ) : (
-                              <span style={{ padding: '4px 10px', background: '#9ca3af', color: 'white', borderRadius: '6px', fontSize: '11px', fontWeight: 600, display: 'inline-block' }}>
-                                ⏳ Waiting
-                              </span>
-                            )}
+                          {isComplete ? (
+  <a href={`/my-tree?donor_id=${row.donors[0]?.id}&admin_view=true`} target="_blank" rel="noopener noreferrer"
+    style={{ padding: '4px 10px', background: '#F59E0B', color: 'white', borderRadius: '6px', fontSize: '11px', fontWeight: 600, display: 'inline-block', textDecoration: 'none' }}>
+    🤝 Joint →
+  </a>
+) : (
+  <span style={{ padding: '4px 10px', background: '#9ca3af', color: 'white', borderRadius: '6px', fontSize: '11px', fontWeight: 600, display: 'inline-block' }}>
+    ⏳ Waiting
+  </span>
+)}
                           </td>
                         </tr>
                       )
