@@ -95,7 +95,7 @@ export default function AdminReview() {
     // Individual tree updates
     const { data: treeData } = await supabase
       .from('tree_updates')
-      .select(`id, photo_url, before_photo_url, after_photo_url, latitude, longitude, ai_health_score, ai_species_match, ai_gps_match, ai_duplicate_check, ai_timestamp_valid, notes, update_date, trees(tree_id, species, latitude, longitude, sites(name), donors(id, name, email)), users(name, phone)`)
+      .select(`id, photo_url, before_photo_url, after_photo_url, latitude, longitude, ai_health_score, ai_species_match, ai_gps_match, ai_duplicate_check, ai_timestamp_valid, notes, update_date, trees(tree_id, tree_type, species, latitude, longitude, sites(name), donors(id, name, email)), users(name, phone)`)
       .eq('is_verified', false).in('verified_by', ['PENDING', 'AI'])
       .order('created_at', { ascending: true })
     setItems((treeData as unknown as ReviewItem[]) || [])
