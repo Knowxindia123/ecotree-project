@@ -67,7 +67,7 @@ export default function AdminAssign() {
       supabase.from('trees')
         .select('id, tree_id, species, tree_type, donors(id, name, email)')
         .eq('status', 'PENDING')
-        .not('donor_id', 'is', null)
+        .or('donor_id.not.is.null,tree_type.eq.Joint Tree')
         .order('created_at', { ascending: true }),
       supabase.from('assignments')
         .select('id, assigned_at, status, worker_id, trees(tree_id, species), sites(name)')
@@ -258,7 +258,7 @@ export default function AdminAssign() {
                         const donor = Array.isArray(t.donors) ? t.donors[0] : t.donors
                         return (
                           <option key={t.id} value={t.id}>
-                            {t.tree_id} · {t.species} · {donor?.name || 'No donor'} {donor?.email ? `(${donor.email})` : ''}
+                            {t.tree_id} · {t.species}{t.tree_type === 'Joint Tree' ? ' 🤝 Joint Tree' : (donor ? ` · ${donor.name} (${donor.email})` : ' · No donor')}
                           </option>
                         )
                       })}
