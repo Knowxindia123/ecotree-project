@@ -138,12 +138,38 @@ export default function AdminReview() {
   }
 
   async function handleDecision(id: number, approve: boolean) {
-    setProcessing(true)
-    await supabase.from('tree_updates').update({ is_verified: approve, verified_by: approve ? 'HUMAN' : 'REJECTED' }).eq('id', id)
-    if (approve) {
-      const item = items.find(i => i.id === id)
-      if (item?.trees) {
-        await supabase.from('trees').update({ status: 'VERIFIED', latest_health_score: item.ai_health_score, latest_update_date: item.update_date }).eq('tree_id', item.trees.tree_id)
+  setProcessing(true)
+  await supabase.from('tree_updates').update({ is_verified: approve, verified_by: approve ? 'HUMAN' : 'REJECTED' }).eq('id', id)
+  if (approve) {
+    const item = items.find(i => i.id === id)
+    if (item?.trees) {
+      await supabase.from('trees').update({ status: 'VERIFIED', latest_health_score: item.ai_health_score, latest_update_date: item.update_date }).eq('tree_id', item.trees.tree_id)
+
+      const { data: treeRow } = await supabase
+        .from('trees').select('id, tree_type').eq('tree_id', item.trees.tree_id).single()
+
+      if (treeRow?.tree_type === 'Joint Tree') {
+        const { data: poolRow } = await supabase
+          .from('tree_pools').select('id').eq('tree_id', treeRow.id).single()
+        if (poolRow) {
+          const { data: members } = await supabase
+            .from('tree_pool_members')
+            .select('donor_id, donors(name, email)')
+            .eq('pool_id', poolRow.id)
+          for (const m of members || []) {
+            const d = Array.isArray(m.donors) ? m.donors[0] : m.donors as any
+            if (d?.email) {
+              await sendEmail('verified', {
+                name: d.name, email: d.email, tree_id: item.trees.tree_id,
+                species: item.trees.species, site: item.trees.sites?.name || 'Bangalore',
+                health_score: item.ai_health_score, before_photo_url: item.before_photo_url,
+                after_photo_url: item.after_photo_url || item.photo_url,
+                latitude: item.latitude, longitude: item.longitude, joint: true,
+              })
+            }
+          }
+        }
+      } else {
         const donor = Array.isArray(item.trees.donors) ? item.trees.donors[0] : item.trees.donors
         if (donor?.email) {
           await sendEmail('verified', {
@@ -156,10 +182,11 @@ export default function AdminReview() {
         }
       }
     }
-    setPhotoPopup(null)
-    loadQueue()
-    setProcessing(false)
   }
+  setPhotoPopup(null)
+  loadQueue()
+  setProcessing(false)
+}
 
   async function handleCsrApprove(batch: CsrBatchReview) {
     setProcessing(true)
