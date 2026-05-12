@@ -145,7 +145,7 @@ export async function getDonorData(email: string): Promise<{
       zone:             site?.name || 'Bangalore',
       health:           update?.ai_health_score || t.latest_health_score || 80,
       planted:          t.planting_date ? new Date(t.planting_date).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) : '—',
-      occasion:         donation?.occasion_label || (t._isPoolTree ? '🤝 Joint Tree' : 'Gift'),
+     occasion: donation?.occasion_label || (t.tree_type === 'Joint Tree' ? '🤝 Joint Tree' : 'Gift'),
       verified:         t.status === 'VERIFIED' || t.status === 'HEALTHY',
       pulse:            i === 0,
       photo_url:        update?.after_photo_url || t.photo_url || null,
