@@ -83,17 +83,27 @@ export default function DonatePage() {
       let donorId: number
       let isNewDonor = false
 
-      const { data: existing } = await supabase.from('donors').select('id, total_trees, total_donated').eq('email', form.email).maybeSingle()
+      // Check by email + tier — each tier gets its own donor row
+      const { data: existing } = await supabase
+        .from('donors').select('id, total_trees, total_donated')
+        .eq('email', form.email)
+        .eq('tier', tier.tier)
+        .maybeSingle()
 
       if (existing) {
         donorId = existing.id
         await supabase.from('donors').update({
-          // joint_500: do NOT increment total_trees — only when pool completes
-          total_trees:   tier.id === 'joint_500' ? (existing.total_trees || 0) : (existing.total_trees || 0) + 1,
+          // joint_500: do NOT increment total_trees here — only when pool completes
+          total_trees:   tier.id === 'joint_500'
+            ? (existing.total_trees || 0)
+            : (existing.total_trees || 0) + 1,
           total_donated: (Number(existing.total_donated) || 0) + total,
-          phone: form.phone, address: form.address || null, birthday: form.birthday || null, anniversary: form.anniversary || null,
+          phone:         form.phone,
+          address:       form.address || null,
+          birthday:      form.birthday || null,
+          anniversary:   form.anniversary || null,
         }).eq('id', donorId)
-      } else {
+      } else  {
         const { data: newDonor, error: donorErr } = await supabase.from('donors').insert({
           name: form.name, email: form.email, phone: form.phone,
           address: form.address || null, birthday: form.birthday || null, anniversary: form.anniversary || null,
