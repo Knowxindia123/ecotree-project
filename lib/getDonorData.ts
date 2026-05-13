@@ -98,7 +98,7 @@ export async function getDonorData(email: string): Promise<{
 
   // Fetch partner names for pool trees
   if (poolTrees.length > 0) {
-    const poolIds = [...new Set(poolTrees.map((t: any) => t._poolId))]
+    const poolIds = Array.from(new Set(poolTrees.map((t: any) => t._poolId)))
     for (const poolId of poolIds) {
       const { data: members } = await supabase
         .from('tree_pool_members')
