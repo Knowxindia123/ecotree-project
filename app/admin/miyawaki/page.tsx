@@ -1,30 +1,46 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 interface Site { id: number; name: string }
 interface Worker { id: number; name: string }
-interface UnassignedDonor { id: number; name: string; email: string; total_donated: number; created_at: string; is_gift: boolean | null; gift_from_name: string | null }
-interface Forest { id: number; forest_name: string; status: string; trees_target: number; trees_planted: number; species_count: number; area_sqm: number | null; notes: string | null; created_at: string; sites: { name: string } | null; worker: { name: string } | null; donor_count: number }
-interface ForestDonor { id: number; amount: number; created_at: string; donors: { name: string; email: string } | null }
+interface UnassignedDonor {
+  miyawaki_id: number; donor_id: number; name: string; email: string
+  amount: number; created_at: string; is_gift: boolean | null; gift_from_name: string | null
+}
+interface Forest {
+  id: number; forest_name: string; forest_code: string | null; status: string
+  trees_target: number; trees_planted: number; species_count: number
+  area_sqm: number | null; notes: string | null; created_at: string
+  total_donated: number | null
+  sites: { name: string } | null; worker: { name: string } | null; donor_count: number
+}
+interface ForestDonor {
+  id: number; amount: number; created_at: string
+  donors: { name: string; email: string } | null
+}
 
 export default function AdminMiyawaki() {
-  const [unassigned,    setUnassigned]    = useState<UnassignedDonor[]>([])
-  const [forests,       setForests]       = useState<Forest[]>([])
-  const [sites,         setSites]         = useState<Site[]>([])
-  const [workers,       setWorkers]       = useState<Worker[]>([])
-  const [loading,       setLoading]       = useState(true)
-  const [saving,        setSaving]        = useState(false)
-  const [assigning,     setAssigning]     = useState(false)
-  const [success,       setSuccess]       = useState('')
-  const [error,         setError]         = useState('')
+  const [unassigned,     setUnassigned]     = useState<UnassignedDonor[]>([])
+  const [forests,        setForests]        = useState<Forest[]>([])
+  const [sites,          setSites]          = useState<Site[]>([])
+  const [workers,        setWorkers]        = useState<Worker[]>([])
+  const [loading,        setLoading]        = useState(true)
+  const [saving,         setSaving]         = useState(false)
+  const [assigning,      setAssigning]      = useState(false)
+  const [success,        setSuccess]        = useState('')
+  const [error,          setError]          = useState('')
   const [expandedForest, setExpandedForest] = useState<number | null>(null)
-  const [forestDonors,  setForestDonors]  = useState<Record<number, ForestDonor[]>>({})
-  const [showAssignModal, setShowAssignModal] = useState<number | null>(null)
-  const [selectedDonor, setSelectedDonor] = useState('')
+  const [forestDonors,   setForestDonors]   = useState<Record<number, ForestDonor[]>>({})
+
+  // Multi-select donor pooling
+  const [selectedDonors, setSelectedDonors] = useState<number[]>([])  // miyawaki_ids
+  const [poolForestId,   setPoolForestId]   = useState<number | null>(null)
+  const [showPoolModal,  setShowPoolModal]  = useState(false)
 
   const [form, setForm] = useState({
-    forest_name: '', site_id: '', trees_target: '', area_sqm: '', species_count: '30', worker_id: '', notes: ''
+    forest_name: '', site_id: '', trees_target: '', area_sqm: '',
+    species_count: '30', worker_id: '', notes: ''
   })
 
   useEffect(() => { loadData() }, [])
@@ -38,17 +54,29 @@ export default function AdminMiyawaki() {
     setSites(sitesRes.data || [])
     setWorkers(workersRes.data || [])
 
-    // Unassigned miyawaki donors (no forest_id)
+    // Unassigned miyawaki donors
     const { data: unassignedData } = await supabase
-      .from('miyawaki_donors').select('donor_id, donors(id, name, email, total_donated, created_at, is_gift, gift_from_name)')
+      .from('miyawaki_donors')
+      .select('id, donor_id, amount, is_gift, gift_from_name, created_at, donors(id, name, email)')
       .is('forest_id', null)
+      .order('created_at', { ascending: true })
+
     const mapped = (unassignedData || []).map((r: any) => {
       const d = Array.isArray(r.donors) ? r.donors[0] : r.donors
-      return { id: d?.id, name: d?.name, email: d?.email, total_donated: d?.total_donated, created_at: d?.created_at, is_gift: d?.is_gift, gift_from_name: d?.gift_from_name }
-    }).filter((d: any) => d.id)
+      return {
+        miyawaki_id:   r.id,
+        donor_id:      d?.id,
+        name:          d?.name,
+        email:         d?.email,
+        amount:        r.amount || 5000,
+        created_at:    r.created_at,
+        is_gift:       r.is_gift,
+        gift_from_name: r.gift_from_name,
+      }
+    }).filter((d: any) => d.donor_id)
     setUnassigned(mapped)
 
-    // Forests with donor count
+    // Forests
     const { data: forestData } = await supabase
       .from('miyawaki_forests')
       .select('*, site_id, worker_id')
@@ -57,7 +85,7 @@ export default function AdminMiyawaki() {
     if (forestData) {
       const enriched = await Promise.all(forestData.map(async (f: any) => {
         const [siteRes, workerRes, countRes] = await Promise.all([
-          f.site_id ? supabase.from('sites').select('name').eq('id', f.site_id).single() : Promise.resolve({ data: null }),
+          f.site_id   ? supabase.from('sites').select('name').eq('id', f.site_id).single()   : Promise.resolve({ data: null }),
           f.worker_id ? supabase.from('users').select('name').eq('id', f.worker_id).single() : Promise.resolve({ data: null }),
           supabase.from('miyawaki_donors').select('*', { count: 'exact', head: true }).eq('forest_id', f.id),
         ])
@@ -68,13 +96,27 @@ export default function AdminMiyawaki() {
     setLoading(false)
   }
 
+  // Generate forest code: MF-BLR-2026-004
+  async function generateForestCode(): Promise<string> {
+    const { data } = await supabase.rpc('nextval', { sequence_name: 'miyawaki_forest_seq' }).single().catch(() => ({ data: null }))
+    const seq = data ? String(data).padStart(3, '0') : String(Math.floor(Math.random() * 900) + 100)
+    return `MF-BLR-${new Date().getFullYear()}-${seq}`
+  }
+
   async function handleCreateForest(e: React.FormEvent) {
     e.preventDefault()
     if (!form.forest_name.trim()) { setError('Forest name is required'); return }
     setSaving(true); setError('')
 
-    const { error: err } = await supabase.from('miyawaki_forests').insert({
+    // Generate forest code
+    const { data: countData } = await supabase
+      .from('miyawaki_forests').select('id', { count: 'exact', head: true })
+    const seq = String((countData as any || 0) + 1).padStart(3, '0')
+    const forest_code = `MF-BLR-${new Date().getFullYear()}-${seq}`
+
+    const { data: newForest, error: err } = await supabase.from('miyawaki_forests').insert({
       forest_name:   form.forest_name,
+      forest_code,
       site_id:       form.site_id ? Number(form.site_id) : null,
       trees_target:  Number(form.trees_target) || 0,
       area_sqm:      form.area_sqm ? Number(form.area_sqm) : null,
@@ -83,10 +125,11 @@ export default function AdminMiyawaki() {
       notes:         form.notes || null,
       status:        'PENDING',
       trees_planted: 0,
-    })
+      total_donated: 0,
+    }).select('id').single()
 
     if (err) { setError(err.message); setSaving(false); return }
-    setSuccess('Forest created successfully!')
+    setSuccess(`Forest ${forest_code} created!`)
     setForm({ forest_name:'', site_id:'', trees_target:'', area_sqm:'', species_count:'30', worker_id:'', notes:'' })
     loadData()
     setSaving(false)
@@ -101,56 +144,86 @@ export default function AdminMiyawaki() {
     setForestDonors(prev => ({ ...prev, [forestId]: (data as unknown as ForestDonor[]) || [] }))
   }
 
-  async function handleAssignDonor(forestId: number) {
-    if (!selectedDonor) return
-    setAssigning(true)
+  function toggleDonor(miyawaki_id: number) {
+    setSelectedDonors(prev =>
+      prev.includes(miyawaki_id)
+        ? prev.filter(id => id !== miyawaki_id)
+        : [...prev, miyawaki_id]
+    )
+  }
 
-    // Update miyawaki_donors record
-    const { error: updateErr } = await supabase
-      .from('miyawaki_donors')
-      .update({ forest_id: forestId })
-      .eq('donor_id', Number(selectedDonor))
-      .is('forest_id', null)
+  async function handleAssignPool() {
+    if (!poolForestId || selectedDonors.length === 0) return
+    setAssigning(true); setError('')
 
-    if (updateErr) { setError(updateErr.message); setAssigning(false); return }
+    const forest = forests.find(f => f.id === poolForestId)
+    const selectedDonorData = unassigned.filter(d => selectedDonors.includes(d.miyawaki_id))
 
-    // Get donor details
-    const { data: donorData } = await supabase
-      .from('donors').select('name, email').eq('id', Number(selectedDonor)).single()
+    // Check for already-assigned donors (bug fix)
+    for (const d of selectedDonorData) {
+      const { data: existing } = await supabase
+        .from('miyawaki_donors')
+        .select('id')
+        .eq('donor_id', d.donor_id)
+        .not('forest_id', 'is', null)
+        .maybeSingle()
+      if (existing) {
+        setError(`${d.name} is already assigned to a forest. Please deselect them.`)
+        setAssigning(false)
+        return
+      }
+    }
 
-    // Get forest details
-    const forest = forests.find(f => f.id === forestId)
-    const site = sites.find(s => s.id === Number(form.site_id))
+    // Assign all selected donors to forest
+    const totalDonated = selectedDonorData.reduce((s, d) => s + d.amount, 0)
 
-    // Send assignment email
-    if (donorData) {
+    for (const d of selectedDonorData) {
+      await supabase.from('miyawaki_donors')
+        .update({ forest_id: poolForestId })
+        .eq('id', d.miyawaki_id)
+    }
+
+    // Update forest total_donated
+    await supabase.from('miyawaki_forests')
+      .update({ total_donated: (forest?.total_donated || 0) + totalDonated })
+      .eq('id', poolForestId)
+
+    // Send email to all assigned donors
+    for (const d of selectedDonorData) {
       await fetch('/api/send-email', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'miyawaki_assigned',
           donor: {
-            name:           donorData.name,
-            email:          donorData.email,
-            forest_name:    forest?.forest_name || 'Miyawaki Forest',
-            site:           forest?.sites?.name || 'Bangalore',
-            trees_target:   forest?.trees_target || 0,
-            species_count:  forest?.species_count || 30,
-            password:       '123456',
-            dashboard:      '/miyawaki-dashboard',
+            name:          d.name,
+            email:         d.email,
+            forest_name:   forest?.forest_name || 'Miyawaki Forest',
+            forest_code:   forest?.forest_code || '',
+            site:          forest?.sites?.name || 'Bangalore',
+            trees_target:  forest?.trees_target || 0,
+            species_count: forest?.species_count || 30,
+            co_donors:     selectedDonorData.length,
+            password:      '123456',
+            dashboard:     '/miyawaki-dashboard',
           }
         })
       })
     }
 
-    setSuccess('Donor assigned and email sent!')
-    setShowAssignModal(null)
-    setSelectedDonor('')
+    setSuccess(`✅ ${selectedDonorData.length} donor(s) assigned to ${forest?.forest_code} and emails sent!`)
+    setShowPoolModal(false)
+    setSelectedDonors([])
+    setPoolForestId(null)
     loadData()
     setAssigning(false)
   }
 
   const inp = { width:'100%', padding:'0.6rem 0.85rem', border:'1.5px solid #e5e7eb', borderRadius:'8px', fontSize:'14px', outline:'none', fontFamily:'inherit', boxSizing:'border-box' as const }
   const lbl = { display:'block', fontSize:'13px', fontWeight:500, color:'#374151', marginBottom:'6px' } as React.CSSProperties
+  const totalSelected = selectedDonors.reduce((s, id) => {
+    const d = unassigned.find(u => u.miyawaki_id === id)
+    return s + (d?.amount || 0)
+  }, 0)
 
   return (
     <div>
@@ -159,15 +232,28 @@ export default function AdminMiyawaki() {
         <p style={{ fontSize:'14px', color:'#6B7280' }}>{unassigned.length} donors waiting · {forests.length} forests</p>
       </div>
 
-      {success && <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:'8px', padding:'10px 14px', marginBottom:'1rem', fontSize:'13px', color:'#166534' }}>{success}</div>}
-      {error   && <div style={{ background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'8px', padding:'10px 14px', marginBottom:'1rem', fontSize:'13px', color:'#dc2626' }}>{error}</div>}
+      {success && <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:'8px', padding:'10px 14px', marginBottom:'1rem', fontSize:'13px', color:'#166534' }}>{success}<button onClick={()=>setSuccess('')} style={{float:'right',background:'none',border:'none',cursor:'pointer',color:'#166534'}}>✕</button></div>}
+      {error   && <div style={{ background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'8px', padding:'10px 14px', marginBottom:'1rem', fontSize:'13px', color:'#dc2626' }}>{error}<button onClick={()=>setError('')} style={{float:'right',background:'none',border:'none',cursor:'pointer',color:'#dc2626'}}>✕</button></div>}
 
       {/* SECTION 1 — Unassigned Donors */}
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e5e7eb', overflow:'hidden', marginBottom:'1.5rem' }}>
-        <div style={{ padding:'0.875rem 1.25rem', borderBottom:'1px solid #e5e7eb', background:'#fef9c3', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <div style={{ padding:'0.875rem 1.25rem', borderBottom:'1px solid #e5e7eb', background:'#fef9c3', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'0.5rem' }}>
           <span style={{ fontSize:'14px', fontWeight:600, color:'#92400e' }}>⏳ Unassigned Donors ({unassigned.length})</span>
-          <span style={{ fontSize:'12px', color:'#92400e' }}>These donors need a forest assigned</span>
+          <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
+            {selectedDonors.length > 0 && (
+              <span style={{ fontSize:'12px', color:'#92400e', background:'#fef3c7', padding:'3px 10px', borderRadius:'20px', fontWeight:600 }}>
+                {selectedDonors.length} selected · ₹{totalSelected.toLocaleString('en-IN')}
+              </span>
+            )}
+            {selectedDonors.length > 0 && forests.length > 0 && (
+              <button onClick={() => setShowPoolModal(true)}
+                style={{ padding:'6px 14px', background:'#7C3AED', color:'white', border:'none', borderRadius:'6px', fontSize:'12px', fontWeight:600, cursor:'pointer' }}>
+                Assign to Forest →
+              </button>
+            )}
+          </div>
         </div>
+
         {loading ? (
           <div style={{ padding:'1.5rem', textAlign:'center', color:'#9ca3af', fontSize:'14px' }}>Loading...</div>
         ) : unassigned.length === 0 ? (
@@ -176,59 +262,31 @@ export default function AdminMiyawaki() {
           <table style={{ width:'100%', borderCollapse:'collapse' }}>
             <thead>
               <tr style={{ background:'#f9fafb' }}>
-                {['Name','Email','Amount','Date','Gift','Action'].map(h => (
+                <th style={{ padding:'8px 12px', width:'40px' }}>
+                  <input type="checkbox"
+                    checked={selectedDonors.length === unassigned.length}
+                    onChange={e => setSelectedDonors(e.target.checked ? unassigned.map(d => d.miyawaki_id) : [])}
+                  />
+                </th>
+                {['Name','Email','Amount','Date','Gift'].map(h => (
                   <th key={h} style={{ padding:'8px 12px', fontSize:'11px', color:'#6B7280', fontWeight:500, textAlign:'left', textTransform:'uppercase', letterSpacing:'0.04em' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {unassigned.map(d => (
-                <tr key={d.id} style={{ borderTop:'1px solid #f3f4f6' }}>
+                <tr key={d.miyawaki_id} style={{ borderTop:'1px solid #f3f4f6', background: selectedDonors.includes(d.miyawaki_id) ? '#f5f3ff' : 'white' }}>
+                  <td style={{ padding:'10px 12px' }}>
+                    <input type="checkbox"
+                      checked={selectedDonors.includes(d.miyawaki_id)}
+                      onChange={() => toggleDonor(d.miyawaki_id)}
+                    />
+                  </td>
                   <td style={{ padding:'10px 12px', fontSize:'13px', fontWeight:600, color:'#1A1A1A' }}>{d.name}</td>
                   <td style={{ padding:'10px 12px', fontSize:'12px', color:'#6B7280' }}>{d.email}</td>
-                  <td style={{ padding:'10px 12px', fontSize:'13px', fontWeight:600, color:'#7C3AED' }}>₹{Number(d.total_donated).toLocaleString('en-IN')}</td>
+                  <td style={{ padding:'10px 12px', fontSize:'13px', fontWeight:600, color:'#7C3AED' }}>₹{Number(d.amount).toLocaleString('en-IN')}</td>
                   <td style={{ padding:'10px 12px', fontSize:'12px', color:'#9ca3af' }}>{new Date(d.created_at).toLocaleDateString('en-IN')}</td>
                   <td style={{ padding:'10px 12px', fontSize:'12px', color:'#6B7280' }}>{d.is_gift ? `🎁 ${d.gift_from_name}` : '—'}</td>
-                  <td style={{ padding:'10px 12px' }}>
-                    {forests.length > 0 ? (
-                     <select
-                      onChange={async e => {
-  if (!e.target.value) return
-  if (!confirm(`Assign ${d.name} to this forest and send email?`)) return
-  setAssigning(true)
-  const { error: updateErr } = await supabase
-    .from('miyawaki_donors')
-    .update({ forest_id: Number(e.target.value) })
-    .eq('donor_id', d.id)
-    .is('forest_id', null)
-  if (updateErr) { setError(updateErr.message); setAssigning(false); return }
-  const forest = forests.find(f => f.id === Number(e.target.value))
-  await fetch('/api/send-email', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      type: 'miyawaki_assigned',
-      donor: {
-        name: d.name, email: d.email,
-        forest_name: forest?.forest_name || 'Miyawaki Forest',
-        site: forest?.sites?.name || 'Bangalore',
-        trees_target: forest?.trees_target || 0,
-        species_count: forest?.species_count || 30,
-        password: '123456', dashboard: '/miyawaki-dashboard',
-      }
-    })
-  })
-  setAssigning(false)
-  setSuccess('Donor assigned and email sent!')
-  loadData()
-}}
-                        defaultValue="" style={{ ...inp, width:'auto', fontSize:'12px', padding:'4px 8px' }}>
-                        <option value="">Assign to forest →</option>
-                        {forests.map(f => <option key={f.id} value={f.id}>{f.forest_name}</option>)}
-                      </select>
-                    ) : (
-                      <span style={{ fontSize:'12px', color:'#9ca3af' }}>Create forest first</span>
-                    )}
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -238,7 +296,8 @@ export default function AdminMiyawaki() {
 
       {/* SECTION 2 — Create Forest */}
       <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e5e7eb', padding:'1.5rem', marginBottom:'1.5rem' }}>
-        <div style={{ fontSize:'14px', fontWeight:600, color:'#1A1A1A', marginBottom:'1rem' }}>🌿 Create New Miyawaki Forest</div>
+        <div style={{ fontSize:'14px', fontWeight:600, color:'#1A1A1A', marginBottom:'4px' }}>🌿 Create New Miyawaki Forest</div>
+        <div style={{ fontSize:'12px', color:'#9ca3af', marginBottom:'1rem' }}>Forest code will be auto-generated (e.g. MF-BLR-2026-004)</div>
         <form onSubmit={handleCreateForest}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem', marginBottom:'1rem' }}>
             <div style={{ gridColumn:'span 2' }}>
@@ -302,100 +361,141 @@ export default function AdminMiyawaki() {
           </div>
         ) : (
           <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
-            {forests.map(f => (
-              <div key={f.id} style={{ borderBottom:'1px solid #f3f4f6' }}>
-                <div style={{ padding:'1rem 1.25rem', display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'1rem', cursor:'pointer' }}
-                  onClick={async () => {
-                    if (expandedForest === f.id) { setExpandedForest(null) }
-                    else { setExpandedForest(f.id); await loadForestDonors(f.id) }
-                  }}>
-                  <div style={{ flex:1 }}>
-                    <div style={{ fontSize:'14px', fontWeight:600, color:'#1A1A1A', marginBottom:'4px' }}>{f.forest_name}</div>
-                    <div style={{ fontSize:'12px', color:'#9ca3af', display:'flex', gap:'12px', flexWrap:'wrap' }}>
-                      {f.sites?.name && <span>📍 {f.sites.name}</span>}
-                      {f.worker?.name && <span>👷 {f.worker.name}</span>}
-                      <span>🌳 {f.trees_planted}/{f.trees_target} trees</span>
-                      <span>🌿 {f.species_count}+ species</span>
-                      <span>👥 {f.donor_count} donors</span>
-                    </div>
-                  </div>
-                  <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
-                    <span style={{ fontSize:'11px', fontWeight:600, padding:'3px 10px', borderRadius:'20px',
-                      background: f.status==='COMPLETE'?'#dcfce7':f.status==='ACTIVE'?'#dbeafe':'#fef9c3',
-                      color: f.status==='COMPLETE'?'#166534':f.status==='ACTIVE'?'#1e40af':'#92400e' }}>
-                      {f.status}
-                    </span>
-                    <span style={{ color:'#6B7280', fontSize:'12px' }}>{expandedForest===f.id?'▲':'▼'}</span>
-                  </div>
-                </div>
-
-                {/* Expanded — donors in this forest */}
-                {expandedForest === f.id && (
-                  <div style={{ background:'#f9fafb', borderTop:'1px solid #e5e7eb', padding:'1rem 1.25rem' }}>
-                    <div style={{ fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'0.75rem' }}>
-                      Donors in this forest ({forestDonors[f.id]?.length || 0})
-                    </div>
-                    {(forestDonors[f.id] || []).length === 0 ? (
-                      <div style={{ fontSize:'13px', color:'#9ca3af' }}>No donors assigned yet</div>
-                    ) : (
-                      <div style={{ display:'flex', flexDirection:'column', gap:'6px', marginBottom:'1rem' }}>
-                        {(forestDonors[f.id] || []).map(d => {
-                          const donor = Array.isArray(d.donors) ? d.donors[0] : d.donors as any
-                          return (
-                            <div key={d.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:'white', borderRadius:'8px', padding:'8px 12px', border:'1px solid #e5e7eb' }}>
-                              <div>
-                                <div style={{ fontSize:'13px', fontWeight:600, color:'#1A1A1A' }}>{donor?.name}</div>
-                                <div style={{ fontSize:'11px', color:'#9ca3af' }}>{donor?.email}</div>
-                              </div>
-                              <div style={{ fontSize:'13px', fontWeight:600, color:'#7C3AED' }}>₹{d.amount.toLocaleString('en-IN')}</div>
-                            </div>
-                          )
-                        })}
+            {forests.map(f => {
+              const pct = f.trees_target > 0 ? Math.round((f.trees_planted/f.trees_target)*100) : 0
+              return (
+                <div key={f.id} style={{ borderBottom:'1px solid #f3f4f6' }}>
+                  <div style={{ padding:'1rem 1.25rem', display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'1rem', cursor:'pointer' }}
+                    onClick={async () => {
+                      if (expandedForest === f.id) { setExpandedForest(null) }
+                      else { setExpandedForest(f.id); await loadForestDonors(f.id) }
+                    }}>
+                    <div style={{ flex:1 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px' }}>
+                        <div style={{ fontSize:'14px', fontWeight:600, color:'#1A1A1A' }}>{f.forest_name}</div>
+                        {f.forest_code && <span style={{ fontSize:'11px', fontFamily:'monospace', color:'#7C3AED', background:'#f5f3ff', padding:'2px 8px', borderRadius:'4px' }}>{f.forest_code}</span>}
                       </div>
-                    )}
-                    {unassigned.length > 0 && (
-                      <button onClick={() => setShowAssignModal(f.id)}
-                        style={{ padding:'6px 14px', background:'#7C3AED', color:'white', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
-                        + Assign Donor
-                      </button>
-                    )}
+                      <div style={{ fontSize:'12px', color:'#9ca3af', display:'flex', gap:'12px', flexWrap:'wrap', marginBottom:'6px' }}>
+                        {f.sites?.name && <span>📍 {f.sites.name}</span>}
+                        {f.worker?.name && <span>👷 {f.worker.name}</span>}
+                        <span>🌳 {f.trees_planted}/{f.trees_target} trees</span>
+                        <span>🌿 {f.species_count}+ species</span>
+                        <span>👥 {f.donor_count} donors</span>
+                        {f.total_donated ? <span style={{ color:'#7C3AED' }}>₹{Number(f.total_donated).toLocaleString('en-IN')} pooled</span> : null}
+                      </div>
+                      {/* Progress bar */}
+                      <div style={{ background:'#f3f4f6', borderRadius:'999px', height:'4px', overflow:'hidden', maxWidth:'300px' }}>
+                        <div style={{ width:`${pct}%`, height:'100%', background:'linear-gradient(90deg,#7C3AED,#a78bfa)', borderRadius:'999px' }} />
+                      </div>
+                      <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'2px' }}>{pct}% planted</div>
+                    </div>
+                    <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
+                      <span style={{ fontSize:'11px', fontWeight:600, padding:'3px 10px', borderRadius:'20px',
+                        background: f.status==='COMPLETE'?'#dcfce7':f.status==='ACTIVE'?'#dbeafe':'#fef9c3',
+                        color: f.status==='COMPLETE'?'#166534':f.status==='ACTIVE'?'#1e40af':'#92400e' }}>
+                        {f.status}
+                      </span>
+                      <span style={{ color:'#6B7280', fontSize:'12px' }}>{expandedForest===f.id?'▲':'▼'}</span>
+                    </div>
                   </div>
-                )}
-              </div>
-            ))}
+
+                  {expandedForest === f.id && (
+                    <div style={{ background:'#f9fafb', borderTop:'1px solid #e5e7eb', padding:'1rem 1.25rem' }}>
+                      <div style={{ fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'0.75rem' }}>
+                        Donors in this forest ({forestDonors[f.id]?.length || 0})
+                      </div>
+                      {(forestDonors[f.id] || []).length === 0 ? (
+                        <div style={{ fontSize:'13px', color:'#9ca3af', marginBottom:'0.75rem' }}>No donors assigned yet</div>
+                      ) : (
+                        <div style={{ display:'flex', flexDirection:'column', gap:'6px', marginBottom:'1rem' }}>
+                          {(forestDonors[f.id] || []).map(d => {
+                            const donor = Array.isArray(d.donors) ? d.donors[0] : d.donors as any
+                            return (
+                              <div key={d.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:'white', borderRadius:'8px', padding:'8px 12px', border:'1px solid #e5e7eb' }}>
+                                <div>
+                                  <div style={{ fontSize:'13px', fontWeight:600, color:'#1A1A1A' }}>{donor?.name}</div>
+                                  <div style={{ fontSize:'11px', color:'#9ca3af' }}>{donor?.email}</div>
+                                </div>
+                                <div style={{ fontSize:'13px', fontWeight:600, color:'#7C3AED' }}>₹{Number(d.amount).toLocaleString('en-IN')}</div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                      {/* Add more donors button */}
+                      {unassigned.length > 0 && (
+                        <button onClick={() => { setPoolForestId(f.id); setShowPoolModal(true) }}
+                          style={{ padding:'6px 14px', background:'#7C3AED', color:'white', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+                          + Add Donors to Forest
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
 
-      {/* ASSIGN MODAL */}
-      {showAssignModal && (
+      {/* POOL ASSIGNMENT MODAL */}
+      {showPoolModal && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}>
-          <div style={{ background:'white', borderRadius:'16px', padding:'1.5rem', width:'100%', maxWidth:'440px', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}>
-            <h3 style={{ fontSize:'16px', fontWeight:600, color:'#1A1A1A', marginBottom:'1rem' }}>
-              Assign donor to forest
+          <div style={{ background:'white', borderRadius:'16px', padding:'1.5rem', width:'100%', maxWidth:'520px', boxShadow:'0 20px 60px rgba(0,0,0,0.3)', maxHeight:'80vh', overflowY:'auto' }}>
+            <h3 style={{ fontSize:'16px', fontWeight:600, color:'#1A1A1A', marginBottom:'0.5rem' }}>
+              Assign Donors to Forest
             </h3>
-            <div style={{ fontSize:'13px', color:'#6B7280', marginBottom:'1rem' }}>
-              Forest: <strong>{forests.find(f=>f.id===showAssignModal)?.forest_name}</strong>
+
+            {/* Forest selector */}
+            <div style={{ marginBottom:'1rem' }}>
+              <label style={lbl}>Select forest *</label>
+              <select value={poolForestId || ''} onChange={e => setPoolForestId(Number(e.target.value))}
+                style={{ ...inp }}>
+                <option value="">— Select forest —</option>
+                {forests.map(f => (
+                  <option key={f.id} value={f.id}>{f.forest_code ? `${f.forest_code} · ` : ''}{f.forest_name}</option>
+                ))}
+              </select>
             </div>
-            <label style={lbl}>Select donor</label>
-            <select value={selectedDonor} onChange={e=>setSelectedDonor(e.target.value)}
-              style={{ ...inp, marginBottom:'1rem' }}>
-              <option value="">— Select donor —</option>
-              {unassigned.map(d=>(
-                <option key={d.id} value={d.id}>{d.name} ({d.email})</option>
-              ))}
-            </select>
-            <div style={{ fontSize:'12px', color:'#6B7280', background:'#f0fdf4', borderRadius:'8px', padding:'8px 12px', marginBottom:'1rem' }}>
-              📧 An email will be sent to the donor with forest details and dashboard access.
+
+            {/* Donor checkboxes */}
+            <div style={{ marginBottom:'1rem' }}>
+              <label style={lbl}>Select donors to pool ({selectedDonors.length} selected · ₹{totalSelected.toLocaleString('en-IN')})</label>
+              <div style={{ display:'flex', flexDirection:'column', gap:'6px', maxHeight:'240px', overflowY:'auto', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'8px' }}>
+                {unassigned.map(d => (
+                  <label key={d.miyawaki_id} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'8px', borderRadius:'6px', cursor:'pointer', background: selectedDonors.includes(d.miyawaki_id) ? '#f5f3ff' : 'white', border: selectedDonors.includes(d.miyawaki_id) ? '1px solid #ddd6fe' : '1px solid transparent' }}>
+                    <input type="checkbox"
+                      checked={selectedDonors.includes(d.miyawaki_id)}
+                      onChange={() => toggleDonor(d.miyawaki_id)}
+                    />
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:'13px', fontWeight:600, color:'#1A1A1A' }}>{d.name}</div>
+                      <div style={{ fontSize:'11px', color:'#9ca3af' }}>{d.email}</div>
+                    </div>
+                    <div style={{ fontSize:'13px', fontWeight:600, color:'#7C3AED' }}>₹{Number(d.amount).toLocaleString('en-IN')}</div>
+                  </label>
+                ))}
+              </div>
             </div>
+
+            {/* Summary */}
+            {selectedDonors.length > 0 && poolForestId && (
+              <div style={{ background:'#f0fdf4', borderRadius:'8px', padding:'10px 14px', marginBottom:'1rem', fontSize:'13px', color:'#166534' }}>
+                📧 Email will be sent to {selectedDonors.length} donor(s) with forest details and dashboard access.
+                <br/>Forest: <strong>{forests.find(f => f.id === poolForestId)?.forest_name}</strong>
+                <br/>Total pool: <strong>₹{totalSelected.toLocaleString('en-IN')}</strong>
+              </div>
+            )}
+
             <div style={{ display:'flex', gap:'0.75rem', justifyContent:'flex-end' }}>
-              <button onClick={()=>{setShowAssignModal(null);setSelectedDonor('')}}
+              <button onClick={() => { setShowPoolModal(false); setSelectedDonors([]); setPoolForestId(null) }}
                 style={{ padding:'8px 16px', background:'transparent', color:'#6B7280', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', cursor:'pointer', fontFamily:'inherit' }}>
                 Cancel
               </button>
-              <button onClick={()=>handleAssignDonor(showAssignModal)} disabled={!selectedDonor||assigning}
-                style={{ padding:'8px 16px', background:selectedDonor&&!assigning?'#7C3AED':'#9ca3af', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:selectedDonor&&!assigning?'pointer':'not-allowed', fontFamily:'inherit' }}>
-                {assigning ? 'Assigning...' : '✅ Assign + Send Email'}
+              <button onClick={handleAssignPool}
+                disabled={!poolForestId || selectedDonors.length === 0 || assigning}
+                style={{ padding:'8px 16px', background: (!poolForestId || selectedDonors.length === 0 || assigning) ? '#9ca3af' : '#7C3AED', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor: (!poolForestId || selectedDonors.length === 0 || assigning) ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}>
+                {assigning ? 'Assigning...' : `✅ Assign ${selectedDonors.length} Donor(s) + Send Email`}
               </button>
             </div>
           </div>
