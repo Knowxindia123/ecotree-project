@@ -1,0 +1,243 @@
+Script started on 2026-05-04 18:20:46+00:00 [TERM="xterm-256color" TTY="/dev/pts/0" COLUMNS="161" LINES="34"]
+[?2004h]0;root@srv1542872: /var/www/ecotreeroot@srv1542872:/var/www/ecotree# [7mpm2 show knowx-website[27mpm2 show knowx-website
+[?2004l[1m[7m Describing process with id 0 - name knowx-website [27m[22m
+[90m┌───────────────────┬─────────────────────────────────────────┐[39m
+[90m│[39m[1m[36m status            [39m[22m[90m│[39m [32m[1monline[22m[39m                                  [90m│[39m
+[90m│[39m[1m[36m name              [39m[22m[90m│[39m knowx-website                           [90m│[39m
+[90m│[39m[1m[36m namespace         [39m[22m[90m│[39m default                                 [90m│[39m
+[90m│[39m[1m[36m version           [39m[22m[90m│[39m N/A                                     [90m│[39m
+[90m│[39m[1m[36m restarts          [39m[22m[90m│[39m 0                                       [90m│[39m
+[90m│[39m[1m[36m uptime            [39m[22m[90m│[39m 26h                                     [90m│[39m
+[90m│[39m[1m[36m script path       [39m[22m[90m│[39m /usr/bin/npm                            [90m│[39m
+[90m│[39m[1m[36m script args       [39m[22m[90m│[39m start                                   [90m│[39m
+[90m│[39m[1m[36m error log path    [39m[22m[90m│[39m /root/.pm2/logs/knowx-website-error.log [90m│[39m
+[90m│[39m[1m[36m out log path      [39m[22m[90m│[39m /root/.pm2/logs/knowx-website-out.log   [90m│[39m
+[90m│[39m[1m[36m pid path          [39m[22m[90m│[39m /root/.pm2/pids/knowx-website-0.pid     [90m│[39m
+[90m│[39m[1m[36m interpreter       [39m[22m[90m│[39m /usr/bin/node                           [90m│[39m
+[90m│[39m[1m[36m interpreter args  [39m[22m[90m│[39m N/A                                     [90m│[39m
+[90m│[39m[1m[36m script id         [39m[22m[90m│[39m 0                                       [90m│[39m
+[90m│[39m[1m[36m exec cwd          [39m[22m[90m│[39m /root/knowx-website-new-ver-03          [90m│[39m
+[90m│[39m[1m[36m exec mode         [39m[22m[90m│[39m fork_mode                               [90m│[39m
+[90m│[39m[1m[36m node.js version   [39m[22m[90m│[39m 20.20.2                                 [90m│[39m
+[90m│[39m[1m[36m node env          [39m[22m[90m│[39m N/A                                     [90m│[39m
+[90m│[39m[1m[36m watch & reload    [39m[22m[90m│[39m ✘                                       [90m│[39m
+[90m│[39m[1m[36m unstable restarts [39m[22m[90m│[39m 0                                       [90m│[39m
+[90m│[39m[1m[36m created at        [39m[22m[90m│[39m 2026-04-14T05:06:19.532Z                [90m│[39m
+[90m└───────────────────┴─────────────────────────────────────────┘[39m
+[7m[1m Actions available [22m[27m
+[90m┌────────────────────────┐[39m
+[90m│[39m km:heapdump            [90m│[39m
+[90m│[39m km:cpu:profiling:start [90m│[39m
+[90m│[39m km:cpu:profiling:stop  [90m│[39m
+[90m│[39m km:heap:sampling:start [90m│[39m
+[90m│[39m km:heap:sampling:stop  [90m│[39m
+[90m└────────────────────────┘[39m
+[37m[3m Trigger via: pm2 trigger knowx-website <action_name>[23m[39m
+[37m[3m[23m[39m
+[7m[1m Code metrics value [22m[27m
+[90m┌────────────────────────┬───────────┐[39m
+[90m│[39m[1m[36m Used Heap Size         [39m[22m[90m│[39m 11.29 MiB [90m│[39m
+[90m│[39m[1m[36m Heap Usage             [39m[22m[90m│[39m 92.33 %   [90m│[39m
+[90m│[39m[1m[36m Heap Size              [39m[22m[90m│[39m 12.23 MiB [90m│[39m
+[90m│[39m[1m[36m Event Loop Latency p95 [39m[22m[90m│[39m 1.33 ms   [90m│[39m
+[90m│[39m[1m[36m Event Loop Latency     [39m[22m[90m│[39m 0.42 ms   [90m│[39m
+[90m│[39m[1m[36m Active handles         [39m[22m[90m│[39m 5         [90m│[39m
+[90m│[39m[1m[36m Active requests        [39m[22m[90m│[39m 0         [90m│[39m
+[90m└────────────────────────┴───────────┘[39m
+[7m[1m Divergent env variables from local env [22m[27m
+[90m┌────────────────┬────────────────────────────────┐[39m
+[90m│[39m[1m[36m PWD            [39m[22m[90m│[39m /root/knowx-website-new-ver-03 [90m│[39m
+[90m│[39m[1m[36m TERM           [39m[22m[90m│[39m vt220                          [90m│[39m
+[90m│[39m[1m[36m SHLVL          [39m[22m[90m│[39m 1                              [90m│[39m
+[90m│[39m[1m[36m XDG_SESSION_ID [39m[22m[90m│[39m 633                            [90m│[39m
+[90m│[39m[1m[36m OLDPWD         [39m[22m[90m│[39m /root                          [90m│[39m
+[90m└────────────────┴────────────────────────────────┘[39m
+
+[37m[3m Add your own code metrics: http://bit.ly/code-metrics[23m[39m
+[37m[3m Use `pm2 logs knowx-website [--lines 1000]` to display logs[23m[39m
+[37m[3m Use `pm2 env 0` to display environment variables[23m[39m
+[37m[3m Use `pm2 monit` to monitor CPU and Memory usage[23m[39m knowx-website
+[?2004h]0;root@srv1542872: /var/www/ecotreeroot@srv1542872:/var/www/ecotree# [7mpm2 logs knowx-website[27mpm2 logs knowx-website
+[?2004l[1m[90m[TAILING] Tailing last 15 lines for [knowx-website] process (change the value with --lines option)[39m[22m
+[90m/root/.pm2/logs/knowx-website-out.log last 15 lines:[39m
+[32m0|knowx-we | [39m
+[32m0|knowx-we | [39m  ▲ Next.js 14.2.35
+[32m0|knowx-we | [39m  - Local:        http://localhost:3000
+[32m0|knowx-we | [39m
+[32m0|knowx-we | [39m ✓ Starting...
+[32m0|knowx-we | [39m ✓ Ready in 838ms
+[32m0|knowx-we | [39m
+[32m0|knowx-we | [39m> knowx-website@1.0.0 start
+[32m0|knowx-we | [39m> next start
+[32m0|knowx-we | [39m
+[32m0|knowx-we | [39m  ▲ Next.js 14.2.35
+[32m0|knowx-we | [39m  - Local:        http://localhost:3000
+[32m0|knowx-we | [39m
+[32m0|knowx-we | [39m ✓ Starting...
+[32m0|knowx-we | [39m ✓ Ready in 899ms
+
+[90m/root/.pm2/logs/knowx-website-error.log last 15 lines:[39m
+[31m0|knowx-we | [39m    at /root/knowx-website-new-ver-03/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:20:616
+[31m0|knowx-we | [39m    at AsyncLocalStorage.run (node:async_hooks:346:14)
+[31m0|knowx-we | [39m    at Object.wrap (/root/knowx-website-new-ver-03/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:13:16935)
+[31m0|knowx-we | [39m    at ni (/root/knowx-website-new-ver-03/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:20:543)
+[31m0|knowx-we | [39mError: Failed to find Server Action "x". This request might be from an older or newer deployment. 
+[31m0|knowx-we | [39m    at r$ (/root/knowx-website-new-ver-03/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:17:1667)
+[31m0|knowx-we | [39m    at rE (/root/knowx-website-new-ver-03/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:15:6522)
+[31m0|knowx-we | [39m    at no (/root/knowx-website-new-ver-03/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:19:1150)
+[31m0|knowx-we | [39m    at /root/knowx-website-new-ver-03/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:20:726
+[31m0|knowx-we | [39m    at AsyncLocalStorage.run (node:async_hooks:346:14)
+[31m0|knowx-we | [39m    at Object.wrap (/root/knowx-website-new-ver-03/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:13:17831)
+[31m0|knowx-we | [39m    at /root/knowx-website-new-ver-03/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:20:616
+[31m0|knowx-we | [39m    at AsyncLocalStorage.run (node:async_hooks:346:14)
+[31m0|knowx-we | [39m    at Object.wrap (/root/knowx-website-new-ver-03/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:13:16935)
+[31m0|knowx-we | [39m    at ni (/root/knowx-website-new-ver-03/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:20:543)
+
+^C
+[?2004h]0;root@srv1542872: /var/www/ecotreeroot@srv1542872:/var/www/ecotree# 
+[?2004l[?2004h]0;root@srv1542872: /var/www/ecotreeroot@srv1542872:/var/www/ecotree# 
+[?2004l[?2004h]0;root@srv1542872: /var/www/ecotreeroot@srv1542872:/var/www/ecotree# 
+[?2004l[?2004h]0;root@srv1542872: /var/www/ecotreeroot@srv1542872:/var/www/ecotree# [7mcd /var/www/ecotree[27m
+[7mgit fetch origin[27m
+[7mgit reset --hard origin/main[27m
+[7mnpm run build 2>&1 | tail -20[27m
+[7mPORT=3001 pm2 restart ecotree[27m[A[A[A[A]0;root@srv1542872: /var/www/ecotreeroot@srv1542872:/var/www/ecotree# cd /var/www/ecotree
+git fetch origin
+git reset --hard origin/main
+npm run build 2>&1 | tail -20
+PORT=3001 pm2 restart ecotree
+[?2004lremote: Enumerating objects: 13, done.[K
+remote: Counting objects:   7% (1/13)[Kremote: Counting objects:  15% (2/13)[Kremote: Counting objects:  23% (3/13)[Kremote: Counting objects:  30% (4/13)[Kremote: Counting objects:  38% (5/13)[Kremote: Counting objects:  46% (6/13)[Kremote: Counting objects:  53% (7/13)[Kremote: Counting objects:  61% (8/13)[Kremote: Counting objects:  69% (9/13)[Kremote: Counting objects:  76% (10/13)[Kremote: Counting objects:  84% (11/13)[Kremote: Counting objects:  92% (12/13)[Kremote: Counting objects: 100% (13/13)[Kremote: Counting objects: 100% (13/13), done.[K
+remote: Compressing objects:  20% (1/5)[Kremote: Compressing objects:  40% (2/5)[Kremote: Compressing objects:  60% (3/5)[Kremote: Compressing objects:  80% (4/5)[Kremote: Compressing objects: 100% (5/5)[Kremote: Compressing objects: 100% (5/5), done.[K
+remote: Total 7 (delta 4), reused 0 (delta 0), pack-reused 0 (from 0)[K
+Unpacking objects:  14% (1/7)Unpacking objects:  28% (2/7)Unpacking objects:  42% (3/7)Unpacking objects:  57% (4/7)Unpacking objects:  71% (5/7)Unpacking objects:  85% (6/7)Unpacking objects: 100% (7/7)Unpacking objects: 100% (7/7), 4.37 KiB | 2.19 MiB/s, done.
+From https://github.com/Knowxindia123/ecotree-project
+   493db50..b5971ae  main       -> origin/main
+HEAD is now at b5971ae Update print statement from 'Hello' to 'Goodbye'
+
+> ecotree@0.1.0 build
+> next build
+
+  ▲ Next.js 14.2.3
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+Failed to compile.
+
+./app/field/plant/[id]/page.tsx
+Module not found: Can't resolve 'exifr'
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+> Build failed because of webpack errors
+[1m[34mUse --update-env to update environment variables[39m[22m
+[32m[PM2] [39mApplying action restartProcessId on app [ecotree](ids: [ 1 ])
+[32m[PM2] [39m[ecotree](1) ✓
+[90m┌────┬──────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐[39m
+[90m│[39m[1m[36m id [39m[22m[90m│[39m[1m[36m name             [39m[22m[90m│[39m[1m[36m namespace   [39m[22m[90m│[39m[1m[36m version [39m[22m[90m│[39m[1m[36m mode    [39m[22m[90m│[39m[1m[36m pid      [39m[22m[90m│[39m[1m[36m uptime [39m[22m[90m│[39m[1m[36m ↺    [39m[22m[90m│[39m[1m[36m status    [39m[22m[90m│[39m[1m[36m cpu      [39m[22m[90m│[39m[1m[36m mem      [39m[22m[90m│[39m[1m[36m user     [39m[22m[90m│[39m[1m[36m watching [39m[22m[90m│[39m
+[90m├────┼──────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤[39m
+[90m│[39m[1m[36m [1m[36m1[39m[36m[22m[1m  [39m[22m[90m│[39m ecotree          [90m│[39m default     [90m│[39m N/A     [90m│[39m [7m[1mfork[22m[27m    [90m│[39m 10723    [90m│[39m 0s     [90m│[39m 37   [90m│[39m [32m[1monline[22m[39m    [90m│[39m 0%       [90m│[39m 18.0mb   [90m│[39m [1mroot[22m     [90m│[39m [90mdisabled[39m [90m│[39m
+[90m│[39m[1m[36m [1m[36m0[39m[36m[22m[1m  [39m[22m[90m│[39m knowx-website    [90m│[39m default     [90m│[39m N/A     [90m│[39m [7m[1mfork[22m[27m    [90m│[39m 875      [90m│[39m 28h    [90m│[39m 0    [90m│[39m [32m[1monline[22m[39m    [90m│[39m 0%       [90m│[39m 59.7mb   [90m│[39m [1mroot[22m     [90m│[39m [90mdisabled[39m [90m│[39m
+[90m└────┴──────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘[39m
+[?2004h]0;root@srv1542872: /var/www/ecotreeroot@srv1542872:/var/www/ecotree# [7mcd /var/www/ecotree[27m
+[7mgit fetch origin[27m
+[7mgit reset --hard origin/main[27m
+[7mnpm install[27m
+[7mnpm run build 2>&1 | tail -30[27m[A[A[A[A]0;root@srv1542872: /var/www/ecotreeroot@srv1542872:/var/www/ecotree# cd /var/www/ecotree
+git fetch origin
+git reset --hard origin/main
+npm install
+npm run build 2>&1 | tail -30
+[?2004lHEAD is now at b5971ae Update print statement from 'Hello' to 'Goodbye'
+[1G[0K⠙[1G[0K⠹[1G[0K⠸[1G[0K⠼[1G[0K⠴[1G[0K⠦[1G[0K⠧[1G[0K⠇[1G[0K⠏[1G[0K
+up to date, audited 196 packages in 2s
+[1G[0K⠏[1G[0K
+[1G[0K⠏[1G[0K27 packages are looking for funding
+[1G[0K⠏[1G[0K  run `npm fund` for details
+[1G[0K⠏[1G[0K
+[31m[1m4[22m[39m vulnerabilities (2 [33m[1mmoderate[22m[39m, 2 [35m[1mcritical[22m[39m)
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+[1G[0K⠏[1G[0K
+> ecotree@0.1.0 build
+> next build
+
+  ▲ Next.js 14.2.3
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+Failed to compile.
+
+./app/field/plant/[id]/page.tsx
+Module not found: Can't resolve 'exifr'
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+> Build failed because of webpack errors
+[?2004h]0;root@srv1542872: /var/www/ecotreeroot@srv1542872:/var/www/ecotree# [7mcd /var/www/ecotree[27m
+[7mnpm install exifr[27m[A]0;root@srv1542872: /var/www/ecotreeroot@srv1542872:/var/www/ecotree# cd /var/www/ecotree
+npm install exifr
+[?2004l[1G[0K⠙[1G[0K⠹[1G[0K⠸[1G[0K⠼[1G[0K⠴[1G[0K⠦[1G[0K⠧[1G[0K⠇[1G[0K⠏[1G[0K
+added 1 package, and audited 197 packages in 2s
+[1G[0K⠋[1G[0K
+[1G[0K⠋[1G[0K27 packages are looking for funding
+[1G[0K⠋[1G[0K  run `npm fund` for details
+[1G[0K⠋[1G[0K
+[31m[1m4[22m[39m vulnerabilities (2 [33m[1mmoderate[22m[39m, 2 [35m[1mcritical[22m[39m)
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+[1G[0K⠋[1G[0K[?2004h]0;root@srv1542872: /var/www/ecotreeroot@srv1542872:/var/www/ecotree# [7mnpm run build 2>&1 | tail -40[27mnpm run build 2>&1 | tail -40
+[?2004lRoute (app)                              Size     First Load JS
+┌ ○ /                                    23.3 kB         117 kB
+├ ○ /_not-found                          871 B          88.2 kB
+├ ○ /about                               141 B          87.4 kB
+├ ○ /admin/assign                        3.72 kB         150 kB
+├ ○ /admin/csr                           2.47 kB         149 kB
+├ ○ /admin/dashboard                     2.5 kB          156 kB
+├ ○ /admin/donors                        1.73 kB         148 kB
+├ ○ /admin/login                         1.58 kB         148 kB
+├ ○ /admin/review                        3.29 kB         150 kB
+├ ○ /admin/workers                       2.51 kB         149 kB
+├ ○ /api                                 0 B                0 B
+├ ƒ /api/create-donor                    0 B                0 B
+├ ƒ /api/create-worker                   0 B                0 B
+├ ○ /contact                             9.03 kB        96.3 kB
+├ ○ /csr                                 12.6 kB        99.8 kB
+├ ○ /dashboard                           9.7 kB          104 kB
+├ ○ /donate                              9.48 kB         156 kB
+├ ○ /field                               637 B           147 kB
+├ ○ /field/login                         1.57 kB         148 kB
+├ ƒ /field/plant/[id]                    4.69 kB         151 kB
+├ ○ /field/status                        2.03 kB         149 kB
+├ ○ /field/tasks                         2.42 kB         149 kB
+├ ○ /impact                              10.3 kB        97.6 kB
+├ ○ /my-tree                             11.3 kB         165 kB
+├ ○ /my-tree/login                       1.96 kB         149 kB
+├ ○ /thank-you                           7.62 kB        94.9 kB
+├ ƒ /tree/[treeId]                       2.96 kB         150 kB
+└ ○ /why-trees                           11.7 kB          99 kB
++ First Load JS shared by all            87.3 kB
+  ├ chunks/23-49ae226b02169d98.js        31.5 kB
+  ├ chunks/fd9d1056-222c1ff9fc16dadc.js  53.6 kB
+  └ other shared chunks (total)          2.19 kB
+
+
+ƒ Middleware                             27.2 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+[?2004h]0;root@srv1542872: /var/www/ecotreeroot@srv1542872:/var/www/ecotree# [7mpm2 restart ecotree[27mpm2 restart ecotree
+[?2004l[1m[34mUse --update-env to update environment variables[39m[22m
+[32m[PM2] [39mApplying action restartProcessId on app [ecotree](ids: [ 1 ])
+[32m[PM2] [39m[ecotree](1) ✓
+[90m┌────┬──────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐[39m
+[90m│[39m[1m[36m id [39m[22m[90m│[39m[1m[36m name             [39m[22m[90m│[39m[1m[36m namespace   [39m[22m[90m│[39m[1m[36m version [39m[22m[90m│[39m[1m[36m mode    [39m[22m[90m│[39m[1m[36m pid      [39m[22m[90m│[39m[1m[36m uptime [39m[22m[90m│[39m[1m[36m ↺    [39m[22m[90m│[39m[1m[36m status    [39m[22m[90m│[39m[1m[36m cpu      [39m[22m[90m│[39m[1m[36m mem      [39m[22m[90m│[39m[1m[36m user     [39m[22m[90m│[39m[1m[36m
