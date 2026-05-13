@@ -6,26 +6,27 @@ import { supabase } from '@/lib/supabase'
 type Step = 'photos' | 'details' | 'submitting' | 'done'
 
 export default function FieldMiyawaki() {
-  const router  = useRouter()
-  const params  = useParams()
+  const router   = useRouter()
+  const params   = useParams()
   const forestId = params.id as string
 
-  const [step,          setStep]          = useState<Step>('photos')
-  const [forest,        setForest]        = useState<any>(null)
-  const [worker,        setWorker]        = useState<any>(null)
-  const [beforePhotos,  setBeforePhotos]  = useState<File[]>([])
-  const [afterPhotos,   setAfterPhotos]   = useState<File[]>([])
-  const [sitePhotos,    setSitePhotos]    = useState<File[]>([])
-  const [beforePrevs,   setBeforePrevs]   = useState<string[]>([])
-  const [afterPrevs,    setAfterPrevs]    = useState<string[]>([])
-  const [sitePrevs,     setSitePrevs]     = useState<string[]>([])
-  const [treesPlanted,  setTreesPlanted]  = useState('')
-  const [notes,         setNotes]         = useState('')
-  const [gps,           setGps]           = useState<{ lat: number; lng: number } | null>(null)
-  const [gpsLoading,    setGpsLoading]    = useState(false)
-  const [gpsError,      setGpsError]      = useState('')
-  const [error,         setError]         = useState('')
-  const [progress,      setProgress]      = useState(0)
+  const [step,         setStep]         = useState<Step>('photos')
+  const [forest,       setForest]       = useState<any>(null)
+  const [worker,       setWorker]       = useState<any>(null)
+  const [beforePhotos, setBeforePhotos] = useState<File[]>([])
+  const [afterPhotos,  setAfterPhotos]  = useState<File[]>([])
+  const [sitePhotos,   setSitePhotos]   = useState<File[]>([])
+  const [beforePrevs,  setBeforePrevs]  = useState<string[]>([])
+  const [afterPrevs,   setAfterPrevs]   = useState<string[]>([])
+  const [sitePrevs,    setSitePrevs]    = useState<string[]>([])
+  const [treesToday,   setTreesToday]   = useState('')   // trees planted TODAY
+  const [notes,        setNotes]        = useState('')
+  const [gps,          setGps]          = useState<{ lat: number; lng: number } | null>(null)
+  const [gpsLoading,   setGpsLoading]   = useState(false)
+  const [gpsError,     setGpsError]     = useState('')
+  const [error,        setError]        = useState('')
+  const [progress,     setProgress]     = useState(0)
+  const [prevUpdates,  setPrevUpdates]  = useState<any[]>([])
 
   const beforeRef = useRef<HTMLInputElement>(null)
   const afterRef  = useRef<HTMLInputElement>(null)
@@ -38,13 +39,23 @@ export default function FieldMiyawaki() {
     if (!session) { window.location.replace('/field/login'); return }
     const { data: u } = await supabase.from('users').select('id,name').eq('email', session.user.email).single()
     setWorker(u)
+
     const { data: f } = await supabase.from('miyawaki_forests')
       .select('*, site_id').eq('id', forestId).single()
     if (f?.site_id) {
       const { data: s } = await supabase.from('sites').select('name').eq('id', f.site_id).single()
       setForest({ ...f, site_name: s?.name })
     } else setForest(f)
-    if (f?.trees_planted) setTreesPlanted(String(f.trees_planted))
+
+    // Load previous approved updates for this forest
+    const { data: updates } = await supabase
+      .from('miyawaki_updates')
+      .select('id, trees_planted_today, total_planted_so_far, notes, status, created_at')
+      .eq('forest_id', forestId)
+      .eq('status', 'APPROVED')
+      .order('created_at', { ascending: false })
+      .limit(5)
+    setPrevUpdates(updates || [])
   }
 
   function addPhotos(files: FileList | null, type: 'before'|'after'|'site') {
@@ -83,7 +94,17 @@ export default function FieldMiyawaki() {
 
   async function handleSubmit() {
     if (afterPhotos.length === 0) { setError('Please upload at least one after photo'); return }
-    if (!treesPlanted || Number(treesPlanted) < 1) { setError('Please enter number of trees planted'); return }
+    const todayCount = Number(treesToday)
+    if (!treesToday || todayCount < 1) { setError('Please enter number of trees planted today'); return }
+
+    // Validate: total can't exceed target
+    const currentTotal = forest?.trees_planted || 0
+    const newTotal = currentTotal + todayCount
+    if (forest?.trees_target && newTotal > forest.trees_target) {
+      setError(`Cannot exceed target. Current: ${currentTotal}, Today: ${todayCount}, Target: ${forest.trees_target}`)
+      return
+    }
+
     setStep('submitting'); setError('')
 
     try {
@@ -93,23 +114,33 @@ export default function FieldMiyawaki() {
         uploadPhotos(afterPhotos, 'after'),
         uploadPhotos(sitePhotos, 'site'),
       ])
-      setProgress(70)
+      setProgress(60)
 
-      // Merge with existing photos
+      // Save to miyawaki_updates (PENDING — admin reviews)
+      await supabase.from('miyawaki_updates').insert({
+        forest_id:           Number(forestId),
+        worker_id:           worker?.id,
+        trees_planted_today: todayCount,
+        total_planted_so_far: newTotal,
+        photos:              [...beforeUrls, ...afterUrls, ...siteUrls],
+        notes:               notes || null,
+        status:              'PENDING',
+      })
+
+      // Also update forest photos + GPS immediately (photos visible to donors)
       const existing = forest || {}
       const newBefore = [...(existing.before_photos||[]), ...beforeUrls]
       const newAfter  = [...(existing.after_photos||[]),  ...afterUrls]
       const newSite   = [...(existing.site_photos||[]),   ...siteUrls]
 
       await supabase.from('miyawaki_forests').update({
-        trees_planted:  Number(treesPlanted),
-        before_photos:  newBefore,
-        after_photos:   newAfter,
-        site_photos:    newSite,
-        latitude:       gps?.lat ?? forest?.latitude ?? null,
-        longitude:      gps?.lng ?? forest?.longitude ?? null,
-        status:         'ACTIVE',
-        notes:          notes || forest?.notes || null,
+        before_photos: newBefore,
+        after_photos:  newAfter,
+        site_photos:   newSite,
+        latitude:      gps?.lat ?? forest?.latitude ?? null,
+        longitude:     gps?.lng ?? forest?.longitude ?? null,
+        status:        'ACTIVE',
+        notes:         notes || forest?.notes || null,
       }).eq('id', forestId)
 
       setProgress(100)
@@ -128,19 +159,23 @@ export default function FieldMiyawaki() {
   )
 
   const pct = forest.trees_target > 0 ? Math.round(((forest.trees_planted||0)/forest.trees_target)*100) : 0
+  const todayCount = Number(treesToday) || 0
+  const newTotal = (forest.trees_planted || 0) + todayCount
+  const newPct = forest.trees_target > 0 ? Math.round((newTotal/forest.trees_target)*100) : 0
 
-  // DONE
   if (step === 'done') return (
     <div style={{ minHeight:'100dvh', background:'#1A3C34', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'2rem', gap:'1.25rem', textAlign:'center', fontFamily:'sans-serif' }}>
       <div style={{ fontSize:'4rem' }}>🎉</div>
-      <div style={{ fontSize:'22px', fontWeight:700, color:'#97BC62' }}>Forest Updated!</div>
+      <div style={{ fontSize:'22px', fontWeight:700, color:'#97BC62' }}>Update Submitted!</div>
       <div style={{ fontSize:'15px', color:'rgba(255,255,255,0.8)', fontWeight:600 }}>{forest.forest_name}</div>
       <div style={{ background:'rgba(255,255,255,0.1)', borderRadius:'16px', padding:'1.25rem', width:'100%', maxWidth:'300px' }}>
-        <Stat label="Trees planted" val={treesPlanted+' / '+forest.trees_target} />
-        <Stat label="Before photos" val={String(beforePhotos.length)} />
-        <Stat label="After photos" val={String(afterPhotos.length)} />
-        <Stat label="Site photos" val={String(sitePhotos.length)} />
-        {gps && <Stat label="GPS" val={gps.lat.toFixed(4)+'° N'} />}
+        <Stat label="Trees today" val={String(todayCount)} />
+        <Stat label="Total so far" val={`${newTotal} / ${forest.trees_target}`} />
+        <Stat label="Progress" val={`${newPct}%`} />
+        <Stat label="Photos" val={String(beforePhotos.length + afterPhotos.length + sitePhotos.length)} />
+      </div>
+      <div style={{ background:'rgba(255,193,7,0.15)', borderRadius:'12px', padding:'10px 16px', fontSize:'13px', color:'rgba(255,255,255,0.7)', maxWidth:'300px' }}>
+        ⏳ Admin will review and approve this update. Donors will see progress once approved.
       </div>
       <button onClick={() => router.push('/field/tasks')}
         style={{ width:'100%', maxWidth:'300px', padding:'1rem', background:'#97BC62', color:'#1A3C34', border:'none', borderRadius:'14px', fontSize:'16px', fontWeight:700, cursor:'pointer' }}>
@@ -149,11 +184,10 @@ export default function FieldMiyawaki() {
     </div>
   )
 
-  // SUBMITTING
   if (step === 'submitting') return (
     <div style={{ minHeight:'100dvh', background:'#1A3C34', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'2rem', gap:'1.5rem', fontFamily:'sans-serif' }}>
       <div style={{ fontSize:'3rem' }}>🏙️</div>
-      <div style={{ fontSize:'18px', fontWeight:700, color:'white' }}>Uploading photos...</div>
+      <div style={{ fontSize:'18px', fontWeight:700, color:'white' }}>Uploading...</div>
       <div style={{ width:'100%', maxWidth:'280px', height:'8px', background:'rgba(255,255,255,0.2)', borderRadius:'999px', overflow:'hidden' }}>
         <div style={{ height:'100%', width:`${progress}%`, background:'#97BC62', borderRadius:'999px', transition:'width 0.5s ease' }} />
       </div>
@@ -167,12 +201,13 @@ export default function FieldMiyawaki() {
       {/* Header */}
       <div style={{ background:'linear-gradient(135deg,#7C3AED,#5b21b6)', padding:'1.25rem', position:'sticky', top:0, zIndex:20 }}>
         <button onClick={() => router.back()} style={{ background:'none', border:'none', color:'rgba(255,255,255,0.7)', fontSize:'14px', cursor:'pointer', padding:0, marginBottom:'10px' }}>← Back</button>
-        <div style={{ fontSize:'18px', fontWeight:700, color:'white', marginBottom:'4px' }}>🏙️ {forest.forest_name}</div>
+        <div style={{ fontSize:'18px', fontWeight:700, color:'white', marginBottom:'2px' }}>🏙️ {forest.forest_name}</div>
+        {forest.forest_code && <div style={{ fontSize:'12px', color:'rgba(255,255,255,0.6)', fontFamily:'monospace', marginBottom:'4px' }}>{forest.forest_code}</div>}
         <div style={{ fontSize:'13px', color:'rgba(255,255,255,0.65)' }}>{forest.site_name || 'Bangalore'} · {forest.species_count||30}+ species</div>
-        {/* Progress */}
         <div style={{ marginTop:'12px' }}>
           <div style={{ display:'flex', justifyContent:'space-between', fontSize:'12px', color:'rgba(255,255,255,0.6)', marginBottom:'4px' }}>
-            <span>Progress</span><span style={{ fontWeight:600, color:'#e9d5ff' }}>{forest.trees_planted||0}/{forest.trees_target}</span>
+            <span>Current progress</span>
+            <span style={{ fontWeight:600, color:'#e9d5ff' }}>{forest.trees_planted||0}/{forest.trees_target} ({pct}%)</span>
           </div>
           <div style={{ background:'rgba(255,255,255,0.2)', borderRadius:'999px', height:'6px', overflow:'hidden' }}>
             <div style={{ width:`${pct}%`, height:'100%', background:'#e9d5ff', borderRadius:'999px' }} />
@@ -182,33 +217,62 @@ export default function FieldMiyawaki() {
 
       <div style={{ flex:1, padding:'1rem', display:'flex', flexDirection:'column', gap:'1rem', overflowY:'auto' }}>
 
-        {/* PHOTOS SECTION */}
-        <Section title="📸 Before Photos" subtitle="Site before planting">
-          <PhotoGrid previews={beforePrevs} onAdd={() => beforeRef.current?.click()} onRemove={i=>removePhoto('before',i)} color="#1A3C34" />
-          <input ref={beforeRef} type="file" accept="image/*" capture="environment" multiple onChange={e=>addPhotos(e.target.files,'before')} style={{ display:'none' }}/>
-        </Section>
+        {/* Previous updates */}
+        {prevUpdates.length > 0 && (
+          <div style={{ background:'white', borderRadius:'16px', padding:'1rem', border:'1px solid #e5e7eb' }}>
+            <div style={{ fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'8px' }}>📋 Previous approved updates</div>
+            {prevUpdates.map((u, i) => (
+              <div key={u.id} style={{ display:'flex', justifyContent:'space-between', fontSize:'12px', color:'#6B7280', padding:'4px 0', borderBottom: i < prevUpdates.length-1 ? '1px solid #f3f4f6' : 'none' }}>
+                <span>{new Date(u.created_at).toLocaleDateString('en-IN')}</span>
+                <span style={{ color:'#7C3AED', fontWeight:600 }}>+{u.trees_planted_today} trees</span>
+                <span>Total: {u.total_planted_so_far}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
-        <Section title="🌱 After Photos" subtitle="Trees planted (required)">
+        {/* Trees planted TODAY */}
+        <div style={{ background:'white', borderRadius:'16px', padding:'1rem', border:'1px solid #e5e7eb' }}>
+          <div style={{ fontSize:'14px', fontWeight:700, color:'#1A1A1A', marginBottom:'2px' }}>🌳 Trees Planted Today</div>
+          <div style={{ fontSize:'12px', color:'#9ca3af', marginBottom:'10px' }}>How many trees planted in this session?</div>
+          <div style={{ display:'flex', alignItems:'center', gap:'1rem', background:'#f9fafb', borderRadius:'12px', padding:'1rem', border:'1.5px solid #e5e7eb' }}>
+            <button onClick={()=>setTreesToday(p=>String(Math.max(0,(Number(p)||0)-1)))}
+              style={{ width:'44px', height:'44px', borderRadius:'50%', border:'2px solid #e5e7eb', background:'white', fontSize:'1.5rem', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#374151', flexShrink:0 }}>−</button>
+            <input type="number" value={treesToday} onChange={e=>setTreesToday(e.target.value)} min="0"
+              style={{ flex:1, textAlign:'center', fontSize:'2rem', fontWeight:700, color:'#7C3AED', border:'none', background:'transparent', outline:'none', fontFamily:'inherit' }}/>
+            <button onClick={()=>setTreesToday(p=>String((Number(p)||0)+1))}
+              style={{ width:'44px', height:'44px', borderRadius:'50%', border:'2px solid #e5e7eb', background:'white', fontSize:'1.5rem', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#374151', flexShrink:0 }}>+</button>
+          </div>
+          {todayCount > 0 && (
+            <div style={{ marginTop:'10px' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:'12px', color:'#6B7280', marginBottom:'4px' }}>
+                <span>After this update: {newTotal}/{forest.trees_target}</span>
+                <span style={{ fontWeight:600, color:'#7C3AED' }}>{newPct}%</span>
+              </div>
+              <div style={{ background:'#f3f4f6', borderRadius:'999px', height:'5px', overflow:'hidden' }}>
+                <div style={{ width:`${newPct}%`, height:'100%', background:'linear-gradient(90deg,#7C3AED,#a78bfa)', borderRadius:'999px' }} />
+              </div>
+            </div>
+          )}
+          <div style={{ fontSize:'12px', color:'#9ca3af', textAlign:'center', marginTop:'6px' }}>Target: {forest.trees_target} · Planted: {forest.trees_planted||0} · Remaining: {(forest.trees_target||0) - (forest.trees_planted||0)}</div>
+        </div>
+
+        {/* After Photos — required */}
+        <Section title="🌱 After Photos *" subtitle="Trees planted today (required)">
           <PhotoGrid previews={afterPrevs} onAdd={() => afterRef.current?.click()} onRemove={i=>removePhoto('after',i)} color="#166534" required />
           <input ref={afterRef} type="file" accept="image/*" capture="environment" multiple onChange={e=>addPhotos(e.target.files,'after')} style={{ display:'none' }}/>
         </Section>
 
+        {/* Before Photos */}
+        <Section title="📸 Before Photos" subtitle="Site before today's planting">
+          <PhotoGrid previews={beforePrevs} onAdd={() => beforeRef.current?.click()} onRemove={i=>removePhoto('before',i)} color="#1A3C34" />
+          <input ref={beforeRef} type="file" accept="image/*" capture="environment" multiple onChange={e=>addPhotos(e.target.files,'before')} style={{ display:'none' }}/>
+        </Section>
+
+        {/* Site Overview */}
         <Section title="🏞️ Site Overview Photos" subtitle="Wider view of plantation area">
           <PhotoGrid previews={sitePrevs} onAdd={() => siteRef.current?.click()} onRemove={i=>removePhoto('site',i)} color="#0369a1" />
           <input ref={siteRef} type="file" accept="image/*" capture="environment" multiple onChange={e=>addPhotos(e.target.files,'site')} style={{ display:'none' }}/>
-        </Section>
-
-        {/* TREES COUNT */}
-        <Section title="🌳 Trees Planted" subtitle="How many trees planted today?">
-          <div style={{ display:'flex', alignItems:'center', gap:'1rem', background:'#f9fafb', borderRadius:'12px', padding:'1rem', border:'1.5px solid #e5e7eb' }}>
-            <button onClick={()=>setTreesPlanted(p=>String(Math.max(0,(Number(p)||0)-1)))}
-              style={{ width:'44px', height:'44px', borderRadius:'50%', border:'2px solid #e5e7eb', background:'white', fontSize:'1.5rem', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#374151', flexShrink:0 }}>−</button>
-            <input type="number" value={treesPlanted} onChange={e=>setTreesPlanted(e.target.value)} min="0"
-              style={{ flex:1, textAlign:'center', fontSize:'2rem', fontWeight:700, color:'#7C3AED', border:'none', background:'transparent', outline:'none', fontFamily:'inherit' }}/>
-            <button onClick={()=>setTreesPlanted(p=>String((Number(p)||0)+1))}
-              style={{ width:'44px', height:'44px', borderRadius:'50%', border:'2px solid #e5e7eb', background:'white', fontSize:'1.5rem', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#374151', flexShrink:0 }}>+</button>
-          </div>
-          <div style={{ fontSize:'12px', color:'#9ca3af', textAlign:'center', marginTop:'4px' }}>Target: {forest.trees_target} trees</div>
         </Section>
 
         {/* GPS */}
@@ -231,31 +295,18 @@ export default function FieldMiyawaki() {
           {gpsError && <div style={{ fontSize:'13px', color:'#dc2626', marginTop:'6px' }}>{gpsError}</div>}
         </Section>
 
-        {/* NOTES */}
+        {/* Notes */}
         <Section title="📝 Notes" subtitle="Optional field notes">
           <textarea value={notes} onChange={e=>setNotes(e.target.value)}
-            placeholder="Species planted, soil conditions, any issues..."
+            placeholder="Species planted today, soil conditions, any issues..."
             rows={3} style={{ width:'100%', padding:'0.875rem', border:'1.5px solid #e5e7eb', borderRadius:'12px', fontSize:'15px', outline:'none', resize:'none', fontFamily:'inherit', boxSizing:'border-box' as const }}/>
         </Section>
-
-        {/* SUMMARY */}
-        <div style={{ background:'#f5f3ff', borderRadius:'16px', padding:'1rem', border:'1px solid #ddd6fe' }}>
-          <div style={{ fontSize:'13px', fontWeight:600, color:'#7C3AED', marginBottom:'8px' }}>Upload summary</div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'0.5rem', textAlign:'center' }}>
-            {[{label:'Before',count:beforePhotos.length},{label:'After',count:afterPhotos.length},{label:'Site',count:sitePhotos.length}].map(p=>(
-              <div key={p.label} style={{ background:'white', borderRadius:'8px', padding:'8px 4px' }}>
-                <div style={{ fontSize:'18px', fontWeight:700, color: p.count>0?'#7C3AED':'#9ca3af' }}>{p.count}</div>
-                <div style={{ fontSize:'11px', color:'#9ca3af' }}>{p.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
 
         {error && <div style={{ background:'#fef2f2', borderRadius:'12px', padding:'0.875rem', fontSize:'14px', color:'#dc2626' }}>{error}</div>}
 
         <button onClick={handleSubmit}
           style={{ width:'100%', padding:'1.125rem', background:'#7C3AED', color:'white', border:'none', borderRadius:'14px', fontSize:'16px', fontWeight:700, cursor:'pointer', minHeight:'60px', marginBottom:'1rem' }}>
-          🏙️ Submit Forest Update
+          🏙️ Submit Today's Update
         </button>
       </div>
     </div>
