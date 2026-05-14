@@ -16,29 +16,32 @@ export default function DonorLogin() {
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
     if (authError) { setError(authError.message); setLoading(false); return }
 
-    // Check donor record + tier for smart redirect
-    const { data: donorData } = await supabase
+    // Check ALL donor rows for this email (multi-tier support)
+    const { data: allDonorRows } = await supabase
       .from('donors')
       .select('id, name, tier')
       .eq('email', email.toLowerCase().trim())
       .order('created_at', { ascending: true })
-if (allDonorRows && allDonorRows.length > 0) {
-  const allTiers = allDonorRows.map((d: any) => d.tier)
-  const hasIndividual = allTiers.some((t: string) => t === '1000' || t === '500')
-  const hasMiyawaki   = allTiers.some((t: string) => t === '5000')
-  const hasCommunity  = allTiers.some((t: string) => t === '100' || t === '250')
-  if (hasIndividual) {
-    window.location.replace('/my-tree')
-  } else if (hasMiyawaki && !hasCommunity) {
-    window.location.replace('/miyawaki-dashboard')
-  } else if (hasCommunity && !hasMiyawaki) {
-    window.location.replace('/community-dashboard')
-  } else {
-    window.location.replace('/my-tree')
-  }
-}
 
-    // Fallback — check users table
+    if (allDonorRows && allDonorRows.length > 0) {
+      const allTiers = allDonorRows.map((d: any) => d.tier)
+      const hasIndividual = allTiers.some((t: string) => t === '1000' || t === '500')
+      const hasMiyawaki   = allTiers.some((t: string) => t === '5000')
+      const hasCommunity  = allTiers.some((t: string) => t === '100' || t === '250')
+
+      if (hasIndividual) {
+        window.location.replace('/my-tree')
+        return
+      } else if (hasMiyawaki && !hasCommunity) {
+        window.location.replace('/miyawaki-dashboard')
+        return
+      } else if (hasCommunity) {
+        window.location.replace('/community-dashboard')
+        return
+      }
+    }
+
+    // Fallback — check users table (admin/worker)
     const { data: userData } = await supabase
       .from('users').select('id, role').eq('email', email).single()
     if (!userData) {
