@@ -94,9 +94,9 @@ export default function DonatePage() {
         donorId = existing.id
         await supabase.from('donors').update({
           // joint_500: do NOT increment total_trees here — only when pool completes
-          total_trees:   tier.id === 'joint_500'
-            ? (existing.total_trees || 0)
-            : (existing.total_trees || 0) + 1,
+         total_trees:   (tier.id === 'joint_500' || tier.id === 'community_100' || tier.id === 'community_250')
+  ? (existing.total_trees || 0)
+  : (existing.total_trees || 0) + 1,
           total_donated: (Number(existing.total_donated) || 0) + total,
           phone:         form.phone,
           address:       form.address || null,
