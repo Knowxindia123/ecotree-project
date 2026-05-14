@@ -108,7 +108,7 @@ export default function DonatePage() {
           name: form.name, email: form.email, phone: form.phone,
           address: form.address || null, birthday: form.birthday || null, anniversary: form.anniversary || null,
           // joint_500: start at 0 trees — set to 1 only when pool completes
-          total_trees: tier.id === 'joint_500' ? 0 : 1,
+          total_trees: (tier.id === 'joint_500' || tier.id === 'community_100' || tier.id === 'community_250') ? 0 : 1,
           total_donated: total, city: 'Bangalore',
           is_gift: mode === 'gift',
           gift_from_name:  mode === 'gift' ? form.name  : null,
