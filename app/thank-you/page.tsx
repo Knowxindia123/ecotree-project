@@ -416,12 +416,16 @@ const boxes = [
     ? '🤝 You\'re in the pool!'
     : 'Payment Confirmed! Your tree is on its way.'}
 </h1>
-          <p className="ty-success__sub">
-            {(data.tierId === 'community_100' || data.tierId === 'community_250') 
-  ? <>Certificate <strong>{data.certId}</strong> · Community Forest Initiative</>
-  : <>Tree ID <strong>{data.certId}</strong> · Planted within 7 days</>}
-            {isGift && data.recipientEmail && ` and ${data.recipientEmail}`}
-          </p>
+         <p className="ty-success__sub">
+  {(data.tierId === 'community_100' || data.tierId === 'community_250')
+    ? <>Certificate <strong>{data.certId}</strong> · Community Forest Initiative</>
+    : data.tierId === 'miyawaki_5000'
+    ? <>Contribution ID <strong>{data.certId}</strong> · Forest will be assigned shortly</>
+    : data.tierId === 'joint_500'
+    ? <>Pool ID <strong>{data.certId}</strong> · Waiting for a partner donor</>
+    : <>Tree ID <strong>{data.certId}</strong> · Planted within 7 days</>}
+  {isGift && data.recipientEmail && ` and ${data.recipientEmail}`}
+</p>
         </div>
 
         <div className="ty-grid">
