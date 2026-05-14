@@ -96,12 +96,6 @@ export default function AdminMiyawaki() {
     setLoading(false)
   }
 
-  // Generate forest code: MF-BLR-2026-004
-  async function generateForestCode(): Promise<string> {
-    const { data } = await supabase.rpc('nextval', { sequence_name: 'miyawaki_forest_seq' }).single().catch(() => ({ data: null }))
-    const seq = data ? String(data).padStart(3, '0') : String(Math.floor(Math.random() * 900) + 100)
-    return `MF-BLR-${new Date().getFullYear()}-${seq}`
-  }
 
   async function handleCreateForest(e: React.FormEvent) {
     e.preventDefault()
