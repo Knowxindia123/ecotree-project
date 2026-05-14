@@ -46,22 +46,27 @@ interface CsrBatchReview {
   worker: { name: string } | null
 }
 
-interface MiyawakiReview {
+interface MiyawakiUpdate {
   id: number
-  forest_name: string
-  trees_target: number
-  trees_planted: number
-  species_count: number
-  status: string | null
-  before_photos: string[] | null
-  after_photos: string[] | null
-  site_photos: string[] | null
-  latitude: number | null
-  longitude: number | null
+  trees_planted_today: number
+  total_planted_so_far: number
   notes: string | null
-  updated_at: string | null
-  sites: { name: string } | null
-  worker: { name: string } | null
+  status: string
+  created_at: string
+  photos: string[] | null
+  forest_id: number
+  miyawaki_forests: {
+    id: number
+    forest_name: string
+    forest_code: string | null
+    trees_target: number
+    trees_planted: number
+    species_count: number
+    site_id: number | null
+    worker_id: number | null
+  } | null
+  site_name?: string
+  worker_name?: string
 }
 
 interface PhotoPopup {
@@ -81,7 +86,7 @@ async function sendEmail(type: string, donor: Record<string, any>) {
 export default function AdminReview() {
   const [items,        setItems]        = useState<ReviewItem[]>([])
   const [csrBatches,   setCsrBatches]   = useState<CsrBatchReview[]>([])
-  const [miyawakis,    setMiyawakis]    = useState<MiyawakiReview[]>([])
+  const [miyawakis,    setMiyawakis]    = useState<MiyawakiUpdate[]>([])
   const [loading,      setLoading]      = useState(true)
   const [processing,   setProcessing]   = useState(false)
   const [photoPopup,   setPhotoPopup]   = useState<PhotoPopup | null>(null)
@@ -117,76 +122,84 @@ export default function AdminReview() {
       setCsrBatches(csrData.map((c: any) => ({ ...c, sites: c.site_id ? { name: sm[c.site_id]||'—' } : null, worker: c.worker_id ? { name: wm[c.worker_id]||'—' } : null })))
     } else setCsrBatches([])
 
-    // Miyawaki forests with ACTIVE status (worker submitted photos)
+    // Miyawaki updates pending review
     const { data: miyData } = await supabase
-      .from('miyawaki_forests')
-      .select('id, forest_name, trees_target, trees_planted, species_count, status, before_photos, after_photos, site_photos, latitude, longitude, notes, site_id, worker_id')
-      .eq('status', 'ACTIVE').order('created_at', { ascending: true })
+      .from('miyawaki_updates')
+      .select('id, trees_planted_today, total_planted_so_far, notes, status, created_at, photos, forest_id, miyawaki_forests(id, forest_name, forest_code, trees_target, trees_planted, species_count, site_id, worker_id)')
+      .eq('status', 'PENDING')
+      .order('created_at', { ascending: true })
+
     if (miyData?.length) {
-      const siteIds   = Array.from(new Set(miyData.map((f: any) => f.site_id).filter(Boolean)))
-      const workerIds = Array.from(new Set(miyData.map((f: any) => f.worker_id).filter(Boolean)))
-      const [sr, wr] = await Promise.all([
-        siteIds.length   > 0 ? supabase.from('sites').select('id,name').in('id', siteIds) : { data: [] },
-        workerIds.length > 0 ? supabase.from('users').select('id,name').in('id', workerIds) : { data: [] },
-      ])
-      const sm: Record<number,string> = {}; sr.data?.forEach((s: any) => { sm[s.id] = s.name })
-      const wm: Record<number,string> = {}; wr.data?.forEach((w: any) => { wm[w.id] = w.name })
-      setMiyawakis(miyData.map((f: any) => ({ ...f, sites: f.site_id ? { name: sm[f.site_id]||'—' } : null, worker: f.worker_id ? { name: wm[f.worker_id]||'—' } : null })))
+      // Enrich with site and worker names
+      const enriched = await Promise.all((miyData as any[]).map(async (u: any) => {
+        const forest = Array.isArray(u.miyawaki_forests) ? u.miyawaki_forests[0] : u.miyawaki_forests
+        const [siteRes, workerRes] = await Promise.all([
+          forest?.site_id   ? supabase.from('sites').select('name').eq('id', forest.site_id).single()   : Promise.resolve({ data: null }),
+          forest?.worker_id ? supabase.from('users').select('name').eq('id', forest.worker_id).single() : Promise.resolve({ data: null }),
+        ])
+        return {
+          ...u,
+          miyawaki_forests: forest,
+          site_name:   siteRes.data?.name   || '—',
+          worker_name: workerRes.data?.name || '—',
+        }
+      }))
+      setMiyawakis(enriched)
     } else setMiyawakis([])
 
     setLoading(false)
   }
 
   async function handleDecision(id: number, approve: boolean) {
-  setProcessing(true)
-  await supabase.from('tree_updates').update({ is_verified: approve, verified_by: approve ? 'HUMAN' : 'REJECTED' }).eq('id', id)
-  if (approve) {
-    const item = items.find(i => i.id === id)
-    if (item?.trees) {
-      await supabase.from('trees').update({ status: 'VERIFIED', latest_health_score: item.ai_health_score, latest_update_date: item.update_date }).eq('tree_id', item.trees.tree_id)
+    setProcessing(true)
+    await supabase.from('tree_updates').update({ is_verified: approve, verified_by: approve ? 'HUMAN' : 'REJECTED' }).eq('id', id)
+    if (approve) {
+      const item = items.find(i => i.id === id)
+      if (item?.trees) {
+        await supabase.from('trees').update({ status: 'VERIFIED', latest_health_score: item.ai_health_score, latest_update_date: item.update_date }).eq('tree_id', item.trees.tree_id)
 
-      const { data: treeRow } = await supabase
-        .from('trees').select('id, tree_type').eq('tree_id', item.trees.tree_id).single()
+        const { data: treeRow } = await supabase
+          .from('trees').select('id, tree_type').eq('tree_id', item.trees.tree_id).single()
 
-      if (treeRow?.tree_type === 'Joint Tree') {
-        const { data: poolRow } = await supabase
-          .from('tree_pools').select('id').eq('tree_id', treeRow.id).single()
-        if (poolRow) {
-          const { data: members } = await supabase
-            .from('tree_pool_members')
-            .select('donor_id, donors(name, email)')
-            .eq('pool_id', poolRow.id)
-          for (const m of members || []) {
-            const d = Array.isArray(m.donors) ? m.donors[0] : m.donors as any
-            if (d?.email) {
-              await sendEmail('verified', {
-                name: d.name, email: d.email, tree_id: item.trees.tree_id,
-                species: item.trees.species, site: item.trees.sites?.name || 'Bangalore',
-                health_score: item.ai_health_score, before_photo_url: item.before_photo_url,
-                after_photo_url: item.after_photo_url || item.photo_url,
-                latitude: item.latitude, longitude: item.longitude, joint: true,
-              })
+        if (treeRow?.tree_type === 'Joint Tree') {
+          const { data: poolRow } = await supabase
+            .from('tree_pools').select('id').eq('tree_id', treeRow.id).single()
+          if (poolRow) {
+            const { data: members } = await supabase
+              .from('tree_pool_members')
+              .select('donor_id, donors(name, email)')
+              .eq('pool_id', poolRow.id)
+            for (const m of members || []) {
+              const d = Array.isArray(m.donors) ? m.donors[0] : m.donors as any
+              if (d?.email) {
+                await sendEmail('verified', {
+                  name: d.name, email: d.email, tree_id: item.trees.tree_id,
+                  species: item.trees.species, site: item.trees.sites?.name || 'Bangalore',
+                  health_score: item.ai_health_score, before_photo_url: item.before_photo_url,
+                  after_photo_url: item.after_photo_url || item.photo_url,
+                  latitude: item.latitude, longitude: item.longitude, joint: true,
+                })
+              }
             }
           }
-        }
-      } else {
-        const donor = Array.isArray(item.trees.donors) ? item.trees.donors[0] : item.trees.donors
-        if (donor?.email) {
-          await sendEmail('verified', {
-            name: donor.name, email: donor.email, tree_id: item.trees.tree_id,
-            species: item.trees.species, site: item.trees.sites?.name || 'Bangalore',
-            health_score: item.ai_health_score, before_photo_url: item.before_photo_url,
-            after_photo_url: item.after_photo_url || item.photo_url,
-            latitude: item.latitude, longitude: item.longitude,
-          })
+        } else {
+          const donor = Array.isArray(item.trees.donors) ? item.trees.donors[0] : item.trees.donors
+          if (donor?.email) {
+            await sendEmail('verified', {
+              name: donor.name, email: donor.email, tree_id: item.trees.tree_id,
+              species: item.trees.species, site: item.trees.sites?.name || 'Bangalore',
+              health_score: item.ai_health_score, before_photo_url: item.before_photo_url,
+              after_photo_url: item.after_photo_url || item.photo_url,
+              latitude: item.latitude, longitude: item.longitude,
+            })
+          }
         }
       }
     }
+    setPhotoPopup(null)
+    loadQueue()
+    setProcessing(false)
   }
-  setPhotoPopup(null)
-  loadQueue()
-  setProcessing(false)
-}
 
   async function handleCsrApprove(batch: CsrBatchReview) {
     setProcessing(true)
@@ -218,9 +231,26 @@ export default function AdminReview() {
     setProcessing(false)
   }
 
-  async function handleMiyawakiApprove(forest: MiyawakiReview) {
+  async function handleMiyawakiApprove(update: MiyawakiUpdate) {
     setProcessing(true)
-    await supabase.from('miyawaki_forests').update({ status: 'VERIFIED' }).eq('id', forest.id)
+    const forest = update.miyawaki_forests
+
+    // Approve the daily update
+    await supabase.from('miyawaki_updates')
+      .update({ status: 'APPROVED' })
+      .eq('id', update.id)
+
+    // Update forest trees_planted and status
+    if (forest?.id) {
+      const isComplete = update.total_planted_so_far >= (forest.trees_target || 0)
+      await supabase.from('miyawaki_forests')
+        .update({
+          trees_planted: update.total_planted_so_far,
+          status: isComplete ? 'COMPLETE' : 'ACTIVE',
+        })
+        .eq('id', forest.id)
+    }
+
     loadQueue()
     setProcessing(false)
   }
@@ -228,7 +258,9 @@ export default function AdminReview() {
   async function handleMiyawakiReject(id: number) {
     if (!confirm('Reject this Miyawaki update? Worker will need to resubmit.')) return
     setProcessing(true)
-    await supabase.from('miyawaki_forests').update({ status: 'ASSIGNED' }).eq('id', id)
+    await supabase.from('miyawaki_updates')
+      .update({ status: 'REJECTED' })
+      .eq('id', id)
     loadQueue()
     setProcessing(false)
   }
@@ -273,35 +305,37 @@ export default function AdminReview() {
         </div>
       ) : (
         <>
-          {/* ── MIYAWAKI FOREST REVIEW ── */}
+          {/* ── MIYAWAKI UPDATES REVIEW ── */}
           {miyawakis.length > 0 && (
             <div style={{ marginBottom:'2rem' }}>
               <div style={{ fontSize:'14px', fontWeight:600, color:'#7C3AED', marginBottom:'0.75rem', display:'flex', alignItems:'center', gap:'8px' }}>
-                🏙️ Miyawaki Forest Updates
+                🏙️ Miyawaki Daily Updates
                 <span style={{ background:'#f5f3ff', color:'#7C3AED', fontSize:'11px', padding:'2px 8px', borderRadius:'10px' }}>{miyawakis.length}</span>
               </div>
               <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
-                {miyawakis.map(forest => {
-                  const pct = forest.trees_target > 0 ? Math.round((forest.trees_planted/forest.trees_target)*100) : 0
-                  const beforePhotos = forest.before_photos || []
-                  const afterPhotos  = forest.after_photos  || []
-                  const sitePhotos   = forest.site_photos   || []
+                {miyawakis.map(update => {
+                  const forest = update.miyawaki_forests
+                  const pct = forest?.trees_target ? Math.round((update.total_planted_so_far/forest.trees_target)*100) : 0
+                  const photos = update.photos || []
                   return (
-                    <div key={forest.id} style={{ background:'white', border:'1.5px solid #ddd6fe', borderRadius:'12px', overflow:'hidden' }}>
+                    <div key={update.id} style={{ background:'white', border:'1.5px solid #ddd6fe', borderRadius:'12px', overflow:'hidden' }}>
                       {/* Header */}
                       <div style={{ padding:'10px 14px', background:'#f5f3ff', borderBottom:'1px solid #ddd6fe', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'8px' }}>
                         <div>
-                          <div style={{ fontSize:'14px', fontWeight:700, color:'#7C3AED' }}>🏙️ {forest.forest_name}</div>
+                          <div style={{ fontSize:'14px', fontWeight:700, color:'#7C3AED' }}>
+                            🏙️ {forest?.forest_name || 'Miyawaki Forest'}
+                            {forest?.forest_code && <span style={{ marginLeft:'8px', fontFamily:'monospace', fontSize:'11px', background:'#ede9fe', padding:'2px 6px', borderRadius:'4px' }}>{forest.forest_code}</span>}
+                          </div>
                           <div style={{ fontSize:'12px', color:'#8b5cf6' }}>
-                            👷 {forest.worker?.name||'—'} · 📍 {forest.sites?.name||'—'} · {forest.species_count||30}+ species
+                            👷 {update.worker_name} · 📍 {update.site_name} · {new Date(update.created_at).toLocaleDateString('en-IN')}
                           </div>
                         </div>
                         <div style={{ display:'flex', gap:'6px' }}>
-                          <button onClick={() => handleMiyawakiApprove(forest)} disabled={processing}
+                          <button onClick={() => handleMiyawakiApprove(update)} disabled={processing}
                             style={{ padding:'6px 16px', background:'#7C3AED', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
                             ✓ Approve
                           </button>
-                          <button onClick={() => handleMiyawakiReject(forest.id)} disabled={processing}
+                          <button onClick={() => handleMiyawakiReject(update.id)} disabled={processing}
                             style={{ padding:'6px 12px', background:'transparent', color:'#dc2626', border:'1px solid #fecaca', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
                             ✕ Reject
                           </button>
@@ -309,67 +343,49 @@ export default function AdminReview() {
                       </div>
 
                       <div style={{ padding:'12px 14px' }}>
-                        {/* Progress */}
-                        <div style={{ marginBottom:'12px' }}>
-                          <div style={{ display:'flex', justifyContent:'space-between', fontSize:'13px', marginBottom:'4px' }}>
-                            <span style={{ color:'#6B7280' }}>Trees planted</span>
-                            <span style={{ fontWeight:700, color:'#7C3AED' }}>{forest.trees_planted} / {forest.trees_target}</span>
+                        {/* Today's count */}
+                        <div style={{ display:'flex', gap:'1rem', marginBottom:'12px', flexWrap:'wrap' }}>
+                          <div style={{ background:'#f5f3ff', borderRadius:'10px', padding:'10px 16px', textAlign:'center', minWidth:'120px' }}>
+                            <div style={{ fontSize:'24px', fontWeight:700, color:'#7C3AED' }}>+{update.trees_planted_today}</div>
+                            <div style={{ fontSize:'11px', color:'#8b5cf6' }}>Trees today</div>
                           </div>
-                          <div style={{ background:'#f3f4f6', borderRadius:'999px', height:'6px', overflow:'hidden' }}>
-                            <div style={{ width:`${pct}%`, height:'100%', background:'linear-gradient(90deg,#7C3AED,#a78bfa)', borderRadius:'999px' }} />
+                          <div style={{ background:'#f0fdf4', borderRadius:'10px', padding:'10px 16px', textAlign:'center', minWidth:'120px' }}>
+                            <div style={{ fontSize:'24px', fontWeight:700, color:'#166534' }}>{update.total_planted_so_far}</div>
+                            <div style={{ fontSize:'11px', color:'#15803d' }}>Total so far</div>
                           </div>
-                          <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'3px' }}>{pct}% complete</div>
+                          <div style={{ background:'#f9fafb', borderRadius:'10px', padding:'10px 16px', textAlign:'center', minWidth:'120px' }}>
+                            <div style={{ fontSize:'24px', fontWeight:700, color:'#374151' }}>{forest?.trees_target || '—'}</div>
+                            <div style={{ fontSize:'11px', color:'#6B7280' }}>Target</div>
+                          </div>
                         </div>
 
-                        {/* GPS */}
-                        {forest.latitude && forest.longitude && (
-                          <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:'8px', padding:'6px 10px', fontSize:'12px', color:'#166534', marginBottom:'10px' }}>
-                            📍 GPS: {forest.latitude.toFixed(5)}° N, {forest.longitude.toFixed(5)}° E
+                        {/* Progress bar */}
+                        <div style={{ marginBottom:'12px' }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', fontSize:'12px', color:'#6B7280', marginBottom:'4px' }}>
+                            <span>Progress after approval</span>
+                            <span style={{ fontWeight:700, color:'#7C3AED' }}>{pct}%</span>
                           </div>
-                        )}
+                          <div style={{ background:'#f3f4f6', borderRadius:'999px', height:'8px', overflow:'hidden' }}>
+                            <div style={{ width:`${pct}%`, height:'100%', background:'linear-gradient(90deg,#7C3AED,#a78bfa)', borderRadius:'999px' }} />
+                          </div>
+                        </div>
 
                         {/* Photos */}
-                        {(beforePhotos.length > 0 || afterPhotos.length > 0 || sitePhotos.length > 0) && (
+                        {photos.length > 0 && (
                           <div style={{ marginBottom:'10px' }}>
-                            {beforePhotos.length > 0 && (
-                              <div style={{ marginBottom:'8px' }}>
-                                <div style={{ fontSize:'11px', fontWeight:600, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'4px' }}>Before ({beforePhotos.length})</div>
-                                <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' }}>
-                                  {beforePhotos.map((url,i) => (
-                                    <div key={i} onClick={() => setBatchPhoto({ url, label:`Before · ${forest.forest_name}` })}
-                                      style={{ width:'72px', height:'72px', borderRadius:'8px', background:`url(${url}) center/cover`, cursor:'pointer', border:'1px solid #e5e7eb', flexShrink:0 }} />
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            {afterPhotos.length > 0 && (
-                              <div style={{ marginBottom:'8px' }}>
-                                <div style={{ fontSize:'11px', fontWeight:600, color:'#166534', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'4px' }}>After ({afterPhotos.length})</div>
-                                <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' }}>
-                                  {afterPhotos.map((url,i) => (
-                                    <div key={i} onClick={() => setBatchPhoto({ url, label:`After · ${forest.forest_name}` })}
-                                      style={{ width:'72px', height:'72px', borderRadius:'8px', background:`url(${url}) center/cover`, cursor:'pointer', border:'1px solid #86efac', flexShrink:0 }} />
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            {sitePhotos.length > 0 && (
-                              <div>
-                                <div style={{ fontSize:'11px', fontWeight:600, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'4px' }}>Site overview ({sitePhotos.length})</div>
-                                <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' }}>
-                                  {sitePhotos.map((url,i) => (
-                                    <div key={i} onClick={() => setBatchPhoto({ url, label:`Site · ${forest.forest_name}` })}
-                                      style={{ width:'72px', height:'72px', borderRadius:'8px', background:`url(${url}) center/cover`, cursor:'pointer', border:'1px solid #e5e7eb', flexShrink:0 }} />
-                                  ))}
-                                </div>
-                              </div>
-                            )}
+                            <div style={{ fontSize:'11px', fontWeight:600, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'6px' }}>Photos ({photos.length})</div>
+                            <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' }}>
+                              {photos.map((url, i) => (
+                                <div key={i} onClick={() => setBatchPhoto({ url, label:`Update · ${forest?.forest_name || 'Forest'}` })}
+                                  style={{ width:'80px', height:'80px', borderRadius:'8px', background:`url(${url}) center/cover`, cursor:'pointer', border:'1px solid #ddd6fe', flexShrink:0 }} />
+                              ))}
+                            </div>
                           </div>
                         )}
 
-                        {forest.notes && (
-                          <div style={{ background:'#f9fafb', borderRadius:'8px', padding:'8px 10px', fontSize:'12px', color:'#374151', marginBottom:'8px' }}>
-                            📝 {forest.notes}
+                        {update.notes && (
+                          <div style={{ background:'#f9fafb', borderRadius:'8px', padding:'8px 10px', fontSize:'12px', color:'#374151' }}>
+                            📝 {update.notes}
                           </div>
                         )}
                       </div>
