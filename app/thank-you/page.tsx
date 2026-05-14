@@ -407,9 +407,15 @@ const boxes = [
         {/* SUCCESS HEADER */}
         <div className="ty-success">
           <div className="ty-success__icon">🎉</div>
-          <h1 className="ty-success__h1">
-            {isGift ? `Your gift tree is on its way to ${data.recipientName}!` : 'Payment Confirmed! Your tree is on its way.'}
-          </h1>
+         <h1 className="ty-success__h1">
+  {isGift
+    ? `Your gift tree is on its way to ${data.recipientName}!`
+    : data.tierId === 'miyawaki_5000'
+    ? '🏙️ Forest contribution confirmed!'
+    : data.tierId === 'joint_500'
+    ? '🤝 You\'re in the pool!'
+    : 'Payment Confirmed! Your tree is on its way.'}
+</h1>
           <p className="ty-success__sub">
             {(data.tierId === 'community_100' || data.tierId === 'community_250') 
   ? <>Certificate <strong>{data.certId}</strong> · Community Forest Initiative</>
