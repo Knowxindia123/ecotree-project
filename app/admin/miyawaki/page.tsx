@@ -103,10 +103,10 @@ export default function AdminMiyawaki() {
     setSaving(true); setError('')
 
     // Generate forest code
-    const { data: countData } = await supabase
-      .from('miyawaki_forests').select('id', { count: 'exact', head: true })
-    const seq = String((countData as any || 0) + 1).padStart(3, '0')
-    const forest_code = `MF-BLR-${new Date().getFullYear()}-${seq}`
+    const { count } = await supabase
+  .from('miyawaki_forests').select('*', { count: 'exact', head: true })
+const seq = String((count || 0) + 1).padStart(3, '0')
+const forest_code = `MF-BLR-${new Date().getFullYear()}-${seq}`
 
     const { data: newForest, error: err } = await supabase.from('miyawaki_forests').insert({
       forest_name:   form.forest_name,
