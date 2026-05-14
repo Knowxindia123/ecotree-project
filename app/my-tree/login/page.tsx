@@ -21,21 +21,22 @@ export default function DonorLogin() {
       .from('donors')
       .select('id, name, tier')
       .eq('email', email.toLowerCase().trim())
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    if (donorData) {
-      const tier = donorData.tier || '1000'
-      if (tier === '100' || tier === '250') {
-        window.location.replace('/community-dashboard')
-      } else if (tier === '5000') {
-        window.location.replace('/miyawaki-dashboard')
-      } else {
-        window.location.replace('/my-tree')
-      }
-      return
-    }
+      .order('created_at', { ascending: true })
+if (allDonorRows && allDonorRows.length > 0) {
+  const allTiers = allDonorRows.map((d: any) => d.tier)
+  const hasIndividual = allTiers.some((t: string) => t === '1000' || t === '500')
+  const hasMiyawaki   = allTiers.some((t: string) => t === '5000')
+  const hasCommunity  = allTiers.some((t: string) => t === '100' || t === '250')
+  if (hasIndividual) {
+    window.location.replace('/my-tree')
+  } else if (hasMiyawaki && !hasCommunity) {
+    window.location.replace('/miyawaki-dashboard')
+  } else if (hasCommunity && !hasMiyawaki) {
+    window.location.replace('/community-dashboard')
+  } else {
+    window.location.replace('/my-tree')
+  }
+}
 
     // Fallback — check users table
     const { data: userData } = await supabase
