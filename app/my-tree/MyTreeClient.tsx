@@ -37,6 +37,7 @@ export default function MyTreeClient() {
   const [myTrees,  setMyTrees]  = useState<DonorTree[]>([]);
   const [timeline, setTimeline] = useState<any[]>([]);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [otherDashboards, setOtherDashboards] = useState<{ community: boolean; miyawaki: boolean }>({ community: false, miyawaki: false });
 
   const [photoPopup, setPhotoPopup] = useState<{ url: string; label: string; treeId: string } | null>(null);
   const [mapPopup,   setMapPopup]   = useState<{ lat: number; lng: number; tree: DonorTree } | null>(null);
@@ -55,6 +56,8 @@ export default function MyTreeClient() {
     if (!session && !adminView) { window.location.replace('/my-tree/login'); return; }
     if (adminView && !session) { window.location.replace('/admin/login'); return; }
 
+    let email = '';
+
     if (donorId && adminView) {
       const { data: currentUser } = await supabase
         .from('users').select('role').eq('email', session?.user?.email || '').single();
@@ -64,23 +67,29 @@ export default function MyTreeClient() {
         .from('donors').select('email, name').eq('id', donorId).single();
       if (!donorRow) { window.location.replace('/admin/donors'); return; }
 
-      const { donor, myTrees, occasionTimeline } = await getDonorData(donorRow.email);
-      if (!donor) { window.location.replace('/admin/donors'); return; }
-
+      email = donorRow.email;
       setIsAdminView(true);
       setAdminViewDonorName(donorRow.name);
-      setDonor(donor);
-      setMyTrees(myTrees);
-      setTimeline(occasionTimeline);
-      setPhotoUrl(donor.photo_url);
     } else {
-      const { donor, myTrees, occasionTimeline } = await getDonorData(session?.user?.email || '');
-      if (!donor) { window.location.replace('/my-tree/login'); return; }
-      setDonor(donor);
-      setMyTrees(myTrees);
-      setTimeline(occasionTimeline);
-      setPhotoUrl(donor.photo_url);
+      email = session?.user?.email || '';
     }
+
+    const { donor, myTrees, occasionTimeline } = await getDonorData(email);
+    if (!donor) { window.location.replace(adminView ? '/admin/donors' : '/my-tree/login'); return; }
+
+    // Check if donor has community or miyawaki tiers for banner links
+    const { data: allRows } = await supabase
+      .from('donors').select('tier').eq('email', email)
+    const allTiers = (allRows || []).map((d: any) => d.tier)
+    setOtherDashboards({
+      community: allTiers.some((t: string) => t === '100' || t === '250'),
+      miyawaki:  allTiers.some((t: string) => t === '5000'),
+    })
+
+    setDonor(donor);
+    setMyTrees(myTrees);
+    setTimeline(occasionTimeline);
+    setPhotoUrl(donor.photo_url);
     setLoading(false);
   }
 
@@ -334,6 +343,23 @@ export default function MyTreeClient() {
           </div>
         )}
 
+        {/* OTHER DASHBOARDS BANNER */}
+        {(otherDashboards.community || otherDashboards.miyawaki) && !isAdminView && (
+          <div style={{ background:'#f0fdf4', borderBottom:'1px solid #86efac', padding:'0.6rem 1.5rem', display:'flex', alignItems:'center', gap:'1rem', flexWrap:'wrap' }}>
+            <span style={{ fontSize:'13px', color:'#166534', fontWeight:600 }}>You also have:</span>
+            {otherDashboards.community && (
+              <a href="/community-dashboard" style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'4px 12px', background:'#2C5F2D', color:'white', borderRadius:'20px', fontSize:'12px', fontWeight:600, textDecoration:'none' }}>
+                🌿 Community Forest Dashboard →
+              </a>
+            )}
+            {otherDashboards.miyawaki && (
+              <a href="/miyawaki-dashboard" style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'4px 12px', background:'#7C3AED', color:'white', borderRadius:'20px', fontSize:'12px', fontWeight:600, textDecoration:'none' }}>
+                🏙️ Miyawaki Forest Dashboard →
+              </a>
+            )}
+          </div>
+        )}
+
         {/* HERO */}
         <section className="mt-hero">
           <div className="mt-hero__inner">
@@ -431,7 +457,6 @@ export default function MyTreeClient() {
               <>
                 {TIER_ORDER.filter(k => tierGroups[k]?.length > 0).map(tierKey => (
                   <div key={tierKey} style={{ marginBottom:'2.5rem' }}>
-                    {/* Tier section header */}
                     <div className="tier-header">
                       {TIER_LABELS[tierKey]}
                       <span className="tier-badge">{tierGroups[tierKey].length} tree{tierGroups[tierKey].length > 1 ? 's' : ''}</span>
@@ -439,18 +464,13 @@ export default function MyTreeClient() {
                     <div className="tree-grid">
                       {tierGroups[tierKey].map(t => (
                         <div key={t.id} className="tree-card">
-
-                          {/* Tree header */}
                           <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px' }}>
                             <span style={{ fontSize:'1.5rem' }}>{SPECIES_EMOJI[t.species]||'🌱'}</span>
                             <div>
                               <div style={{ fontSize:'14px', fontWeight:700, color:'#1A1A1A' }}>{t.species}</div>
                               <div style={{ fontSize:'11px', fontFamily:'monospace', color:'#97BC62' }}>{t.tree_id}</div>
-                              {/* Partner name for joint trees */}
                               {t.tree_type === 'Joint Tree' && t.partner_name && (
-                                <div style={{ fontSize:'11px', color:'#F59E0B', fontWeight:600, marginTop:'2px' }}>
-                                  🤝 with {t.partner_name}
-                                </div>
+                                <div style={{ fontSize:'11px', color:'#F59E0B', fontWeight:600, marginTop:'2px' }}>🤝 with {t.partner_name}</div>
                               )}
                             </div>
                           </div>
