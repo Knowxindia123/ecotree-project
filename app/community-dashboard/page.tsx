@@ -50,13 +50,19 @@ export default function CommunityDashboard() {
       const { data: d } = await supabase
         .from('donors').select('*')
         .eq('email', session.user.email)
-        .order('created_at', { ascending: false })
+        .in('tier', ['100', '250']).order('created_at', { ascending: true })
         .limit(1).maybeSingle()
       donorData = d
     }
 
     if (!donorData) { window.location.replace('/my-tree/login'); return }
-    setDonor(donorData)
+    // Sum all community donations for this email
+    const { data: allCommunityRows } = await supabase
+      .from('donors').select('total_donated')
+      .eq('email', donorData.email)
+      .in('tier', ['100', '250'])
+    const totalCommunityDonated = (allCommunityRows || []).reduce((s: number, d: any) => s + Number(d.total_donated || 0), 0)
+    setDonor({ ...donorData, total_donated: totalCommunityDonated })
 
     // Community stats — all ₹100/₹250 donors
     const { count: donorCount } = await supabase
