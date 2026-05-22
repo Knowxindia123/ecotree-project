@@ -1,466 +1,675 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
+import { useMemo, useState } from "react";
 import {
   MapPin,
-  Leaf,
-  Gift,
-  ShieldCheck,
   Trees,
+  ShieldCheck,
   Globe2,
   Droplets,
-  Heart,
-  ChevronDown,
-  ChevronUp,
-  BadgeCheck,
+  ChevronLeft,
+  ChevronRight,
+  Leaf,
+  Gift,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
-const tiers = [
+const impactTiers = [
   {
     id: "community100",
     amount: 100,
-    title: "Community Contributor",
-    subtitle: "Support native community forests",
-    color: "#173D33",
-    type: "community",
-    features: [
-      "Community forest participation",
-      "Impact updates",
-      "Digital appreciation certificate",
-      "Eco community access",
-    ],
-  },
-  {
-    id: "community250",
-    amount: 250,
-    title: "Community Supporter",
-    subtitle: "Create larger collective impact",
-    color: "#173D33",
-    type: "community",
-    features: [
-      "Priority impact updates",
-      "Community participation",
-      "Forest restoration support",
-      "Community dashboard access",
-    ],
+    title: "Community",
+    short: "Support forests",
   },
   {
     id: "shared500",
     amount: 500,
-    title: "Shared Tree Impact",
-    subtitle: "Co-create a fully tracked tree",
-    color: "#3B6C57",
-    type: "shared",
-    features: [
-      "GPS tracked shared tree",
-      "Shared ownership certificate",
-      "Growth updates",
-      "Native species allocation",
-    ],
+    title: "Shared Tree",
+    short: "Co-create impact",
   },
   {
     id: "individual1000",
     amount: 1000,
-    title: "Individual Tree",
-    subtitle: "Your personal geo-tagged tree",
-    color: "#D4A63F",
-    type: "individual",
+    title: "Individual",
+    short: "Your living tree",
     featured: true,
-    features: [
-      "Personal dashboard",
-      "GPS tree tracking",
-      "AI verified plantation",
-      "3-year maintenance",
-      "Digital certificate",
-      "80G benefit",
-    ],
   },
   {
-    id: "miyawaki5000",
+    id: "forest5000",
     amount: 5000,
-    title: "Miyawaki Forest",
-    subtitle: "Create dense ecosystem impact",
-    color: "#173D33",
-    type: "forest",
-    features: [
-      "Dense urban forest",
-      "Biodiversity impact",
-      "Carbon absorption metrics",
-      "Forest GPS tracking",
-    ],
+    title: "Miyawaki",
+    short: "Urban forest",
   },
 ];
 
-const speciesOptions = [
-  { name: "Neem", benefit: "High Oxygen" },
-  { name: "Banyan", benefit: "Great Shade" },
-  { name: "Mango", benefit: "Fruit Bearing" },
-  { name: "Honge", benefit: "Fast Growth" },
+const speciesData = [
+  {
+    id: "banyan",
+    name: "Banyan",
+    latin: "Ficus benghalensis",
+    title: "The Tree of Generations",
+    story:
+      "Massive canopy. Deep roots. A living shelter for generations.",
+    benefits: [
+      "Massive natural shade",
+      "Wildlife support",
+      "Long lifespan",
+    ],
+    image:
+      "/trees/banyan.jpg",
+  },
+  {
+    id: "neem",
+    name: "Neem",
+    latin: "Azadirachta indica",
+    title: "The Healing Tree",
+    story:
+      "Naturally purifies air and supports healthier ecosystems.",
+    benefits: [
+      "Air purification",
+      "Native resilience",
+      "Medicinal value",
+    ],
+    image:
+      "/trees/neem.jpg",
+  },
+  {
+    id: "raintree",
+    name: "Rain Tree",
+    latin: "Samanea saman",
+    title: "The Giant Canopy",
+    story:
+      "Creates extraordinary cooling shade across large areas.",
+    benefits: [
+      "Huge cooling canopy",
+      "Fast growth",
+      "Urban heat reduction",
+    ],
+    image:
+      "/trees/rain-tree.jpg",
+  },
+  {
+    id: "honge",
+    name: "Honge",
+    latin: "Pongamia pinnata",
+    title: "The Resilient Native",
+    story:
+      "Strong, adaptive and exceptionally tough for urban landscapes.",
+    benefits: [
+      "Drought resistant",
+      "Native species",
+      "Soil enrichment",
+    ],
+    image:
+      "/trees/honge.jpg",
+  },
+  {
+    id: "gulmohar",
+    name: "Gulmohar",
+    latin: "Delonix regia",
+    title: "The Flame of Nature",
+    story:
+      "Transforms landscapes with vibrant red-orange blooms.",
+    benefits: [
+      "Beautiful flowers",
+      "Roadside appeal",
+      "Shade support",
+    ],
+    image:
+      "/trees/gulmohar.jpg",
+  },
+];
+
+const recentPhotos = [
+  "/gallery/tree1.jpg",
+  "/gallery/tree2.jpg",
+  "/gallery/tree3.jpg",
+  "/gallery/tree4.jpg",
 ];
 
 export default function EcoTreeCheckoutPage() {
-  const [expanded, setExpanded] = useState("individual1000");
+  const [selectedTier, setSelectedTier] =
+    useState("individual1000");
+
   const [giftMode, setGiftMode] = useState(false);
-  const [selectedSpecies, setSelectedSpecies] = useState("Neem");
+
+  const [selectedSpecies, setSelectedSpecies] =
+    useState(0);
+
   const [quantity, setQuantity] = useState(1);
 
-  const selectedTier =
-    tiers.find((t) => t.id === expanded) || tiers[3];
+  const species = useMemo(
+    () => speciesData[selectedSpecies],
+    [selectedSpecies]
+  );
+
+  const activeTier = useMemo(
+    () =>
+      impactTiers.find((t) => t.id === selectedTier),
+    [selectedTier]
+  );
+
+  const nextSpecies = () => {
+    setSelectedSpecies(
+      (prev) => (prev + 1) % speciesData.length
+    );
+  };
+
+  const prevSpecies = () => {
+    setSelectedSpecies(
+      (prev) =>
+        prev === 0
+          ? speciesData.length - 1
+          : prev - 1
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-[#F8F6F1] text-[#1B1B1B]">
-      {/* TRUST BAR */}
-      <div className="sticky top-0 z-50 bg-[#173D33] text-white">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap gap-4 justify-center text-sm font-medium">
+    <div className="bg-[#F8F6F1] min-h-screen text-[#173D33]">
+      {/* TOP TRUST BAR */}
+      <div className="sticky top-0 z-50 border-b border-white/10 backdrop-blur bg-[#173D33]/95">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-center gap-6 text-sm text-white">
           <div className="flex items-center gap-2">
-            <Trees size={16} /> 10,000+ Trees Planted
+            <Trees size={16} />
+            10,000+ Trees
           </div>
+
           <div className="flex items-center gap-2">
-            <MapPin size={16} /> GPS Verified
+            <MapPin size={16} />
+            GPS Verified
           </div>
+
           <div className="flex items-center gap-2">
-            <BadgeCheck size={16} /> AI Verified
+            <ShieldCheck size={16} />
+            AI Verified
           </div>
+
           <div className="flex items-center gap-2">
-            <ShieldCheck size={16} /> 91% Survival
+            <Leaf size={16} />
+            91% Survival
           </div>
         </div>
       </div>
 
-      {/* HERO */}
-      <section className="max-w-7xl mx-auto px-4 pt-12 pb-8">
-        <div className="text-center">
-          <h1 className="text-5xl font-bold text-[#173D33] tracking-tight">
-            Plant Impact That Lives
-          </h1>
-          <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
-            Geo-tagged trees. AI-verified plantations. Personal dashboards.
-            Real environmental impact you can track.
-          </p>
-        </div>
+      {/* HERO + MAIN */}
+      <section className="max-w-7xl mx-auto px-4 py-8 lg:py-10">
+        <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-8 items-start">
+          {/* LEFT SIDE */}
+          <div>
+            {/* HERO */}
+            <div className="relative overflow-hidden rounded-[32px] min-h-[420px] lg:min-h-[520px]">
+              <Image
+                src={species.image}
+                alt={species.name}
+                fill
+                className="object-cover"
+              />
 
-        {/* TOGGLE */}
-        <div className="mt-10 flex justify-center">
-          <div className="bg-white rounded-2xl shadow-md p-2 flex gap-2">
-            <button
-              onClick={() => setGiftMode(false)}
-              className={`px-6 py-3 rounded-xl font-semibold transition ${
-                !giftMode
-                  ? "bg-[#173D33] text-white"
-                  : "bg-[#F3F1EA] text-[#173D33]"
-              }`}
-            >
-              🌱 Plant for Myself
-            </button>
+              <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-black/20" />
 
-            <button
-              onClick={() => setGiftMode(true)}
-              className={`px-6 py-3 rounded-xl font-semibold transition ${
-                giftMode
-                  ? "bg-[#8B5CF6] text-white"
-                  : "bg-[#F3F1EA] text-[#173D33]"
-              }`}
-            >
-              🎁 Gift a Tree
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* MAIN GRID */}
-      <section className="max-w-7xl mx-auto px-4 pb-20 grid grid-cols-1 lg:grid-cols-[1.6fr_0.9fr] gap-10">
-        {/* LEFT */}
-        <div className="space-y-6">
-          {tiers.map((tier) => {
-            const isExpanded = expanded === tier.id;
-
-            return (
-              <motion.div
-                layout
-                key={tier.id}
-                className={`rounded-3xl border transition overflow-hidden ${
-                  tier.featured
-                    ? "border-[#D4A63F] shadow-2xl bg-white"
-                    : "border-gray-200 bg-white"
-                }`}
-              >
-                <button
-                  onClick={() =>
-                    setExpanded(isExpanded ? "" : tier.id)
-                  }
-                  className="w-full text-left p-6"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      {tier.featured && (
-                        <div className="inline-block bg-[#D4A63F] text-[#173D33] px-3 py-1 rounded-full text-xs font-bold mb-3">
-                          🌟 MOST LOVED OPTION
-                        </div>
-                      )}
-
-                      <h3 className="text-2xl font-bold text-[#173D33]">
-                        {giftMode
-                          ? `🎁 Gift ${tier.title}`
-                          : tier.title}
-                      </h3>
-
-                      <p className="text-gray-600 mt-2">
-                        {giftMode
-                          ? "Gift a living impact experience"
-                          : tier.subtitle}
-                      </p>
-                    </div>
-
-                    <div className="text-right">
-                      <div className="text-3xl font-bold text-[#173D33]">
-                        ₹{tier.amount}
-                      </div>
-
-                      {isExpanded ? (
-                        <ChevronUp />
-                      ) : (
-                        <ChevronDown />
-                      )}
-                    </div>
+              <div className="relative z-10 p-6 lg:p-10 flex flex-col h-full justify-between">
+                {/* HERO TOP */}
+                <div className="max-w-2xl">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur px-4 py-2 text-white text-sm mb-5">
+                    🌿 AI-verified · GPS-tagged · 3yr care
                   </div>
-                </button>
 
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{
-                        opacity: 1,
-                        height: "auto",
-                      }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="px-6 pb-6"
+                  <h1 className="text-white text-5xl lg:text-7xl font-bold leading-[0.95] tracking-tight">
+                    Plant a Living Legacy
+                  </h1>
+
+                  <p className="text-white/90 mt-6 text-lg lg:text-xl max-w-xl">
+                    Adopt and track real trees with
+                    geo-tagging, live impact metrics and
+                    long-term ecological care.
+                  </p>
+
+                  {/* TOGGLE */}
+                  <div className="mt-8 flex flex-wrap gap-3">
+                    <button
+                      onClick={() =>
+                        setGiftMode(false)
+                      }
+                      className={`px-6 py-4 rounded-2xl font-semibold transition ${
+                        !giftMode
+                          ? "bg-[#173D33] text-white"
+                          : "bg-white/90 text-[#173D33]"
+                      }`}
                     >
-                      {/* FEATURES */}
-                      <div className="grid md:grid-cols-2 gap-3 mt-2">
-                        {tier.features.map((feature) => (
-                          <div
-                            key={feature}
-                            className="flex items-center gap-2 bg-[#F8F6F1] rounded-xl px-4 py-3"
-                          >
-                            <Leaf
-                              size={16}
-                              className="text-green-700"
-                            />
-                            <span className="text-sm">
-                              {feature}
-                            </span>
+                      🌱 Plant For Myself
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        setGiftMode(true)
+                      }
+                      className={`px-6 py-4 rounded-2xl font-semibold transition ${
+                        giftMode
+                          ? "bg-[#8B5CF6] text-white"
+                          : "bg-white/90 text-[#173D33]"
+                      }`}
+                    >
+                      🎁 Gift a Tree
+                    </button>
+                  </div>
+                </div>
+
+                {/* IMPACT TIERS */}
+                <div className="mt-10">
+                  <div className="flex overflow-x-auto gap-4 pb-2 no-scrollbar">
+                    {impactTiers.map((tier) => (
+                      <button
+                        key={tier.id}
+                        onClick={() =>
+                          setSelectedTier(tier.id)
+                        }
+                        className={`min-w-[180px] rounded-3xl p-5 backdrop-blur border transition ${
+                          selectedTier === tier.id
+                            ? "bg-white text-[#173D33] border-white shadow-2xl"
+                            : "bg-white/10 text-white border-white/20"
+                        }`}
+                      >
+                        {tier.featured && (
+                          <div className="text-xs font-bold mb-2 text-[#D4A63F]">
+                            MOST LOVED
                           </div>
-                        ))}
+                        )}
+
+                        <div className="text-3xl font-bold">
+                          ₹{tier.amount}
+                        </div>
+
+                        <div className="mt-2 font-semibold">
+                          {tier.title}
+                        </div>
+
+                        <div className="text-sm opacity-80 mt-1">
+                          {tier.short}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* TREE EXPERIENCE */}
+            <div className="bg-white rounded-[32px] p-6 lg:p-8 mt-8 shadow-sm border border-[#E8E2D8]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm uppercase tracking-[0.2em] text-[#173D33]/60">
+                    Your Tree Experience
+                  </div>
+
+                  <h2 className="text-3xl lg:text-4xl font-bold mt-2">
+                    {species.title}
+                  </h2>
+                </div>
+
+                {/* SLIDER */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={prevSpecies}
+                    className="w-12 h-12 rounded-2xl border border-[#E6E0D7] flex items-center justify-center hover:bg-[#F4F0E9]"
+                  >
+                    <ChevronLeft />
+                  </button>
+
+                  <button
+                    onClick={nextSpecies}
+                    className="w-12 h-12 rounded-2xl border border-[#E6E0D7] flex items-center justify-center hover:bg-[#F4F0E9]"
+                  >
+                    <ChevronRight />
+                  </button>
+                </div>
+              </div>
+
+              {/* MAIN TREE VIEW */}
+              <div className="grid lg:grid-cols-[1fr_0.9fr] gap-8 mt-8">
+                {/* IMAGE */}
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={species.id}
+                    initial={{
+                      opacity: 0,
+                      y: 20,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                    }}
+                    exit={{
+                      opacity: 0,
+                      y: -20,
+                    }}
+                    transition={{
+                      duration: 0.4,
+                    }}
+                    className="relative rounded-[28px] overflow-hidden min-h-[420px]"
+                  >
+                    <Image
+                      src={species.image}
+                      alt={species.name}
+                      fill
+                      className="object-cover"
+                    />
+
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+
+                    <div className="absolute bottom-0 left-0 p-6 text-white">
+                      <div className="text-4xl font-bold">
+                        {species.name}
                       </div>
 
-                      {/* SPECIES ONLY FOR ₹1000 */}
-                      {tier.type === "individual" && (
-                        <>
-                          <div className="mt-8">
-                            <h4 className="font-bold text-lg text-[#173D33]">
-                              Choose Your Species
-                            </h4>
-
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                              {speciesOptions.map((sp) => (
-                                <button
-                                  key={sp.name}
-                                  onClick={() =>
-                                    setSelectedSpecies(sp.name)
-                                  }
-                                  className={`rounded-2xl border p-4 text-left transition ${
-                                    selectedSpecies === sp.name
-                                      ? "border-[#173D33] bg-[#E7F4EA]"
-                                      : "border-gray-200 bg-white"
-                                  }`}
-                                >
-                                  <div className="text-3xl">🌳</div>
-                                  <div className="font-bold mt-3">
-                                    {sp.name}
-                                  </div>
-                                  <div className="text-xs text-gray-500 mt-1">
-                                    {sp.benefit}
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* QUANTITY */}
-                          <div className="mt-8">
-                            <h4 className="font-bold text-lg text-[#173D33]">
-                              Number of Trees
-                            </h4>
-
-                            <div className="flex items-center gap-4 mt-4">
-                              <button
-                                onClick={() =>
-                                  setQuantity(
-                                    Math.max(1, quantity - 1)
-                                  )
-                                }
-                                className="w-12 h-12 rounded-xl bg-[#173D33] text-white text-xl"
-                              >
-                                -
-                              </button>
-
-                              <div className="text-2xl font-bold">
-                                {quantity}
-                              </div>
-
-                              <button
-                                onClick={() =>
-                                  setQuantity(quantity + 1)
-                                }
-                                className="w-12 h-12 rounded-xl bg-[#173D33] text-white text-xl"
-                              >
-                                +
-                              </button>
-                            </div>
-                          </div>
-                        </>
-                      )}
-
-                      {/* GIFT FIELDS */}
-                      {giftMode && (
-                        <div className="mt-8 grid md:grid-cols-2 gap-4">
-                          <input
-                            placeholder="Recipient Name"
-                            className="rounded-xl border border-gray-300 p-4 bg-white"
-                          />
-
-                          <input
-                            placeholder="Recipient Email"
-                            className="rounded-xl border border-gray-300 p-4 bg-white"
-                          />
-
-                          <input
-                            placeholder="Occasion"
-                            className="rounded-xl border border-gray-300 p-4 bg-white"
-                          />
-
-                          <input
-                            placeholder="Delivery Date"
-                            className="rounded-xl border border-gray-300 p-4 bg-white"
-                          />
-
-                          <textarea
-                            placeholder="Personal Message"
-                            className="rounded-xl border border-gray-300 p-4 bg-white md:col-span-2 min-h-[120px]"
-                          />
-                        </div>
-                      )}
-                    </motion.div>
-                  )}
+                      <div className="opacity-80 italic mt-1">
+                        {species.latin}
+                      </div>
+                    </div>
+                  </motion.div>
                 </AnimatePresence>
-              </motion.div>
-            );
-          })}
-        </div>
 
-        {/* RIGHT PANEL */}
-        <div className="lg:sticky lg:top-28 h-fit">
-          <div className="bg-white rounded-3xl shadow-2xl p-8 border border-gray-100">
-            <div className="flex items-center gap-2 text-[#173D33]">
-              <Leaf />
-              <h3 className="text-2xl font-bold">
-                Your Impact
-              </h3>
+                {/* CONTENT */}
+                <div>
+                  <p className="text-lg leading-relaxed text-[#173D33]/80">
+                    {species.story}
+                  </p>
+
+                  {/* BENEFITS */}
+                  <div className="mt-8 space-y-4">
+                    {species.benefits.map(
+                      (benefit) => (
+                        <div
+                          key={benefit}
+                          className="flex items-center gap-3 rounded-2xl bg-[#F5F2EC] px-5 py-4"
+                        >
+                          <Leaf
+                            size={18}
+                            className="text-green-700"
+                          />
+
+                          <span className="font-medium">
+                            {benefit}
+                          </span>
+                        </div>
+                      )
+                    )}
+                  </div>
+
+                  {/* SPECIES THUMBNAILS */}
+                  <div className="mt-8 overflow-x-auto flex gap-4 pb-2">
+                    {speciesData.map(
+                      (tree, index) => (
+                        <button
+                          key={tree.id}
+                          onClick={() =>
+                            setSelectedSpecies(
+                              index
+                            )
+                          }
+                          className={`min-w-[110px] rounded-2xl overflow-hidden border transition ${
+                            selectedSpecies ===
+                            index
+                              ? "border-[#173D33] shadow-lg"
+                              : "border-[#E8E2D8]"
+                          }`}
+                        >
+                          <div className="relative h-[90px]">
+                            <Image
+                              src={tree.image}
+                              alt={tree.name}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+
+                          <div className="p-3 bg-white text-left">
+                            <div className="font-semibold text-sm">
+                              {tree.name}
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    )}
+                  </div>
+
+                  {/* QUANTITY */}
+                  {selectedTier ===
+                    "individual1000" && (
+                    <div className="mt-10 flex items-center justify-between">
+                      <div>
+                        <div className="font-bold text-lg">
+                          Number of Trees
+                        </div>
+
+                        <div className="text-sm text-[#173D33]/60 mt-1">
+                          Each tree gets unique GPS
+                          tracking
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={() =>
+                            setQuantity(
+                              Math.max(
+                                1,
+                                quantity - 1
+                              )
+                            )
+                          }
+                          className="w-12 h-12 rounded-2xl bg-[#173D33] text-white"
+                        >
+                          -
+                        </button>
+
+                        <div className="text-2xl font-bold w-8 text-center">
+                          {quantity}
+                        </div>
+
+                        <button
+                          onClick={() =>
+                            setQuantity(
+                              quantity + 1
+                            )
+                          }
+                          className="w-12 h-12 rounded-2xl bg-[#173D33] text-white"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
+          </div>
 
-            {/* PREVIEW */}
-            <div className="mt-6 rounded-2xl bg-[#E7F4EA] p-5">
-              <div className="text-3xl">🌳</div>
-
-              <div className="mt-3 font-bold text-lg">
-                {selectedSpecies} Tree
-              </div>
-
-              <div className="text-sm text-gray-600 mt-1">
-                GPS Tracking Enabled
-              </div>
-
-              <div className="text-sm text-gray-600">
-                Bangalore Region
-              </div>
-            </div>
-
-            {/* IMPACT */}
-            <div className="mt-6 space-y-3">
+          {/* RIGHT SIDE */}
+          <div className="lg:sticky lg:top-24">
+            <div className="bg-white rounded-[32px] p-6 border border-[#E8E2D8] shadow-sm">
+              {/* TITLE */}
               <div className="flex items-center gap-3">
-                <Globe2 size={18} />
-                <span>~22kg CO₂/year</span>
+                <div className="w-12 h-12 rounded-2xl bg-[#E8F2EA] flex items-center justify-center">
+                  🌳
+                </div>
+
+                <div>
+                  <div className="text-sm uppercase tracking-[0.15em] text-[#173D33]/60">
+                    Your Living Impact
+                  </div>
+
+                  <div className="text-2xl font-bold">
+                    {species.name} Tree
+                  </div>
+                </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <Droplets size={18} />
-                <span>Water restoration impact</span>
+              {/* GPS MAP */}
+              <div className="mt-6 rounded-[28px] overflow-hidden relative h-[240px]">
+                <Image
+                  src="/map-preview.jpg"
+                  alt="GPS Map"
+                  fill
+                  className="object-cover"
+                />
+
+                <div className="absolute top-4 left-4 bg-white rounded-full px-4 py-2 text-sm font-semibold shadow">
+                  📍 GPS Tracking Enabled
+                </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <Heart size={18} />
-                <span>Biodiversity support</span>
-              </div>
-            </div>
+              {/* IMPACT */}
+              <div className="grid grid-cols-2 gap-4 mt-6">
+                <div className="bg-[#F5F2EC] rounded-2xl p-5">
+                  <div className="flex items-center gap-2 text-[#173D33]/70">
+                    <Globe2 size={18} />
+                    CO₂ Impact
+                  </div>
 
-            {/* FORM */}
-            <div className="mt-8 space-y-4">
-              <input
-                placeholder="Full Name"
-                className="w-full rounded-xl border border-gray-300 p-4"
-              />
+                  <div className="text-3xl font-bold mt-3">
+                    ~22kg
+                  </div>
 
-              <input
-                placeholder="Email Address"
-                className="w-full rounded-xl border border-gray-300 p-4"
-              />
+                  <div className="text-sm mt-1 text-[#173D33]/60">
+                    absorbed per year
+                  </div>
+                </div>
 
-              <input
-                placeholder="Phone Number"
-                className="w-full rounded-xl border border-gray-300 p-4"
-              />
-            </div>
+                <div className="bg-[#F5F2EC] rounded-2xl p-5">
+                  <div className="flex items-center gap-2 text-[#173D33]/70">
+                    <Droplets size={18} />
+                    Water Support
+                  </div>
 
-            {/* TOTAL */}
-            <div className="mt-8 flex items-center justify-between">
-              <span className="text-gray-600">
-                Total Contribution
-              </span>
+                  <div className="text-3xl font-bold mt-3">
+                    18,000L
+                  </div>
 
-              <span className="text-3xl font-bold text-[#173D33]">
-                ₹{selectedTier.amount * quantity}
-              </span>
-            </div>
-
-            {/* CTA */}
-            <button className="mt-8 w-full rounded-2xl bg-[#173D33] text-white py-5 text-lg font-bold hover:opacity-95 transition">
-              {giftMode
-                ? "🎁 Gift This Impact"
-                : "🌱 Plant & Track My Tree"}
-            </button>
-
-            <p className="text-center text-sm text-gray-500 mt-4">
-              Certificate + GPS Tracking Included
-            </p>
-
-            {/* TRUST */}
-            <div className="mt-8 pt-6 border-t border-gray-200 text-sm text-gray-600 space-y-2">
-              <div className="flex items-center gap-2">
-                🔒 Razorpay Secure
+                  <div className="text-sm mt-1 text-[#173D33]/60">
+                    restored yearly
+                  </div>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                📍 Geo-tagged Plantation
+              {/* RECENT TREE PHOTOS */}
+              <div className="mt-8">
+                <div className="flex items-center justify-between">
+                  <div className="text-xl font-bold">
+                    Live Tree Photos
+                  </div>
+
+                  <div className="text-sm text-[#173D33]/60">
+                    Updated regularly
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                  {recentPhotos.map((photo) => (
+                    <div
+                      key={photo}
+                      className="relative rounded-2xl overflow-hidden h-[120px]"
+                    >
+                      <Image
+                        src={photo}
+                        alt="Tree"
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                🧾 Instant Certificate
+              {/* GIFT MODE */}
+              {giftMode && (
+                <div className="mt-8 bg-[#F7F0FF] border border-[#E4D5FF] rounded-[28px] p-5">
+                  <div className="flex items-center gap-2 text-[#8B5CF6] font-bold text-lg">
+                    <Gift size={18} />
+                    Gift This Tree
+                  </div>
+
+                  <div className="mt-5 grid gap-4">
+                    <input
+                      placeholder="Recipient Name"
+                      className="w-full rounded-2xl border border-[#E4D5FF] bg-white px-4 py-4 outline-none"
+                    />
+
+                    <input
+                      placeholder="Recipient Email"
+                      className="w-full rounded-2xl border border-[#E4D5FF] bg-white px-4 py-4 outline-none"
+                    />
+
+                    <textarea
+                      placeholder="Personal Message"
+                      className="w-full rounded-2xl border border-[#E4D5FF] bg-white px-4 py-4 outline-none min-h-[120px]"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* DONOR FORM */}
+              <div className="mt-8">
+                <div className="text-xl font-bold">
+                  Your Details
+                </div>
+
+                <div className="grid gap-4 mt-5">
+                  <input
+                    placeholder="Full Name"
+                    className="w-full rounded-2xl border border-[#E8E2D8] bg-[#FCFBF8] px-4 py-4 outline-none"
+                  />
+
+                  <input
+                    placeholder="Email Address"
+                    className="w-full rounded-2xl border border-[#E8E2D8] bg-[#FCFBF8] px-4 py-4 outline-none"
+                  />
+
+                  <input
+                    placeholder="Phone Number"
+                    className="w-full rounded-2xl border border-[#E8E2D8] bg-[#FCFBF8] px-4 py-4 outline-none"
+                  />
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                🛡 91% Survival Rate
+              {/* TOTAL */}
+              <div className="mt-8 flex items-center justify-between border-t border-[#ECE5DA] pt-6">
+                <div>
+                  <div className="text-[#173D33]/60 text-sm">
+                    Total Contribution
+                  </div>
+
+                  <div className="text-4xl font-bold mt-1">
+                    ₹
+                    {(activeTier?.amount || 1000) *
+                      quantity}
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <div className="text-sm text-[#173D33]/60">
+                    Includes:
+                  </div>
+
+                  <div className="font-semibold mt-1">
+                    GPS + 3yr Care
+                  </div>
+                </div>
+              </div>
+
+              {/* CTA */}
+              <button className="w-full mt-8 rounded-[24px] bg-[#173D33] hover:bg-[#0F2A22] transition text-white py-5 text-lg font-bold shadow-xl">
+                {giftMode
+                  ? "🎁 Gift This Living Tree"
+                  : "🌱 Adopt This Living Tree"}
+              </button>
+
+              {/* TRUST */}
+              <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm text-[#173D33]/60">
+                <div>🔒 Secure Payment</div>
+                <div>📍 Geo-tagged</div>
+                <div>🌿 AI Verified</div>
+                <div>🛡 91% Survival</div>
               </div>
             </div>
           </div>
