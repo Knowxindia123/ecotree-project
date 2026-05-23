@@ -120,16 +120,42 @@ export default function DonatePage() {
   }
 
   // Tier image for hero pills — small thumbnail
+  // Per-tier colour identity — each tier has its own selected colour
+  const PILL_COLORS: Record<string, {bg:string;color:string;border:string;shadow:string}> = {
+    community_100: { bg:'#52B788', color:'#fff',     border:'#52B788', shadow:'0 4px 16px rgba(82,183,136,0.45)' },
+    joint_500:     { bg:'#F59E0B', color:'#1B2E25',  border:'#F59E0B', shadow:'0 4px 16px rgba(245,158,11,0.45)' },
+    individual_1000:{ bg:'#D4A63F', color:'#1B2E25', border:'#D4A63F', shadow:'0 4px 16px rgba(212,166,63,0.45)' },
+    miyawaki_5000: { bg:'#7C3AED', color:'#fff',     border:'#7C3AED', shadow:'0 4px 16px rgba(124,58,237,0.45)' },
+  }
+
   const TierPill = ({ t }: { t: typeof TIERS[0] }) => {
-    const active = isComm ? (t.id==='community_100'||t.id==='community_250') : tier.id===t.id
-    if (t.id === 'community_250') return null // skip — shown as one pill
-    const label = t.id==='community_100' ? '₹100/₹250' : `₹${t.price.toLocaleString('en-IN')}`
+    const active = isComm
+      ? (t.id==='community_100'||t.id==='community_250')
+      : tier.id===t.id
+    if (t.id === 'community_250') return null
+    const label    = t.id==='community_100' ? '₹100/₹250' : `₹${t.price.toLocaleString('en-IN')}`
     const sublabel = t.id==='community_100' ? 'Community' : t.id==='joint_500' ? 'Shared Tree' : t.id==='individual_1000' ? 'Individual' : 'Miyawaki'
+    const col      = PILL_COLORS[t.id] || PILL_COLORS.community_100
+
+    const activeStyle: React.CSSProperties = active ? {
+      background:   col.bg,
+      color:        col.color,
+      borderColor:  col.border,
+      boxShadow:    col.shadow,
+      transform:    'translateY(-2px)',
+    } : {}
+
     return (
-      <button onClick={()=>pickTier(t)} className={`dp-pill${active?' dp-pill--on':''}`}>
-        {t.id==='individual_1000' && <span className="dp-pill-star">★</span>}
-        <span className="dp-pill-amt">{label}</span>
-        <span className="dp-pill-sub">{sublabel}</span>
+      <button
+        onClick={()=>pickTier(t)}
+        className="dp-pill"
+        style={activeStyle}
+      >
+        {t.id==='individual_1000' && (
+          <span style={{fontSize:'0.6rem',fontWeight:800,color:active?col.color:'#D4A63F',letterSpacing:'0.06em',marginBottom:'0.1rem',display:'block'}}>★ MOST LOVED</span>
+        )}
+        <span className="dp-pill-amt" style={active?{color:col.color}:{}}>{label}</span>
+        <span className="dp-pill-sub" style={active?{color:col.color,opacity:0.85}:{}}>{sublabel}</span>
       </button>
     )
   }
@@ -543,7 +569,7 @@ export default function DonatePage() {
         /* ── TRUST BAR ── */
         .dp-trust{background:var(--gd);position:sticky;top:80px;z-index:60;border-bottom:1px solid rgba(82,183,136,0.18);padding:0.42rem 0;}
         .dp-trust-inner{display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;}
-        .dp-trust-signals{display:flex;align-items:center;gap:0.45rem;font-size:0.68rem;font-weight:600;color:rgba(255,255,255,0.58);flex-wrap:wrap;}
+        .dp-trust-signals{display:flex;align-items:center;gap:0.5rem;font-size:0.75rem;font-weight:600;color:rgba(255,255,255,0.72);flex-wrap:wrap;}
         .dp-trust-acts{display:flex;gap:0.35rem;flex-shrink:0;}
         .dp-act{display:inline-flex;align-items:center;gap:0.28rem;font-size:0.68rem;font-weight:700;padding:0.26rem 0.7rem;border-radius:999px;cursor:pointer;border:none;font-family:inherit;text-decoration:none;white-space:nowrap;}
         .dp-act--wa{background:#25D366;color:#fff;}
@@ -560,21 +586,22 @@ export default function DonatePage() {
 
         /* ── TIER BAR sticky ── */
         .dp-tier-bar{background:var(--gd);border-bottom:3px solid rgba(82,183,136,0.25);padding:0.65rem 0;position:sticky;top:calc(80px + 30px);z-index:55;}
-        .dp-tier-bar-inner{display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;}
+        .dp-tier-bar-inner{display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;}
         .dp-mode-pills{display:flex;gap:0.35rem;flex-shrink:0;}
         .dp-mode{padding:0.35rem 0.9rem;border-radius:999px;font-size:0.75rem;font-weight:700;cursor:pointer;border:1.5px solid rgba(255,255,255,0.2);background:transparent;color:rgba(255,255,255,0.6);font-family:inherit;transition:all 0.15s;white-space:nowrap;}
         .dp-mode--on{border-color:var(--ga);background:var(--gm);color:#fff;}
         .dp-mode--gift.dp-mode--on{border-color:#7C3AED;background:#7C3AED;}
         .dp-tier-pills{display:flex;gap:0.4rem;overflow-x:auto;flex:1;-webkit-overflow-scrolling:touch;}
         .dp-tier-pills::-webkit-scrollbar{display:none;}
-        .dp-pill{display:flex;flex-direction:column;align-items:flex-start;padding:0.38rem 0.8rem;border-radius:8px;border:1.5px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.07);color:#fff;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap;flex-shrink:0;}
-        .dp-pill:hover{background:rgba(255,255,255,0.14);}
-        .dp-pill--on{background:#fff;color:var(--gd);border-color:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.15);}
-        .dp-pill-star{font-size:0.58rem;color:var(--gold);margin-bottom:0.1rem;display:block;}
-        .dp-pill--on .dp-pill-star{color:var(--gold);}
-        .dp-pill-amt{font-size:0.78rem;font-weight:900;line-height:1;margin-bottom:0.12rem;}
-        .dp-pill-sub{font-size:0.6rem;font-weight:600;opacity:0.7;}
-        .dp-pill--on .dp-pill-sub{opacity:0.6;}
+        .dp-pill{display:flex;flex-direction:column;align-items:flex-start;padding:0.48rem 1.05rem;border-radius:9px;border:2px solid rgba(255,255,255,0.28);background:rgba(255,255,255,0.09);color:rgba(255,255,255,0.78);cursor:pointer;font-family:inherit;transition:all 0.18s;white-space:nowrap;flex-shrink:0;}
+        .dp-pill:hover{background:rgba(255,255,255,0.17);border-color:rgba(255,255,255,0.45);color:#fff;}
+        .dp-pill--on{background:#fff !important;color:var(--gd) !important;border-color:#fff !important;box-shadow:0 4px 16px rgba(0,0,0,0.25);transform:translateY(-1px);}
+        .dp-pill-star{font-size:0.6rem;color:var(--gold);margin-bottom:0.12rem;display:block;}
+        .dp-pill--on .dp-pill-star{color:var(--gold) !important;}
+        .dp-pill-amt{font-size:0.88rem;font-weight:900;line-height:1;margin-bottom:0.14rem;}
+        .dp-pill-sub{font-size:0.66rem;font-weight:600;opacity:0.72;}
+        .dp-pill--on .dp-pill-sub{opacity:1;color:var(--gm) !important;}
+        .dp-pill--on .dp-pill-amt{color:var(--gd) !important;}
 
         /* ── MAIN ── */
         .dp-main{padding:1.5rem 0 5rem;}
@@ -584,8 +611,8 @@ export default function DonatePage() {
 
         /* ── CARDS ── */
         .dp-card{background:#fff;border:1px solid var(--md);border-radius:var(--r);padding:1.1rem 1.2rem;margin-bottom:0.85rem;box-shadow:var(--shadow);}
-        .dp-card-eyebrow{font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.11em;color:var(--tm);}
-        .dp-card-sub{font-size:0.72rem;color:var(--tm);margin-top:0.15rem;}
+        .dp-card-eyebrow{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--tb);}
+        .dp-card-sub{font-size:0.82rem;color:var(--tm);margin-top:0.18rem;}
 
         /* ── SPECIES CAROUSEL ── */
         .dp-sp-carousel{padding-bottom:0.85rem;}
@@ -602,8 +629,8 @@ export default function DonatePage() {
         .dp-sp-card-img{height:64px;overflow:hidden;position:relative;}
         .dp-sp-check{position:absolute;top:4px;right:4px;width:16px;height:16px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--gd);font-weight:800;}
         .dp-sp-card-body{padding:0.35rem 0.45rem;}
-        .dp-sp-card-name{font-size:0.7rem;font-weight:700;color:var(--td);line-height:1.2;}
-        .dp-sp-card-hint{font-size:0.58rem;color:var(--tm);margin-top:0.1rem;}
+        .dp-sp-card-name{font-size:0.78rem;font-weight:700;color:var(--td);line-height:1.2;}
+        .dp-sp-card-hint{font-size:0.68rem;color:var(--tm);margin-top:0.12rem;}
         .dp-sp-dots{display:flex;justify-content:center;gap:3px;margin-top:0.55rem;}
         .dp-dot-btn{width:5px;height:5px;border-radius:50%;background:#d0ccc4;border:none;cursor:pointer;padding:0;transition:all 0.18s;}
         .dp-dot-btn--on{width:12px;border-radius:3px;background:var(--gd);}
@@ -628,19 +655,19 @@ export default function DonatePage() {
         .dp-impact-item{background:#f0faf4;border:1px solid var(--md);border-radius:10px;padding:0.65rem 0.75rem;display:flex;flex-direction:column;gap:0.12rem;}
         .dp-impact-icon{font-size:0.9rem;}
         .dp-impact-val{font-size:0.95rem;font-weight:900;color:var(--gd);line-height:1;}
-        .dp-impact-lbl{font-size:0.58rem;color:var(--tm);}
+        .dp-impact-lbl{font-size:0.72rem;color:var(--tb);font-weight:500;}
 
         /* ── STORY CARD ── */
         .dp-story-card{padding:1.2rem;}
         .dp-badge{display:inline-block;font-size:0.55rem;font-weight:800;padding:0.13rem 0.5rem;border-radius:4px;letter-spacing:0.07em;margin-bottom:0.65rem;}
         .dp-story-name{font-size:1.35rem;font-weight:900;color:var(--gd);line-height:1.1;margin:0 0 0.2rem;}
         .dp-story-title{font-size:0.82rem;color:var(--ga);font-style:italic;font-weight:600;margin-bottom:0.75rem;}
-        .dp-story-text{font-size:0.83rem;color:#2D3B36;line-height:1.65;margin-bottom:0.85rem;}
-        .dp-story-benefits-label{font-size:0.58rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--tm);margin-bottom:0.45rem;}
-        .dp-benefit{display:flex;align-items:flex-start;gap:0.38rem;font-size:0.78rem;color:var(--gm);font-weight:500;margin-bottom:0.3rem;}
+        .dp-story-text{font-size:0.9rem;color:#2D3B36;line-height:1.7;margin-bottom:0.85rem;}
+        .dp-story-benefits-label{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--tm);margin-bottom:0.5rem;}
+        .dp-benefit{display:flex;align-items:flex-start;gap:0.38rem;font-size:0.85rem;color:var(--gm);font-weight:600;margin-bottom:0.32rem;}
         .dp-benefit-chk{color:var(--ga);font-weight:800;flex-shrink:0;font-size:0.82rem;}
         .dp-meta-tags{display:flex;flex-wrap:wrap;gap:0.28rem;margin-top:0.85rem;}
-        .dp-meta-tag{font-size:0.62rem;background:var(--mt);color:var(--gd);padding:0.14rem 0.48rem;border-radius:999px;font-weight:600;}
+        .dp-meta-tag{font-size:0.72rem;background:var(--mt);color:var(--gd);padding:0.18rem 0.58rem;border-radius:999px;font-weight:600;}
 
         /* ── COMMUNITY TOGGLE ── */
         .dp-comm-toggle{margin-bottom:0.85rem;}
@@ -656,8 +683,8 @@ export default function DonatePage() {
         /* ── QTY ── */
         .dp-qty-card{padding:0.9rem 1.1rem;}
         .dp-qty-row{display:flex;align-items:center;justify-content:space-between;}
-        .dp-qty-label{font-size:0.88rem;font-weight:700;color:var(--tb);}
-        .dp-qty-sub{font-size:0.68rem;color:var(--tm);margin-top:0.1rem;}
+        .dp-qty-label{font-size:0.95rem;font-weight:700;color:var(--tb);}
+        .dp-qty-sub{font-size:0.78rem;color:var(--tm);margin-top:0.12rem;}
         .dp-qty-ctrl{display:flex;align-items:center;gap:0.6rem;}
         .dp-qty-btn{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--md);background:#fff;font-size:1rem;cursor:pointer;color:var(--gd);font-family:inherit;display:flex;align-items:center;justify-content:center;transition:all 0.12s;}
         .dp-qty-btn:hover{background:var(--gd);color:#fff;border-color:var(--gd);}
@@ -666,12 +693,12 @@ export default function DonatePage() {
         /* ── CTA ROW ── */
         .dp-cta-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:0.4rem;}
         .dp-cta-price-lbl{font-size:0.65rem;color:var(--tm);}
-        .dp-cta-price-val{font-size:1.5rem;font-weight:900;color:var(--gd);line-height:1;}
+        .dp-cta-price-val{font-size:1.65rem;font-weight:900;color:var(--gd);line-height:1;}
         .dp-cta-btn{padding:0.82rem 1.4rem;background:var(--gd);color:var(--gold);border:none;border-radius:12px;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;box-shadow:0 4px 18px rgba(27,67,50,0.28);transition:all 0.18s;}
         .dp-cta-btn:hover{filter:brightness(1.08);transform:translateY(-1px);}
         .dp-cta-btn--miya{background:#7C3AED;color:#fff;box-shadow:0 4px 18px rgba(124,58,237,0.28);}
         .dp-cta-btn--gift{background:#7C3AED;color:#fff;box-shadow:0 4px 18px rgba(124,58,237,0.28);}
-        .dp-cta-hint{font-size:0.65rem;color:var(--tm);text-align:center;}
+        .dp-cta-hint{font-size:0.8rem;color:var(--tm);text-align:center;margin-top:0.5rem;}
 
         /* ── GIFT MODE ── */
         .dp-occ-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0.55rem;margin-bottom:0.5rem;}
@@ -692,39 +719,39 @@ export default function DonatePage() {
         /* ── MOBILE STICKY CTA ── */
         .dp-mob-cta{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--gd);padding:10px 16px;z-index:200;align-items:center;justify-content:space-between;gap:12px;border-top:2px solid var(--gold);box-shadow:0 -4px 20px rgba(0,0,0,0.2);}
         .dp-mob-cta-left{}
-        .dp-mob-cta-name{font-size:0.72rem;color:rgba(255,255,255,0.65);font-weight:600;}
-        .dp-mob-cta-price{font-size:1.1rem;font-weight:900;color:var(--gold);line-height:1.2;}
-        .dp-mob-cta-btn{padding:0.65rem 1.1rem;background:var(--gold);color:var(--gd);border:none;border-radius:9px;font-size:0.82rem;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;}
+        .dp-mob-cta-name{font-size:0.8rem;color:rgba(255,255,255,0.8);font-weight:700;}
+        .dp-mob-cta-price{font-size:1.2rem;font-weight:900;color:var(--gold);line-height:1.2;}
+        .dp-mob-cta-btn{padding:0.72rem 1.2rem;background:var(--gold);color:var(--gd);border:none;border-radius:10px;font-size:0.88rem;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;}
 
         /* ── BELOW FOLD ── */
         .dp-sec{padding:2.5rem 0;}
         .dp-sec--white{background:#fff;}
         .dp-sec--faq{background:var(--ow);}
         .dp-sec--how{background:#fff;border-top:1px solid var(--md);border-bottom:1px solid var(--md);}
-        .dp-sec-label{display:inline-block;font-size:0.68rem;font-weight:700;letter-spacing:0.13em;text-transform:uppercase;color:var(--ga);background:rgba(82,183,136,0.1);padding:0.28rem 0.85rem;border-radius:999px;margin-bottom:1.1rem;}
-        .dp-sec-h2{font-size:clamp(1.4rem,2.8vw,2rem);font-weight:800;line-height:1.18;color:var(--td);margin:0 0 1.25rem;}
+        .dp-sec-label{display:inline-block;font-size:0.75rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--ga);background:rgba(82,183,136,0.12);padding:0.32rem 0.95rem;border-radius:999px;margin-bottom:1.2rem;}
+        .dp-sec-h2{font-size:clamp(1.5rem,3vw,2.2rem);font-weight:800;line-height:1.18;color:var(--td);margin:0 0 1.35rem;}
         .dp-sec-h2 em{color:var(--ga);font-style:normal;}
         .dp-how{display:flex;align-items:flex-start;margin-top:1.5rem;}
         .dp-how-item{flex:1;min-width:110px;text-align:center;padding:1.1rem 0.6rem;background:#fff;border-radius:var(--r);border:1px solid var(--md);margin:0 0.15rem;box-shadow:0 1px 6px rgba(27,67,50,0.04);}
         .dp-how-icon{font-size:1.8rem;margin-bottom:0.4rem;}
-        .dp-how-n{font-size:0.58rem;font-weight:700;color:var(--ga);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.25rem;}
-        .dp-how-t{font-size:0.85rem;font-weight:800;color:var(--gd);margin-bottom:0.25rem;}
-        .dp-how-d{font-size:0.72rem;color:var(--tm);line-height:1.45;}
+        .dp-how-n{font-size:0.68rem;font-weight:700;color:var(--ga);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.28rem;}
+        .dp-how-t{font-size:0.95rem;font-weight:800;color:var(--gd);margin-bottom:0.28rem;}
+        .dp-how-d{font-size:0.82rem;color:var(--tm);line-height:1.5;}
         .dp-how-arr{font-size:1.1rem;color:var(--ga);padding-top:2.8rem;flex-shrink:0;opacity:0.4;}
         .dp-gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}
         .dp-gallery-item{border-radius:var(--r);overflow:hidden;border:1px solid var(--md);}
         .dp-gallery-cap{padding:0.75rem 0.9rem;background:#fff;}
-        .dp-gallery-l{font-size:0.85rem;font-weight:700;color:var(--gd);margin-bottom:0.12rem;}
-        .dp-gallery-s{font-size:0.72rem;color:var(--tm);}
+        .dp-gallery-l{font-size:0.92rem;font-weight:700;color:var(--gd);margin-bottom:0.14rem;}
+        .dp-gallery-s{font-size:0.8rem;color:var(--tm);}
         .dp-trust-strip{background:var(--gd);padding:1.25rem 0;}
         .dp-trust-strip-inner{display:grid;grid-template-columns:repeat(4,1fr);gap:0.85rem;}
         .dp-trust-item{display:flex;align-items:flex-start;gap:0.55rem;}
         .dp-trust-icon{font-size:1.2rem;flex-shrink:0;}
-        .dp-trust-t{font-size:0.82rem;font-weight:700;color:#fff;margin-bottom:0.08rem;}
-        .dp-trust-s{font-size:0.65rem;color:rgba(255,255,255,0.5);line-height:1.35;}
+        .dp-trust-t{font-size:0.9rem;font-weight:700;color:#fff;margin-bottom:0.1rem;}
+        .dp-trust-s{font-size:0.75rem;color:rgba(255,255,255,0.65);line-height:1.4;}
         .dp-bcta{background:var(--mt);padding:0.9rem 0;border-top:1px solid var(--md);}
         .dp-bcta-inner{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
-        .dp-bcta-text{font-size:0.85rem;font-weight:600;color:var(--gd);}
+        .dp-bcta-text{font-size:0.92rem;font-weight:600;color:var(--gd);}
         .dp-bcta-btns{display:flex;gap:0.5rem;}
         .dp-btn{display:inline-flex;align-items:center;justify-content:center;gap:0.4rem;font-size:0.85rem;font-weight:600;padding:0.55rem 1.2rem;border-radius:999px;text-decoration:none;cursor:pointer;border:none;transition:all 0.2s;font-family:inherit;white-space:nowrap;}
         .dp-btn--p{background:var(--gd);color:#fff;}
@@ -736,12 +763,14 @@ export default function DonatePage() {
           .dp-trust-strip-inner{grid-template-columns:repeat(2,1fr);}
           .dp-gallery{grid-template-columns:1fr 1fr;}
           .dp-mob-cta{display:flex;}
-          .dp-main{padding-bottom:80px;}
+          .dp-main{padding-bottom:90px;}
+          .dp-sp-hero{height:240px;}
+          .dp-tier-hero{height:240px;}
         }
         @media(max-width:600px){
-          .dp-trust-signals .dp-dot:nth-child(n+4){display:none;}
-          .dp-trust-signals span:nth-child(n+5){display:none;}
-          .dp-sp-card{flex-basis:calc(50% - 4px);}
+          .dp-trust-signals .dp-dot:nth-child(n+6){display:none;}
+          .dp-trust-signals span:nth-child(n+7){display:none;}
+          .dp-sp-card{flex:0 0 calc(50% - 4px);}
           .dp-occ-grid{grid-template-columns:repeat(2,1fr);}
           .dp-gift-row{grid-template-columns:1fr;}
           .dp-gallery{grid-template-columns:1fr;}
@@ -752,11 +781,26 @@ export default function DonatePage() {
           .dp-bcta-btns{flex-direction:column;}
           .dp-trust-strip-inner{grid-template-columns:1fr 1fr;}
           .dp-cta-row{flex-wrap:wrap;}
-          .dp-cta-btn{width:100%;}
+          .dp-cta-btn{width:100%;padding:0.95rem;font-size:1rem;}
+          .dp-tier-bar-inner{flex-direction:column;align-items:stretch;gap:0.5rem;}
+          .dp-mode-pills{justify-content:center;}
+          .dp-tier-pills{justify-content:flex-start;}
+          .dp-pill{padding:0.42rem 0.85rem;}
+          .dp-pill-amt{font-size:0.82rem;}
+          .dp-story-name{font-size:1.2rem;}
+          .dp-sp-hero{height:210px;}
+          .dp-tier-hero{height:210px;}
+          .dp-main{padding:1rem 0 90px;}
+          .dp-impact-val{font-size:0.88rem;}
+          .dp-qty-btn{width:34px;height:34px;}
+          .dp-qty-num{font-size:1.1rem;}
+          .dp-mob-cta-price{font-size:1.2rem;}
+          .dp-mob-cta-name{font-size:0.78rem;}
         }
         @media(max-width:380px){
-          .dp-tier-bar-inner{flex-wrap:nowrap;overflow-x:auto;}
           .dp-hero-h1{font-size:1.5rem;}
+          .dp-pill-amt{font-size:0.75rem;}
+          .dp-pill-sub{font-size:0.6rem;}
         }
       `}</style>
     </main>
