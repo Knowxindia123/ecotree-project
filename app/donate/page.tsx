@@ -220,107 +220,109 @@ export default function DonatePage() {
 
               {/* ══ ₹1,000 INDIVIDUAL ══ */}
               {isIndiv && (
-                <div className="dp-layout">
-                  {/* LEFT */}
-                  <div className="dp-left">
-                    {/* Species carousel */}
-                    <div className="dp-card dp-sp-carousel">
-                      <div className="dp-sp-carousel-hdr">
-                        <div>
-                          <div className="dp-card-eyebrow">Choose your tree species {spErr && <span className="dp-err-inline">⚠️ Required</span>}</div>
-                          <div className="dp-card-sub">Select a species to see its story</div>
+                <div>
+                  {/* STEP 1 — SPECIES SLIDER: full width, 3 square cards */}
+                  <div className="dp-card dp-sp-carousel">
+                    <div className="dp-sp-carousel-hdr">
+                      <div>
+                        <div className="dp-card-eyebrow">
+                          Choose your tree species
+                          {spErr && <span className="dp-err-inline"> ⚠️ Please select a species</span>}
                         </div>
-                        <div className="dp-nav-btns">
-                          <button className="dp-nav-btn" onClick={()=>setCarIdx(i=>Math.max(0,i-1))} disabled={carIdx===0}>‹</button>
-                          <button className="dp-nav-btn" onClick={()=>setCarIdx(i=>Math.min(SPECIES_DATA.length-PER,i+1))} disabled={carIdx>=SPECIES_DATA.length-PER}>›</button>
-                        </div>
+                        <div className="dp-card-sub">3 of {SPECIES_DATA.length} species shown · slide to explore all</div>
                       </div>
-                      <div className="dp-sp-track-wrap">
-                        <div className="dp-sp-track" style={{transform:`translateX(calc(-${carIdx*(100/PER)}% - ${carIdx*8/PER}px))`}}>
-                          {SPECIES_DATA.map((sp,i)=>(
-                            <button key={sp.name} onClick={()=>pickSp(i)} className={`dp-sp-card${spIdx===i?' dp-sp-card--on':''}`}>
-                              <div className="dp-sp-card-img">
-                                <Img src={sp.img} fallback={sp.fallback} alt={sp.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-                                {spIdx===i && <div className="dp-sp-check">✓</div>}
-                              </div>
-                              <div className="dp-sp-card-body">
-                                <div className="dp-sp-card-name">{sp.name}</div>
-                                <div className="dp-sp-card-hint">{sp.benefits[0]}</div>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
+                      <div className="dp-nav-btns">
+                        <button className="dp-nav-btn" onClick={()=>setCarIdx(i=>Math.max(0,i-1))} disabled={carIdx===0}>‹</button>
+                        <button className="dp-nav-btn" onClick={()=>setCarIdx(i=>Math.min(SPECIES_DATA.length-3,i+1))} disabled={carIdx>=SPECIES_DATA.length-3}>›</button>
                       </div>
-                      <div className="dp-sp-dots">
-                        {Array.from({length:SPECIES_DATA.length-PER+1}).map((_,i)=>(
-                          <button key={i} onClick={()=>setCarIdx(i)} className={`dp-dot-btn${i===carIdx?' dp-dot-btn--on':''}`}/>
+                    </div>
+                    <div className="dp-sp-track-wrap">
+                      <div className="dp-sp-track3" style={{transform:`translateX(calc(-${carIdx*(100/3)}% - ${carIdx*10/3}px))`}}>
+                        {SPECIES_DATA.map((sp,i)=>(
+                          <button key={sp.name} onClick={()=>pickSp(i)} className={`dp-sp3-card${spIdx===i?' dp-sp3-card--on':''}`}>
+                            <div className="dp-sp3-img">
+                              <Img src={sp.img} fallback={sp.fallback} alt={sp.name} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+                              {spIdx===i && <div className="dp-sp3-check">✓</div>}
+                            </div>
+                            <div className="dp-sp3-name">{sp.name}</div>
+                          </button>
                         ))}
                       </div>
                     </div>
-
-                    {/* Selected species — big image */}
-                    <div className="dp-sp-hero">
-                      <Img src={selSp.img} fallback={selSp.fallback} alt={selSp.name} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
-                      <div className="dp-sp-hero-ov"/>
-                      <div className="dp-sp-hero-caption">
-                        <div className="dp-sp-hero-eyebrow">Your Selected Tree</div>
-                        <div className="dp-sp-hero-name">{selSp.name}</div>
-                        <div className="dp-sp-hero-title">{selSp.title}</div>
-                      </div>
-                    </div>
-
-                    {/* Impact band */}
-                    <div className="dp-impact-band">
-                      {[{icon:'🌍',val:'~22kg',lbl:'CO₂/year'},{icon:'💧',val:'~1,000L',lbl:'Water/year'},{icon:'📍',val:'GPS',lbl:'3yr tracked'}].map(m=>(
-                        <div key={m.lbl} className="dp-impact-item">
-                          <span className="dp-impact-icon">{m.icon}</span>
-                          <span className="dp-impact-val">{m.val}</span>
-                          <span className="dp-impact-lbl">{m.lbl}</span>
-                        </div>
+                    <div className="dp-sp-dots">
+                      {Array.from({length:SPECIES_DATA.length-3+1}).map((_,i)=>(
+                        <button key={i} onClick={()=>setCarIdx(i)} className={`dp-dot-btn${i===carIdx?' dp-dot-btn--on':''}`}/>
                       ))}
                     </div>
                   </div>
 
-                  {/* RIGHT */}
-                  <div className="dp-right">
-                    <div className="dp-card dp-story-card">
-                      <span className="dp-badge" style={{background:'#1B4332',color:'#D4A63F'}}>INDIVIDUAL TREE</span>
-                      <h2 className="dp-story-name">{selSp.name}</h2>
-                      <div className="dp-story-title">{selSp.title}</div>
-                      <p className="dp-story-text">{selSp.story}</p>
-                      <div className="dp-story-benefits-label">Why this tree</div>
-                      {selSp.benefits.map(b=>(
-                        <div key={b} className="dp-benefit"><span className="dp-benefit-chk">✓</span>{b}</div>
-                      ))}
-                      <div className="dp-meta-tags">
-                        {['📍 GPS tracked','🌱 Native species','🛡 3-year care','📱 Personal dashboard','🧾 80G receipt','🤖 AI-verified','📜 Certificate'].map(m=>(
-                          <span key={m} className="dp-meta-tag">{m}</span>
+                  {/* STEP 2 — IMAGE LEFT + STORY RIGHT */}
+                  <div className="dp-indiv-main">
+                    {/* LEFT — square selected tree image */}
+                    <div className="dp-indiv-img-col">
+                      <div className="dp-indiv-img">
+                        <Img src={selSp.img} fallback={selSp.fallback} alt={selSp.name} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+                        <div className="dp-indiv-img-ov"/>
+                        <div className="dp-indiv-img-caption">
+                          <div className="dp-indiv-img-eyebrow">Your Tree</div>
+                          <div className="dp-indiv-img-name">{selSp.name}</div>
+                          <div className="dp-indiv-img-title">{selSp.title}</div>
+                        </div>
+                      </div>
+                      {/* Impact band below image */}
+                      <div className="dp-impact-band" style={{marginTop:'0.65rem'}}>
+                        {[{icon:'🌍',val:'~22kg',lbl:'CO₂/year'},{icon:'💧',val:'~1,000L',lbl:'Water/year'},{icon:'📍',val:'GPS',lbl:'3yr tracked'}].map(m=>(
+                          <div key={m.lbl} className="dp-impact-item">
+                            <span className="dp-impact-icon">{m.icon}</span>
+                            <span className="dp-impact-val">{m.val}</span>
+                            <span className="dp-impact-lbl">{m.lbl}</span>
+                          </div>
                         ))}
                       </div>
                     </div>
 
-                    <div className="dp-card dp-qty-card">
-                      <div className="dp-qty-row">
-                        <div>
-                          <div className="dp-qty-label">Number of trees</div>
-                          <div className="dp-qty-sub">Each gets unique GPS tracking</div>
-                        </div>
-                        <div className="dp-qty-ctrl">
-                          <button className="dp-qty-btn" onClick={()=>setQty(q=>Math.max(1,q-1))}>−</button>
-                          <span className="dp-qty-num">{qty}</span>
-                          <button className="dp-qty-btn" onClick={()=>setQty(q=>Math.min(100,q+1))}>+</button>
+                    {/* RIGHT — story + benefits + qty + CTA */}
+                    <div className="dp-indiv-story-col">
+                      <div className="dp-card dp-story-card" style={{marginBottom:'0.85rem'}}>
+                        <span className="dp-badge" style={{background:'#1B4332',color:'#D4A63F'}}>INDIVIDUAL TREE · ₹1,000</span>
+                        <h2 className="dp-story-name">{selSp.name}</h2>
+                        <div className="dp-story-title">{selSp.title}</div>
+                        <p className="dp-story-text">{selSp.story}</p>
+                        <div className="dp-story-benefits-label">Why this tree</div>
+                        {selSp.benefits.map(b=>(
+                          <div key={b} className="dp-benefit"><span className="dp-benefit-chk">✓</span>{b}</div>
+                        ))}
+                        <div className="dp-meta-tags">
+                          {['📍 GPS tracked','🌱 Native species','🛡 3-year care','📱 Personal dashboard','🧾 80G receipt','🤖 AI-verified','📜 Certificate'].map(m=>(
+                            <span key={m} className="dp-meta-tag">{m}</span>
+                          ))}
                         </div>
                       </div>
-                    </div>
 
-                    <div className="dp-cta-row">
-                      <div className="dp-cta-price">
-                        <div className="dp-cta-price-lbl">Total</div>
-                        <div className="dp-cta-price-val">₹{total.toLocaleString('en-IN')}</div>
+                      {/* Qty */}
+                      <div className="dp-card dp-qty-card" style={{marginBottom:'0.85rem'}}>
+                        <div className="dp-qty-row">
+                          <div>
+                            <div className="dp-qty-label">Number of trees</div>
+                            <div className="dp-qty-sub">Each gets unique GPS tracking</div>
+                          </div>
+                          <div className="dp-qty-ctrl">
+                            <button className="dp-qty-btn" onClick={()=>setQty(q=>Math.max(1,q-1))}>−</button>
+                            <span className="dp-qty-num">{qty}</span>
+                            <button className="dp-qty-btn" onClick={()=>setQty(q=>Math.min(100,q+1))}>+</button>
+                          </div>
+                        </div>
                       </div>
-                      <button onClick={handleContinue} className="dp-cta-btn">{ctaLabel()}</button>
+
+                      <div className="dp-cta-row">
+                        <div className="dp-cta-price">
+                          <div className="dp-cta-price-lbl">Total</div>
+                          <div className="dp-cta-price-val">₹{total.toLocaleString('en-IN')}</div>
+                        </div>
+                        <button onClick={handleContinue} className="dp-cta-btn">{ctaLabel()}</button>
+                      </div>
+                      <div className="dp-cta-hint">Next: Add your details &amp; complete payment</div>
                     </div>
-                    <div className="dp-cta-hint">Next: Add your details &amp; complete payment</div>
                   </div>
                 </div>
               )}
@@ -606,6 +608,79 @@ export default function DonatePage() {
         /* ── MAIN ── */
         .dp-main{padding:1.5rem 0 5rem;}
 
+        /* ── ₹1,000 NEW LAYOUT ── */
+        .dp-indiv-main{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;align-items:start;margin-top:0;}
+        .dp-indiv-img-col{}
+        .dp-indiv-img{border-radius:var(--r);overflow:hidden;position:relative;aspect-ratio:1/1;box-shadow:var(--shadow);}
+        .dp-indiv-img-ov{position:absolute;inset:0;background:linear-gradient(to top,rgba(11,31,23,0.88) 0%,transparent 50%);}
+        .dp-indiv-img-caption{position:absolute;bottom:0;left:0;padding:1rem 1.1rem;}
+        .dp-indiv-img-eyebrow{font-size:0.6rem;font-weight:800;color:rgba(255,255,255,0.6);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.2rem;}
+        .dp-indiv-img-name{font-size:1.5rem;font-weight:900;color:#fff;line-height:1;}
+        .dp-indiv-img-title{font-size:0.78rem;color:#74C69D;font-style:italic;margin-top:0.15rem;}
+        .dp-indiv-story-col{}
+
+        /* 3-card slider track */
+        .dp-sp-track3{display:flex;gap:10px;transition:transform 0.35s cubic-bezier(0.4,0,0.2,1);}
+        .dp-sp3-card{
+          flex:0 0 calc(33.333% - 7px);
+          border:2px solid #E2E8E4;
+          border-radius:14px;
+          overflow:hidden;
+          cursor:pointer;
+          transition:all 0.22s cubic-bezier(0.4,0,0.2,1);
+          background:#fff;
+          padding:0;
+          font-family:inherit;
+          text-align:left;
+          box-shadow:0 1px 4px rgba(27,67,50,0.06);
+        }
+        .dp-sp3-card:hover{
+          border-color:#52B788;
+          transform:translateY(-3px);
+          box-shadow:0 6px 18px rgba(27,67,50,0.12);
+        }
+        .dp-sp3-card--on{
+          border-color:#D4A63F;
+          border-width:2.5px;
+          box-shadow:0 6px 20px rgba(212,166,63,0.22);
+          transform:translateY(-3px);
+          background:#FFFDF6;
+        }
+        .dp-sp3-img{
+          height:85px;
+          overflow:hidden;
+          position:relative;
+          background:#f0f0e8;
+        }
+        .dp-sp3-img img{transition:transform 0.35s ease;}
+        .dp-sp3-card:hover .dp-sp3-img img{transform:scale(1.06);}
+        .dp-sp3-check{
+          position:absolute;
+          top:6px;right:6px;
+          width:22px;height:22px;
+          border-radius:50%;
+          background:var(--gold);
+          display:flex;align-items:center;justify-content:center;
+          font-size:11px;color:var(--gd);font-weight:900;
+          box-shadow:0 2px 8px rgba(0,0,0,0.25);
+          border:2px solid #fff;
+        }
+        .dp-sp3-name{
+          font-size:0.8rem;
+          font-weight:700;
+          color:var(--tb);
+          padding:0.48rem 0.65rem 0.52rem;
+          line-height:1.2;
+          background:#fff;
+          border-top:1px solid #F0F4F1;
+          letter-spacing:0.01em;
+        }
+        .dp-sp3-card--on .dp-sp3-name{
+          background:#FFFDF6;
+          color:#1B4332;
+          border-top-color:#F0E8C0;
+        }
+
         /* ── LAYOUT ── */
         .dp-layout{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start;}
 
@@ -617,10 +692,27 @@ export default function DonatePage() {
         /* ── SPECIES CAROUSEL ── */
         .dp-sp-carousel{padding-bottom:0.85rem;}
         .dp-sp-carousel-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0.75rem;}
-        .dp-nav-btns{display:flex;gap:0.3rem;flex-shrink:0;}
-        .dp-nav-btn{width:28px;height:28px;border-radius:8px;border:1.5px solid var(--md);background:#fff;color:var(--gd);font-size:13px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;transition:all 0.12s;}
-        .dp-nav-btn:hover:not(:disabled){border-color:var(--gd);background:var(--mt);}
-        .dp-nav-btn:disabled{opacity:0.25;cursor:not-allowed;}
+        .dp-nav-btns{display:flex;gap:0.35rem;flex-shrink:0;}
+        .dp-nav-btn{
+          width:32px;height:32px;
+          border-radius:50%;
+          border:1.5px solid var(--md);
+          background:#fff;
+          color:var(--gd);
+          font-size:15px;
+          cursor:pointer;
+          font-family:inherit;
+          display:flex;align-items:center;justify-content:center;
+          transition:all 0.15s;
+          box-shadow:0 1px 4px rgba(27,67,50,0.08);
+        }
+        .dp-nav-btn:hover:not(:disabled){
+          border-color:var(--gd);
+          background:var(--gd);
+          color:#fff;
+          box-shadow:0 3px 10px rgba(27,67,50,0.2);
+        }
+        .dp-nav-btn:disabled{opacity:0.25;cursor:not-allowed;box-shadow:none;}
         .dp-sp-track-wrap{overflow:hidden;}
         .dp-sp-track{display:flex;gap:8px;transition:transform 0.3s ease;}
         .dp-sp-card{flex:0 0 calc(25% - 6px);border:2px solid #e2ddd5;border-radius:10px;overflow:hidden;cursor:pointer;transition:all 0.15s;background:#fff;text-align:left;font-family:inherit;padding:0;}
@@ -631,9 +723,10 @@ export default function DonatePage() {
         .dp-sp-card-body{padding:0.35rem 0.45rem;}
         .dp-sp-card-name{font-size:0.78rem;font-weight:700;color:var(--td);line-height:1.2;}
         .dp-sp-card-hint{font-size:0.68rem;color:var(--tm);margin-top:0.12rem;}
-        .dp-sp-dots{display:flex;justify-content:center;gap:3px;margin-top:0.55rem;}
-        .dp-dot-btn{width:5px;height:5px;border-radius:50%;background:#d0ccc4;border:none;cursor:pointer;padding:0;transition:all 0.18s;}
-        .dp-dot-btn--on{width:12px;border-radius:3px;background:var(--gd);}
+        .dp-sp-dots{display:flex;justify-content:center;gap:5px;margin-top:0.75rem;}
+        .dp-dot-btn{width:6px;height:6px;border-radius:50%;background:#C8D4CE;border:none;cursor:pointer;padding:0;transition:all 0.22s ease;}
+        .dp-dot-btn--on{width:18px;border-radius:3px;background:var(--gd);}
+        .dp-dot-btn:hover:not(.dp-dot-btn--on){background:#A0B4AC;}
 
         /* ── SPECIES HERO IMAGE ── */
         .dp-sp-hero{border-radius:var(--r);overflow:hidden;position:relative;height:200px;box-shadow:var(--shadow);}
@@ -760,6 +853,8 @@ export default function DonatePage() {
         /* ── RESPONSIVE ── */
         @media(max-width:860px){
           .dp-layout{grid-template-columns:1fr;}
+          .dp-indiv-main{grid-template-columns:1fr;}
+          .dp-indiv-img{aspect-ratio:16/9;}
           .dp-trust-strip-inner{grid-template-columns:repeat(2,1fr);}
           .dp-gallery{grid-template-columns:1fr 1fr;}
           .dp-mob-cta{display:flex;}
@@ -771,6 +866,8 @@ export default function DonatePage() {
           .dp-trust-signals .dp-dot:nth-child(n+6){display:none;}
           .dp-trust-signals span:nth-child(n+7){display:none;}
           .dp-sp-card{flex:0 0 calc(50% - 4px);}
+          .dp-sp3-card{flex:0 0 calc(50% - 5px);}
+          .dp-sp3-img{height:75px;}
           .dp-occ-grid{grid-template-columns:repeat(2,1fr);}
           .dp-gift-row{grid-template-columns:1fr;}
           .dp-gallery{grid-template-columns:1fr;}
@@ -790,6 +887,7 @@ export default function DonatePage() {
           .dp-story-name{font-size:1.2rem;}
           .dp-sp-hero{height:210px;}
           .dp-tier-hero{height:210px;}
+          .dp-indiv-img-name{font-size:1.2rem;}
           .dp-main{padding:1rem 0 90px;}
           .dp-impact-val{font-size:0.88rem;}
           .dp-qty-btn{width:34px;height:34px;}
