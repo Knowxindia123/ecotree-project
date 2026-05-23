@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-// ─── UNCHANGED UTILITIES ───
+// ── Unchanged utilities from original ──
 function makeCertId()     { return `ET-BLR-${new Date().getFullYear()}-${String(Math.floor(Math.random()*900000+100000))}` }
 function generateTreeId() { return `ET-BLR-${new Date().getFullYear()}-${String(Math.floor(Math.random()*900000+100000))}` }
 
@@ -14,62 +14,39 @@ async function sendEmail(type: string, donor: Record<string, any>) {
 
 interface FormErrors { name?: string; email?: string; phone?: string; recipientName?: string; recipientEmail?: string }
 
-// ─── SELECTION TYPE read from sessionStorage ───
-interface Selection {
-  tierId: string; tierName: string; tierBadge: string; badgeColor: string
-  tierIcon: string; tierImg: string; tierPrice: number
-  tierCo2: string; tierWater: string; tierDashboard: string
-  species: string; speciesTitle: string; speciesImg: string
-  qty: number; mode: 'plant'|'gift'
+interface Sel {
+  tierId: string; tierName: string; tierIcon: string; tierImg: string; tierFallback: string
+  tierBadge: string; badgeColor: string; tierCo2: string; tierWater: string
+  tierDashboard: string; tierWhat: string[]
+  species: string; speciesTitle: string
+  qty: number; mode: 'plant'|'gift'; commLevel: number
   occId: string; occIcon: string; occLabel: string; occPrice: number
   total: number
 }
 
-// ─── TIER IMPACT DATA for order summary ───
-const TIER_IMPACT: Record<string, {icon:string;val:string;lbl:string}[]> = {
-  community_100:   [{icon:'🌳',val:'Forest',lbl:'Community'},{icon:'🌍',val:'~5kg',lbl:'CO₂/yr'},{icon:'📜',val:'Cert',lbl:'Instant'}],
-  community_250:   [{icon:'🌳',val:'Forest',lbl:'Community'},{icon:'🌍',val:'~5kg',lbl:'CO₂/yr'},{icon:'📜',val:'Cert',lbl:'Instant'}],
-  joint_500:       [{icon:'🌍',val:'~11kg',lbl:'CO₂/yr'},{icon:'📍',val:'GPS',lbl:'Tracked'},{icon:'💧',val:'~500L',lbl:'Water/yr'}],
-  individual_1000: [{icon:'🌍',val:'~22kg',lbl:'CO₂/yr'},{icon:'💧',val:'~1,000L',lbl:'Water/yr'},{icon:'📍',val:'GPS',lbl:'3yr tracked'}],
-  miyawaki_5000:   [{icon:'🌍',val:'~200kg',lbl:'CO₂/yr'},{icon:'🌿',val:'30+',lbl:'Species'},{icon:'⚡',val:'10×',lbl:'Faster'}],
-}
-
-const TIER_META: Record<string, string[]> = {
-  community_100:   ['🌿 Community forest','📜 Certificate','📊 Dashboard'],
-  community_250:   ['🌿 Community forest','📜 Certificate','📊 Dashboard','🎟 Priority invites'],
-  joint_500:       ['🤝 Shared tree','📍 GPS tracked','📜 Certificate','🧾 80G'],
-  individual_1000: ['🌍 ~22kg CO₂/yr','📍 GPS 3yr','📜 Certificate','🤖 AI verified','🧾 80G'],
-  miyawaki_5000:   ['🏙️ 30+ species','📊 Forest dashboard','🧬 Biodiversity report','🧾 80G'],
+function Img({ src, fallback, alt, style }: { src:string; fallback:string; alt:string; style?:React.CSSProperties }) {
+  const [err, setErr] = useState(false)
+  return <img src={err?fallback:src} alt={alt} style={style} onError={()=>setErr(true)}/>
 }
 
 export default function CheckoutPage() {
   const router = useRouter()
   const formRef = useRef<HTMLDivElement>(null)
   const [certId] = useState(makeCertId)
-
-  // ─── Selection from sessionStorage ───
-  const [sel, setSel] = useState<Selection|null>(null)
+  const [sel, setSel] = useState<Sel|null>(null)
   const [ready, setReady] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [errors,  setErrors]  = useState<FormErrors>({})
+  const [form, setForm] = useState({ name:'', email:'', phone:'', address:'', birthday:'', anniversary:'', recipientName:'', recipientEmail:'', giftMessage:'' })
 
   useEffect(() => {
     try {
-      const saved = sessionStorage.getItem('ecotree_selection')
-      if (!saved) { router.replace('/donate'); return }
-      const s: Selection = JSON.parse(saved)
-      if (!s.tierId) { router.replace('/donate'); return }
+      const s: Sel = JSON.parse(sessionStorage.getItem('ecotree_selection') || 'null')
+      if (!s?.tierId) { router.replace('/donate'); return }
       setSel(s)
     } catch { router.replace('/donate') }
     setReady(true)
   }, [router])
-
-  // ─── Form state — all original field names ───
-  const [loading, setLoading] = useState(false)
-  const [errors,  setErrors]  = useState<FormErrors>({})
-  const [form, setForm] = useState({
-    name:'', email:'', phone:'', address:'',
-    birthday:'', anniversary:'',
-    recipientName:'', recipientEmail:'', giftMessage:'',
-  })
 
   const sf = (k: string, v: string) => {
     setForm(p=>({...p,[k]:v}))
@@ -77,19 +54,16 @@ export default function CheckoutPage() {
   }
 
   const Err = ({ msg }: { msg?: string }) =>
-    msg ? <div style={{fontSize:'0.74rem',color:'#dc2626',marginTop:'3px',display:'flex',alignItems:'center',gap:'4px'}}>⚠️ {msg}</div> : null
+    msg ? <div className="co-err">⚠️ {msg}</div> : null
 
-  // ─── Derived values ───
-  const isGift     = sel?.mode === 'gift'
-  const isComm     = sel?.tierId === 'community_100' || sel?.tierId === 'community_250'
-  const isJoint    = sel?.tierId === 'joint_500'
-  const isIndiv    = sel?.tierId === 'individual_1000'
-  const isMiya     = sel?.tierId === 'miyawaki_5000'
-  const total      = sel?.total ?? 0
-  const accentColor = isGift ? '#7C3AED' : '#1B4332'
-  const ctaBg       = isGift ? 'linear-gradient(135deg,#9333ea,#7C3AED)' : 'linear-gradient(135deg,#2D6A4F,#1B4332)'
+  const isGift  = sel?.mode === 'gift'
+  const isComm  = sel?.tierId === 'community_100' || sel?.tierId === 'community_250'
+  const isJoint = sel?.tierId === 'joint_500'
+  const isIndiv = sel?.tierId === 'individual_1000'
+  const isMiya  = sel?.tierId === 'miyawaki_5000'
+  const total   = sel?.total ?? 0
 
-  // ─── Validate ───
+  // ── validate — unchanged from original ──
   function validate(): boolean {
     const e: FormErrors = {}
     if (!form.name.trim() || form.name.trim().length < 2) e.name = 'Please enter your full name'
@@ -97,13 +71,13 @@ export default function CheckoutPage() {
     if (!form.phone.trim() || !/^[6-9]\d{9}$/.test(form.phone.replace(/[\s+\-()]/g,''))) e.phone = 'Please enter a valid 10-digit Indian mobile number'
     if (isGift) {
       if (!form.recipientName.trim()) e.recipientName = 'Please enter recipient name'
-      if (!form.recipientEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.recipientEmail)) e.recipientEmail = 'Please enter valid recipient email'
+      if (!form.recipientEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.recipientEmail)) e.recipientEmail = 'Please enter a valid recipient email'
     }
     setErrors(e)
     return Object.keys(e).length === 0
   }
 
-  // ─── handlePay — 100% identical Supabase logic from original ───
+  // ── handlePay — 100% identical Supabase logic from original ──
   const handlePay = async () => {
     if (loading || !sel) return
     if (!validate()) { formRef.current?.scrollIntoView({ behavior:'smooth', block:'start' }); return }
@@ -111,11 +85,7 @@ export default function CheckoutPage() {
 
     const species  = sel.species || 'Neem'
     const qty      = sel.qty || 1
-    const tierId   = sel.tierId
-    const tierTier = sel.tierId.includes('100') ? '100'
-                   : sel.tierId.includes('250') ? '250'
-                   : sel.tierId.includes('500') && !sel.tierId.includes('5000') ? '500'
-                   : sel.tierId.includes('1000') ? '1000' : '5000'
+    const tier     = { id:sel.tierId, tier: sel.tierId.includes('100')?'100':sel.tierId.includes('250')?'250':sel.tierId.includes('5000')?'5000':sel.tierId.includes('1000')?'1000':'500', name:sel.tierName, badge:sel.tierBadge, dashboard:sel.tierDashboard, co2:sel.tierCo2 }
     const occ      = { id:sel.occId, label:sel.occLabel, price:sel.occPrice }
     const mode     = sel.mode
 
@@ -125,12 +95,12 @@ export default function CheckoutPage() {
 
       const { data: existing } = await supabase
         .from('donors').select('id, total_trees, total_donated')
-        .eq('email', form.email).eq('tier', tierTier).maybeSingle()
+        .eq('email', form.email).eq('tier', tier.tier).maybeSingle()
 
       if (existing) {
         donorId = existing.id
         await supabase.from('donors').update({
-          total_trees: (tierId==='joint_500'||isComm) ? (existing.total_trees||0) : (existing.total_trees||0)+1,
+          total_trees: (isJoint||isComm) ? (existing.total_trees||0) : (existing.total_trees||0)+1,
           total_donated: (Number(existing.total_donated)||0)+total,
           phone: form.phone, address: form.address||null,
           birthday: form.birthday||null, anniversary: form.anniversary||null,
@@ -139,42 +109,27 @@ export default function CheckoutPage() {
         const { data: newDonor, error: donorErr } = await supabase.from('donors').insert({
           name: form.name, email: form.email, phone: form.phone,
           address: form.address||null, birthday: form.birthday||null, anniversary: form.anniversary||null,
-          total_trees: (tierId==='joint_500'||isComm) ? 0 : 1,
+          total_trees: (isJoint||isComm) ? 0 : 1,
           total_donated: total, city: 'Bangalore',
           is_gift: isGift,
           gift_from_name:  isGift ? form.name        : null,
           gift_from_email: isGift ? form.email       : null,
           gift_occasion:   isGift ? occ.label        : null,
           gift_message:    isGift ? form.giftMessage : null,
-          tier: tierTier,
+          tier: tier.tier,
         }).select('id').single()
         if (donorErr || !newDonor) throw new Error(donorErr?.message || 'Failed to create donor')
         donorId = newDonor.id
         isNewDonor = true
-        await fetch('/api/create-donor', {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ email:form.email, password:'123456', name:form.name, donorId }),
-        })
+        await fetch('/api/create-donor', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email:form.email, password:'123456', name:form.name, donorId }) })
       }
 
       let treeId = ''
 
       // ── COMMUNITY ──
       if (isComm) {
-        await supabase.from('donations').insert({
-          cert_id:certId, donor_id:donorId, payment_status:'PAID', mode,
-          tree_tier_id:tierId, tree_name:sel.tierName, amount:total,
-          donor_name:form.name, donor_email:form.email, donor_phone:form.phone,
-          payment_ref:`TEST-${certId}`, payment_method:'test',
-          occasion_id:isGift?occ.id:null, occasion_label:isGift?occ.label:null,
-          recipient_name:form.recipientName||null, recipient_email:form.recipientEmail||null,
-          gift_message:form.giftMessage||null,
-        })
-        await sendEmail('welcome', {
-          name:form.name, email:form.email, tree_id:certId,
-          species:'Community Forest', password:isNewDonor?'123456':null,
-          tier:tierTier, dashboard:sel.tierDashboard,
-        })
+        await supabase.from('donations').insert({ cert_id:certId, donor_id:donorId, payment_status:'PAID', mode, tree_tier_id:tier.id, tree_name:tier.name, amount:total, donor_name:form.name, donor_email:form.email, donor_phone:form.phone, payment_ref:`TEST-${certId}`, payment_method:'test', occasion_id:isGift?occ.id:null, occasion_label:isGift?occ.label:null, recipient_name:form.recipientName||null, recipient_email:form.recipientEmail||null, gift_message:form.giftMessage||null })
+        await sendEmail('welcome', { name:form.name, email:form.email, tree_id:certId, species:'Community Forest', password:isNewDonor?'123456':null, tier:tier.tier, dashboard:tier.dashboard })
 
       // ── JOINT ₹500 ──
       } else if (isJoint) {
@@ -211,57 +166,26 @@ export default function CheckoutPage() {
             await sendEmail('welcome', { name:form.name, email:form.email, tree_id:thisCertId, species:'Any native species', password:isNewDonor?'123456':null, tier:'500', dashboard:'/my-tree', waiting:true })
           }
         }
-        await supabase.from('donations').insert({
-          cert_id:certId, donor_id:donorId, payment_status:'PAID', mode,
-          tree_tier_id:tierId, tree_name:sel.tierName, amount:total,
-          donor_name:form.name, donor_email:form.email, donor_phone:form.phone,
-          payment_ref:`TEST-${certId}`, payment_method:'test',
-          occasion_id:isGift?occ.id:null, recipient_name:form.recipientName||null,
-          recipient_email:form.recipientEmail||null, gift_message:form.giftMessage||null,
-        })
+        await supabase.from('donations').insert({ cert_id:certId, donor_id:donorId, payment_status:'PAID', mode, tree_tier_id:tier.id, tree_name:tier.name, amount:total, donor_name:form.name, donor_email:form.email, donor_phone:form.phone, payment_ref:`TEST-${certId}`, payment_method:'test', occasion_id:isGift?occ.id:null, recipient_name:form.recipientName||null, recipient_email:form.recipientEmail||null, gift_message:form.giftMessage||null })
 
       // ── INDIVIDUAL ₹1000 ──
       } else if (isIndiv) {
         for (let qi = 0; qi < qty; qi++) {
           treeId = generateTreeId()
-          await supabase.from('trees').insert({ tree_id:treeId, donor_id:donorId, tree_type:sel.tierName, species:species||'Neem', status:'PENDING', planting_date:new Date().toISOString().split('T')[0] })
+          await supabase.from('trees').insert({ tree_id:treeId, donor_id:donorId, tree_type:tier.name, species:species||'Neem', status:'PENDING', planting_date:new Date().toISOString().split('T')[0] })
         }
-        await supabase.from('donations').insert({
-          cert_id:certId, donor_id:donorId, payment_status:'PAID', mode,
-          tree_tier_id:tierId, tree_name:sel.tierName, species:species||'Neem', amount:total,
-          donor_name:form.name, donor_email:form.email, donor_phone:form.phone,
-          payment_ref:`TEST-${certId}`, payment_method:'test',
-          occasion_id:isGift?occ.id:null, recipient_name:form.recipientName||null,
-          recipient_email:form.recipientEmail||null, gift_message:form.giftMessage||null,
-        })
+        await supabase.from('donations').insert({ cert_id:certId, donor_id:donorId, payment_status:'PAID', mode, tree_tier_id:tier.id, tree_name:tier.name, species:species||'Neem', amount:total, donor_name:form.name, donor_email:form.email, donor_phone:form.phone, payment_ref:`TEST-${certId}`, payment_method:'test', occasion_id:isGift?occ.id:null, recipient_name:form.recipientName||null, recipient_email:form.recipientEmail||null, gift_message:form.giftMessage||null })
         await sendEmail('welcome', { name:form.name, email:form.email, tree_id:treeId, species:species||'Neem', password:isNewDonor?'123456':null, tier:'1000', dashboard:'/my-tree' })
 
       // ── MIYAWAKI ₹5000 ──
       } else if (isMiya) {
         await supabase.from('miyawaki_donors').insert({ donor_id:donorId, amount:5000, is_gift:isGift, gift_from_name:isGift?form.name:null, gift_occasion:isGift?occ.label:null })
-        await supabase.from('donations').insert({
-          cert_id:certId, donor_id:donorId, payment_status:'PAID', mode,
-          tree_tier_id:tierId, tree_name:sel.tierName, amount:total,
-          donor_name:form.name, donor_email:form.email, donor_phone:form.phone,
-          payment_ref:`TEST-${certId}`, payment_method:'test',
-          occasion_id:isGift?occ.id:null, recipient_name:form.recipientName||null,
-          recipient_email:form.recipientEmail||null, gift_message:form.giftMessage||null,
-        })
+        await supabase.from('donations').insert({ cert_id:certId, donor_id:donorId, payment_status:'PAID', mode, tree_tier_id:tier.id, tree_name:tier.name, amount:total, donor_name:form.name, donor_email:form.email, donor_phone:form.phone, payment_ref:`TEST-${certId}`, payment_method:'test', occasion_id:isGift?occ.id:null, recipient_name:form.recipientName||null, recipient_email:form.recipientEmail||null, gift_message:form.giftMessage||null })
         await sendEmail('welcome', { name:form.name, email:form.email, tree_id:certId, species:'30+ native species (Miyawaki)', password:isNewDonor?'123456':null, tier:'5000', dashboard:'/miyawaki-dashboard' })
       }
 
-      // ── Success: save thank-you data + redirect (unchanged) ──
-      sessionStorage.setItem('ecotree_ty', JSON.stringify({
-        certId, name:form.name, email:form.email, phone:form.phone,
-        treeName: isGift ? `${sel.occIcon} ${sel.occLabel} Gift` : sel.tierName,
-        species: species || sel.tierName,
-        co2: sel.tierCo2 || '~22kg', amount: total,
-        mode, tierId, tierBadge: sel.tierBadge,
-        recipientName: form.recipientName, recipientEmail: form.recipientEmail,
-        occasion: occ.label, giftMessage: form.giftMessage,
-        treeId, donorId, dashboard: sel.tierDashboard,
-      }))
-      // Clear selection after successful payment
+      // ── Success — identical sessionStorage + redirect ──
+      sessionStorage.setItem('ecotree_ty', JSON.stringify({ certId, name:form.name, email:form.email, phone:form.phone, treeName:isGift?`${sel.occIcon} ${sel.occLabel} Gift`:sel.tierName, species:species||sel.tierName, co2:sel.tierCo2||'~22kg', amount:total, mode, tierId:sel.tierId, tierBadge:sel.tierBadge, recipientName:form.recipientName, recipientEmail:form.recipientEmail, occasion:occ.label, giftMessage:form.giftMessage, treeId, donorId, dashboard:sel.tierDashboard }))
       sessionStorage.removeItem('ecotree_selection')
       setLoading(false)
       window.location.href = '/thank-you'
@@ -273,7 +197,6 @@ export default function CheckoutPage() {
     }
   }
 
-  // ─── CTA LABEL ───
   const ctaLabel = () => {
     if (loading) return '⏳ Saving...'
     if (isGift)  return `🎁 Gift This Living Tree · ₹${total.toLocaleString('en-IN')}`
@@ -283,217 +206,287 @@ export default function CheckoutPage() {
     return `🌿 Join Community Forest · ₹${total.toLocaleString('en-IN')}`
   }
 
-  if (!ready || !sel) return (
-    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',fontFamily:'system-ui',color:'#4A6358'}}>
+  if (!ready||!sel) return (
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',fontFamily:'system-ui',color:'#4A6358',fontSize:'0.9rem'}}>
       Loading your order...
     </div>
   )
 
-  // ─── SHARED STYLES ───
-  const fieldStyle = (hasErr?: boolean) => ({
-    width:'100%', padding:'0.65rem 0.85rem',
-    border:`1.5px solid ${hasErr?'#dc2626':'#B7E4C7'}`,
-    borderRadius:'9px', fontSize:'0.92rem', color:'#0D1F17',
-    background:'#fff', outline:'none', fontFamily:'inherit',
-    boxSizing:'border-box' as const,
-    transition:'border-color 0.15s',
-  })
-  const labelStyle = { display:'block' as const, fontSize:'0.82rem', fontWeight:700, color:'#1B2E25', marginBottom:'0.28rem' }
-  const metaTag = { fontSize:'0.62rem', background:'#D8F3DC', color:'#1B4332', padding:'0.13rem 0.48rem', borderRadius:'999px', fontWeight:600 as const }
+  const accentBg = isGift ? '#4C1D95' : '#1B4332'
+  const ctaBg    = isGift ? 'linear-gradient(135deg,#9333ea,#7C3AED)' : 'linear-gradient(135deg,#2D6A4F,#1B4332)'
+  const ctaColor = isGift ? '#fff' : '#D4A63F'
+
+  const impactItems = isComm
+    ? [{icon:'🌳',val:'Forest',lbl:'Community'},{icon:'🌍',val:'~5kg',lbl:'CO₂/yr'},{icon:'📜',val:'Cert',lbl:'Instant'}]
+    : isJoint
+    ? [{icon:'🌍',val:'~11kg',lbl:'CO₂/yr'},{icon:'📍',val:'GPS',lbl:'Tracked'},{icon:'💧',val:'~500L',lbl:'Water/yr'}]
+    : isMiya
+    ? [{icon:'🌍',val:'~200kg',lbl:'CO₂/yr'},{icon:'🌿',val:'30+',lbl:'Species'},{icon:'⚡',val:'10×',lbl:'Faster'}]
+    : [{icon:'🌍',val:'~22kg',lbl:'CO₂/yr'},{icon:'💧',val:'~1,000L',lbl:'Water/yr'},{icon:'📍',val:'GPS',lbl:'3yr tracked'}]
 
   return (
-    <main style={{fontFamily:"var(--font-body,'Segoe UI',system-ui,sans-serif)",background:'#F4F7F4',color:'#0D1F17',minHeight:'100vh'}}>
+    <main className="co">
 
       {/* ── CHECKOUT HEADER ── */}
-      <div style={{background: isGift ? '#4C1D95' : '#1B4332', borderBottom:`2px solid ${isGift?'rgba(167,139,250,0.3)':'rgba(82,183,136,0.25)'}`, padding:'0.9rem 0'}}>
-        <div style={{maxWidth:'1100px',margin:'0 auto',padding:'0 1.5rem',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem'}}>
-          <div style={{display:'flex',alignItems:'center',gap:'0.75rem'}}>
-            <button onClick={()=>router.push('/donate')} style={{display:'flex',alignItems:'center',gap:'0.35rem',fontSize:'0.75rem',fontWeight:600,color:isGift?'rgba(221,214,254,0.75)':'rgba(255,255,255,0.55)',background:'none',border:'none',cursor:'pointer',fontFamily:'inherit',padding:0}}>
-              ← Edit selection
-            </button>
-            <span style={{color:'rgba(255,255,255,0.2)'}}>·</span>
-            <span style={{fontSize:'0.9rem',fontWeight:700,color:'#fff'}}>Complete Your {isGift?'Gift':'Donation'}</span>
-          </div>
-          {/* Progress indicator */}
-          <div style={{display:'flex',alignItems:'center',gap:'0.4rem',fontSize:'0.72rem',fontWeight:600}}>
-            <span style={{color:'rgba(255,255,255,0.4)'}}>① Select</span>
-            <span style={{color:'rgba(255,255,255,0.3)'}}>→</span>
-            <span style={{color:isGift?'#C4B5FD':'#74C69D',fontWeight:800}}>② Checkout</span>
-            <span style={{color:'rgba(255,255,255,0.3)'}}>→</span>
-            <span style={{color:'rgba(255,255,255,0.4)'}}>③ Done</span>
+      <div className="co-header" style={{background:accentBg}}>
+        <div className="co-c co-header-inner">
+          <button onClick={()=>router.push('/donate')} className="co-back">← Edit selection</button>
+          <div className="co-steps">
+            <span className="co-step co-step--done">① Select</span>
+            <span className="co-step-arrow">→</span>
+            <span className={`co-step co-step--active${isGift?' co-step--gift':''}`}>② Checkout</span>
+            <span className="co-step-arrow">→</span>
+            <span className="co-step">③ Done</span>
           </div>
         </div>
       </div>
 
-      {/* ── TWO COLUMN LAYOUT ── */}
-      <div style={{maxWidth:'1100px',margin:'0 auto',padding:'1.5rem 1.5rem 4rem',display:'grid',gridTemplateColumns:'1fr 400px',gap:'1.5rem',alignItems:'start'}}>
+      {/* ── TWO COLUMN ── */}
+      <div className="co-body">
+        <div className="co-c co-layout">
 
-        {/* ── LEFT: ORDER SUMMARY ── */}
-        <div>
+          {/* ── LEFT: ORDER SUMMARY ── */}
+          <div className="co-left">
 
-          {/* ORDER CARD */}
-          <div style={{background:'#fff',border:`1.5px solid ${isGift?'#E4D5FF':'#B7E4C7'}`,borderRadius:'16px',overflow:'hidden',marginBottom:'1rem'}}>
-
-            {/* Tier image — half height, emotional */}
-            <div style={{position:'relative',height:'200px'}}>
-              <img
-                src={isIndiv && sel.speciesImg ? sel.speciesImg : sel.tierImg}
-                alt={isIndiv ? sel.species : sel.tierName}
-                style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}
-              />
-              <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(11,31,23,0.85) 0%,transparent 50%)'}}/>
-              <div style={{position:'absolute',bottom:0,left:0,padding:'1rem 1.25rem'}}>
-                <span style={{display:'inline-block',fontSize:'0.55rem',fontWeight:800,color:'#fff',background:sel.badgeColor,padding:'0.13rem 0.5rem',borderRadius:'4px',letterSpacing:'0.07em',marginBottom:'0.35rem'}}>{sel.tierBadge}</span>
-                <div style={{fontSize:'1.3rem',fontWeight:900,color:'#fff',lineHeight:1}}>
-                  {isGift ? `${sel.occIcon} ${sel.occLabel} Gift` : isIndiv ? sel.species : sel.tierName}
+            {/* Hero image */}
+            <div className="co-order-card">
+              <div className="co-order-img">
+                <Img src={sel.tierImg} fallback={sel.tierFallback} alt={sel.tierName} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+                <div className="co-order-img-ov"/>
+                <div className="co-order-img-caption">
+                  <span className="co-order-badge" style={{background:sel.badgeColor}}>{sel.tierBadge}</span>
+                  <div className="co-order-name">
+                    {isGift ? `${sel.occIcon} ${sel.occLabel} Gift` : isIndiv&&sel.species ? sel.species : sel.tierName}
+                  </div>
+                  {isIndiv && sel.speciesTitle && <div className="co-order-subtitle">{sel.speciesTitle}</div>}
+                  {isGift && <div className="co-order-subtitle" style={{color:'#C4B5FD'}}>A living memory in someone's name</div>}
                 </div>
-                {isIndiv && sel.speciesTitle && (
-                  <div style={{fontSize:'0.78rem',color:'#74C69D',fontStyle:'italic',marginTop:'0.15rem'}}>{sel.speciesTitle}</div>
-                )}
-                {isGift && (
-                  <div style={{fontSize:'0.78rem',color:'#C4B5FD',fontStyle:'italic',marginTop:'0.15rem'}}>A living memory in someone's name</div>
-                )}
+                <button onClick={()=>router.push('/donate')} className="co-change-btn">✏️ Change</button>
               </div>
-              {/* Edit button on image */}
-              <button onClick={()=>router.push('/donate')} style={{position:'absolute',top:'0.75rem',right:'0.75rem',fontSize:'0.68rem',fontWeight:700,padding:'0.28rem 0.7rem',borderRadius:'999px',background:'rgba(255,255,255,0.18)',color:'#fff',border:'1px solid rgba(255,255,255,0.3)',cursor:'pointer',backdropFilter:'blur(4px)'}}>
-                ✏️ Change
+
+              {/* Impact band */}
+              <div className="co-impact-band">
+                {impactItems.map((m,i)=>(
+                  <div key={m.lbl} className="co-impact-item" style={{borderRight:i<2?'1px solid #E5E7EB':'none'}}>
+                    <span className="co-impact-icon">{m.icon}</span>
+                    <span className="co-impact-val" style={{color:isGift?'#6D28D9':'#1B4332'}}>{m.val}</span>
+                    <span className="co-impact-lbl">{m.lbl}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Meta + line item */}
+              <div className="co-order-footer">
+                <div className="co-order-meta">
+                  {(sel.tierWhat||[]).slice(0,4).map(w=>(
+                    <span key={w} className="co-meta-tag">{w}</span>
+                  ))}
+                </div>
+                <div className="co-order-line">
+                  <span>{isGift?`${sel.occLabel} Gift`:isIndiv&&sel.species?`${sel.species} × ${sel.qty}`:`${sel.tierName} × ${sel.qty}`}</span>
+                  <span className="co-order-line-price" style={{color:isGift?'#6D28D9':'#1B4332'}}>₹{total.toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Dashboard hint */}
+            <div className="co-hint">
+              📊 After planting, your dashboard at <strong>{sel.tierDashboard}</strong> shows real-time GPS, photos and growth updates for 3 years.
+            </div>
+
+            {/* GIFT RECIPIENT FIELDS — on left below order summary */}
+            {isGift && (
+              <div className="co-gift-panel">
+                <div className="co-gift-title">🎁 Gift recipient details</div>
+                <div className="co-field-row">
+                  <div className="co-field">
+                    <label className="co-label" style={{color:'#6D28D9'}}>Recipient name *</label>
+                    <input type="text" placeholder="Who is this gift for?" value={form.recipientName} onChange={e=>sf('recipientName',e.target.value)} className={`co-input${errors.recipientName?' co-input--err':''}`} style={{borderColor:errors.recipientName?'#dc2626':'#E4D5FF'}}/>
+                    <Err msg={errors.recipientName}/>
+                  </div>
+                  <div className="co-field">
+                    <label className="co-label" style={{color:'#6D28D9'}}>Recipient email *</label>
+                    <input type="email" placeholder="Their email for certificate" value={form.recipientEmail} onChange={e=>sf('recipientEmail',e.target.value)} className={`co-input${errors.recipientEmail?' co-input--err':''}`} style={{borderColor:errors.recipientEmail?'#dc2626':'#E4D5FF'}}/>
+                    <Err msg={errors.recipientEmail}/>
+                  </div>
+                </div>
+                <div className="co-field">
+                  <label className="co-label" style={{color:'#6D28D9'}}>Personal message <span style={{fontWeight:400,color:'#9CA3AF',fontSize:'0.74rem'}}>(optional)</span></label>
+                  <textarea rows={2} placeholder="A living memory in their name..." value={form.giftMessage} onChange={e=>sf('giftMessage',e.target.value)} className="co-input" style={{resize:'vertical',minHeight:'60px',borderColor:'#E4D5FF'}}/>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── RIGHT: FORM + PAYMENT ── */}
+          <div className="co-right" ref={formRef}>
+            <div className="co-form-card" style={{borderColor:isGift?'#E4D5FF':'#B7E4C7'}}>
+
+              <div className="co-form-section-label">Your Details</div>
+
+              {([
+                {k:'name',  l:'Full Name *',     p:'Your full name', t:'text'},
+                {k:'email', l:'Email Address *', p:'your@email.com', t:'email'},
+                {k:'phone', l:'Phone Number *',  p:'98860 94611',    t:'tel'},
+                {k:'address',l:'City / Address', p:'Bangalore',      t:'text'},
+              ] as {k:keyof typeof form;l:string;p:string;t:string}[]).map(f=>(
+                <div key={f.k} className="co-field">
+                  <label className="co-label">{f.l}</label>
+                  <input type={f.t} placeholder={f.p} value={form[f.k]} onChange={e=>sf(f.k,e.target.value)} className={`co-input${errors[f.k as keyof FormErrors]?' co-input--err':''}`}/>
+                  <Err msg={errors[f.k as keyof FormErrors]}/>
+                </div>
+              ))}
+
+              <div className="co-field-row">
+                {[{k:'birthday',l:'Birthday'},{k:'anniversary',l:'Anniversary'}].map(f=>(
+                  <div key={f.k} className="co-field">
+                    <label className="co-label">{f.l} <span style={{fontWeight:400,fontSize:'0.7rem',color:'#9CA3AF'}}>(optional)</span></label>
+                    <input type="date" value={form[f.k as keyof typeof form]} onChange={e=>sf(f.k,e.target.value)} className="co-input"/>
+                  </div>
+                ))}
+              </div>
+
+              <div className="co-pan-note" style={{borderLeftColor:isGift?'#7C3AED':'#52B788'}}>
+                🧾 PAN for 80G tax benefit — collected after payment for faster checkout
+              </div>
+
+              <div className="co-divider" style={{background:isGift?'#E4D5FF':'#B7E4C7'}}/>
+
+              {/* Payment summary */}
+              <div className="co-pay-summary">
+                <div className="co-pay-line">
+                  <span>{isGift?`${sel.occIcon} ${sel.occLabel} Gift`:isIndiv&&sel.species?`${sel.species} × ${sel.qty}`:`${sel.tierName} × ${sel.qty}`}</span>
+                  <span>₹{total.toLocaleString('en-IN')}</span>
+                </div>
+                <div className="co-pay-line co-pay-line--muted">
+                  <span>Plantation &amp; Care</span><span>₹0</span>
+                </div>
+                <div className="co-pay-total" style={{color:isGift?'#6D28D9':'#1B4332',borderTopColor:isGift?'#E4D5FF':'#B7E4C7'}}>
+                  <span>Total</span><span>₹{total.toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+
+              {/* CTA */}
+              <button onClick={handlePay} disabled={loading} className="co-cta-btn" style={{background:ctaBg,color:ctaColor,opacity:loading?0.7:1}}>
+                {loading
+                  ? <><span className="co-spin"/>Saving...</>
+                  : ctaLabel()
+                }
               </button>
-            </div>
 
-            {/* Impact band — 3 col */}
-            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:0,borderBottom:`1px solid ${isGift?'#E4D5FF':'#B7E4C7'}`}}>
-              {(TIER_IMPACT[sel.tierId]||TIER_IMPACT.individual_1000).map((m,i)=>(
-                <div key={m.lbl} style={{padding:'0.75rem 0.85rem',borderRight:i<2?`1px solid ${isGift?'#E4D5FF':'#B7E4C7'}`:'none',textAlign:'center' as const}}>
-                  <div style={{fontSize:'1rem',marginBottom:'0.18rem'}}>{m.icon}</div>
-                  <div style={{fontSize:'0.95rem',fontWeight:900,color:isGift?'#6D28D9':'#1B4332',lineHeight:1}}>{m.val}</div>
-                  <div style={{fontSize:'0.6rem',color:'#4A6358',marginTop:'0.12rem'}}>{m.lbl}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Meta tags + qty */}
-            <div style={{padding:'0.85rem 1.1rem'}}>
-              <div style={{display:'flex',flexWrap:'wrap' as const,gap:'0.28rem',marginBottom:'0.65rem'}}>
-                {(TIER_META[sel.tierId]||[]).map(m=><span key={m} style={metaTag}>{m}</span>)}
+              <div className="co-pay-methods">
+                <span>UPI</span><span>·</span><span>Card</span><span>·</span><span>Net Banking</span><span>·</span><span>Wallets</span>
               </div>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',fontSize:'0.85rem',color:'#2D3B36',fontWeight:600}}>
-                <span>{isGift ? `${sel.occLabel} · Gift` : `${sel.tierName} × ${sel.qty}`}</span>
-                <span style={{fontSize:'1.1rem',fontWeight:900,color:isGift?'#6D28D9':'#1B4332'}}>₹{total.toLocaleString('en-IN')}</span>
+              <div className="co-pay-trust">
+                <span>🔒 Secure · Razorpay</span><span>📜 Certificate instantly</span>
               </div>
             </div>
           </div>
-
-          {/* DASHBOARD HINT */}
-          <div style={{fontSize:'0.75rem',color:'#4A6358',background:'rgba(82,183,136,0.06)',border:'1px solid #B7E4C7',borderLeft:'3px solid #52B788',borderRadius:'8px',padding:'0.55rem 0.8rem',lineHeight:1.5,marginBottom:'1rem'}}>
-            📊 After planting, your dashboard at <strong>{sel.tierDashboard}</strong> shows real-time GPS, photos and growth updates for 3 years.
-          </div>
-
-          {/* GIFT MODE — recipient fields on LEFT below order summary */}
-          {isGift && (
-            <div style={{background:'#F7F0FF',border:'1.5px solid #E4D5FF',borderRadius:'14px',padding:'1.1rem 1.2rem'}}>
-              <div style={{fontSize:'0.75rem',fontWeight:800,color:'#7C3AED',textTransform:'uppercase' as const,letterSpacing:'0.1em',marginBottom:'0.85rem',display:'flex',alignItems:'center',gap:'0.4rem'}}>
-                🎁 Gift recipient details
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.65rem',marginBottom:'0.65rem'}}>
-                <div>
-                  <label style={{...labelStyle,color:'#6D28D9'}}>Recipient name *</label>
-                  <input type="text" placeholder="Who is this gift for?" value={form.recipientName} onChange={e=>sf('recipientName',e.target.value)} style={{...fieldStyle(!!errors.recipientName),borderColor:errors.recipientName?'#dc2626':'#E4D5FF'}}/>
-                  <Err msg={errors.recipientName}/>
-                </div>
-                <div>
-                  <label style={{...labelStyle,color:'#6D28D9'}}>Recipient email *</label>
-                  <input type="email" placeholder="Their email for certificate" value={form.recipientEmail} onChange={e=>sf('recipientEmail',e.target.value)} style={{...fieldStyle(!!errors.recipientEmail),borderColor:errors.recipientEmail?'#dc2626':'#E4D5FF'}}/>
-                  <Err msg={errors.recipientEmail}/>
-                </div>
-              </div>
-              <div>
-                <label style={{...labelStyle,color:'#6D28D9'}}>Personal message <span style={{fontWeight:400,fontSize:'0.74rem',color:'#9CA3AF'}}>(optional)</span></label>
-                <textarea rows={2} placeholder="A living memory in their name..." value={form.giftMessage} onChange={e=>sf('giftMessage',e.target.value)} style={{...fieldStyle(),borderColor:'#E4D5FF',resize:'vertical' as const,minHeight:'60px'}}/>
-              </div>
-            </div>
-          )}
 
         </div>
+      </div>
 
-        {/* ── RIGHT: DONOR FORM + PAYMENT ── */}
-        <div ref={formRef}>
-          <div style={{background:'#fff',border:`1.5px solid ${isGift?'#E4D5FF':'#B7E4C7'}`,borderRadius:'16px',padding:'1.35rem',position:'sticky',top:'20px',boxShadow:'0 4px 24px rgba(27,67,50,0.07)'}}>
-
-            <div style={{fontSize:'0.62rem',fontWeight:700,textTransform:'uppercase' as const,letterSpacing:'0.11em',color:'#4A6358',marginBottom:'0.75rem'}}>Your Details</div>
-
-            {/* FORM FIELDS */}
-            {([
-              {k:'name',  l:'Full Name *',      p:'Your full name',  t:'text'},
-              {k:'email', l:'Email Address *',  p:'your@email.com',  t:'email'},
-              {k:'phone', l:'Phone Number *',   p:'98860 94611',     t:'tel'},
-              {k:'address',l:'City / Address',  p:'Bangalore',       t:'text'},
-            ] as {k:keyof typeof form,l:string,p:string,t:string}[]).map(f=>(
-              <div key={f.k} style={{marginBottom:'0.55rem'}}>
-                <label style={labelStyle}>{f.l}</label>
-                <input type={f.t} placeholder={f.p} value={form[f.k]} onChange={e=>sf(f.k,e.target.value)} style={fieldStyle(!!errors[f.k as keyof FormErrors])}/>
-                <Err msg={errors[f.k as keyof FormErrors]}/>
-              </div>
-            ))}
-
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.55rem',marginBottom:'0.65rem'}}>
-              {[{k:'birthday',l:'Birthday'},{k:'anniversary',l:'Anniversary'}].map(f=>(
-                <div key={f.k}>
-                  <label style={labelStyle}>{f.l} <span style={{fontWeight:400,fontSize:'0.72rem',color:'#9CA3AF'}}>(optional)</span></label>
-                  <input type="date" value={form[f.k as keyof typeof form]} onChange={e=>sf(f.k,e.target.value)} style={fieldStyle()}/>
-                </div>
-              ))}
-            </div>
-
-            {/* PAN */}
-            <div style={{fontSize:'0.73rem',color:'#4A6358',background:'#F4F7F4',padding:'0.45rem 0.7rem',borderRadius:'7px',borderLeft:`2.5px solid ${isGift?'#7C3AED':'#52B788'}`,marginBottom:'0.85rem',lineHeight:1.45}}>
-              🧾 PAN for 80G tax benefit — collected after payment for faster checkout
-            </div>
-
-            <div style={{height:'1px',background:isGift?'#E4D5FF':'#B7E4C7',margin:'0.85rem 0'}}/>
-
-            {/* PAYMENT SUMMARY */}
-            <div style={{background:'#F4F7F4',borderRadius:'9px',padding:'0.8rem 0.95rem',marginBottom:'0.85rem'}}>
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.82rem',color:'#2D3B36',marginBottom:'0.28rem',fontWeight:600}}>
-                <span>{isGift ? `${sel.occIcon} ${sel.occLabel} Gift` : isIndiv ? `${sel.species||sel.tierName} × ${sel.qty}` : `${sel.tierName} × ${sel.qty}`}</span>
-                <span>₹{total.toLocaleString('en-IN')}</span>
-              </div>
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.76rem',color:'#4A6358',marginBottom:'0.28rem'}}>
-                <span>Plantation &amp; Care</span><span>₹0</span>
-              </div>
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.98rem',fontWeight:900,color:isGift?'#6D28D9':'#1B4332',borderTop:`1px solid ${isGift?'#E4D5FF':'#B7E4C7'}`,paddingTop:'0.5rem',marginTop:'0.28rem'}}>
-                <span>Total</span><span>₹{total.toLocaleString('en-IN')}</span>
-              </div>
-            </div>
-
-            {/* MAIN CTA */}
-            <button
-              onClick={handlePay}
-              disabled={loading}
-              style={{width:'100%',padding:'0.95rem',background:ctaBg,color:isGift?'#fff':'#D4A63F',border:'none',borderRadius:'12px',fontSize:'0.96rem',fontWeight:800,cursor:loading?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'0.5rem',fontFamily:'inherit',boxShadow:isGift?'0 4px 20px rgba(124,58,237,0.3)':'0 4px 20px rgba(27,67,50,0.3)',marginBottom:'0.6rem',opacity:loading?0.7:1,transition:'all 0.2s'}}
-            >
-              {loading
-                ? <><span style={{display:'inline-block',width:'13px',height:'13px',border:'2px solid rgba(255,255,255,0.3)',borderTopColor:'#fff',borderRadius:'50%',animation:'spin 0.6s linear infinite'}}/> Saving...</>
-                : ctaLabel()
-              }
-            </button>
-
-            <div style={{textAlign:'center' as const,fontSize:'0.68rem',color:'#4A6358',marginBottom:'0.3rem',display:'flex',justifyContent:'center',gap:'0.3rem'}}>
-              <span>UPI</span><span>·</span><span>Card</span><span>·</span><span>Net Banking</span><span>·</span><span>Wallets</span>
-            </div>
-            <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.68rem',color:'#4A6358'}}>
-              <span>🔒 Secure · Razorpay</span>
-              <span>📜 Certificate instantly</span>
-            </div>
-
-          </div>
+      {/* ── MOBILE STICKY CTA ── */}
+      <div className="co-mob-cta" style={{background:accentBg,borderTopColor:isGift?'#7C3AED':'#D4A63F'}}>
+        <div className="co-mob-cta-left">
+          <div className="co-mob-cta-name">{isGift?`${sel.occLabel} Gift`:isIndiv&&sel.species?sel.species:sel.tierName}</div>
+          <div className="co-mob-cta-price">₹{total.toLocaleString('en-IN')}</div>
         </div>
-
+        <button onClick={handlePay} disabled={loading} className="co-mob-cta-btn" style={{background:isGift?'#7C3AED':'#D4A63F',color:isGift?'#fff':'#1B4332'}}>
+          {loading?'Saving...':isGift?'🎁 Gift →':isIndiv?'🌱 Adopt →':isJoint?'🤝 Join →':isMiya?'🏙️ Create →':'🌿 Join →'}
+        </button>
       </div>
 
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @media (max-width: 860px) {
-          .checkout-grid { grid-template-columns: 1fr !important; }
+        *{box-sizing:border-box;}
+        .co{font-family:var(--font-body,'Segoe UI',system-ui,sans-serif);color:#0D1F17;background:#F4F7F4;min-height:100vh;}
+        .co-c{max-width:1100px;margin:0 auto;padding:0 1.25rem;}
+
+        /* HEADER */
+        .co-header{padding:0.85rem 0;border-bottom:1px solid rgba(255,255,255,0.1);}
+        .co-header-inner{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
+        .co-back{display:flex;align-items:center;gap:0.3rem;font-size:0.75rem;font-weight:600;color:rgba(255,255,255,0.6);background:none;border:none;cursor:pointer;font-family:inherit;padding:0;transition:color 0.15s;}
+        .co-back:hover{color:#fff;}
+        .co-steps{display:flex;align-items:center;gap:0.4rem;font-size:0.72rem;font-weight:600;}
+        .co-step{color:rgba(255,255,255,0.35);}
+        .co-step--active{color:#74C69D;font-weight:800;}
+        .co-step--gift.co-step--active{color:#C4B5FD;}
+        .co-step--done{color:rgba(255,255,255,0.4);}
+        .co-step-arrow{color:rgba(255,255,255,0.2);}
+
+        /* BODY */
+        .co-body{padding:1.5rem 0 4rem;}
+        .co-layout{display:grid;grid-template-columns:1fr 380px;gap:1.5rem;align-items:start;}
+
+        /* ORDER CARD */
+        .co-order-card{background:#fff;border:1px solid #B7E4C7;border-radius:16px;overflow:hidden;margin-bottom:0.85rem;box-shadow:0 2px 16px rgba(27,67,50,0.07);}
+        .co-order-img{position:relative;height:200px;}
+        .co-order-img-ov{position:absolute;inset:0;background:linear-gradient(to top,rgba(11,31,23,0.88) 0%,transparent 52%);}
+        .co-order-img-caption{position:absolute;bottom:0;left:0;padding:1rem 1.2rem;}
+        .co-order-badge{display:inline-block;font-size:0.55rem;font-weight:800;color:#fff;padding:0.12rem 0.48rem;border-radius:4px;letter-spacing:0.07em;margin-bottom:0.35rem;}
+        .co-order-name{font-size:1.3rem;font-weight:900;color:#fff;line-height:1;}
+        .co-order-subtitle{font-size:0.74rem;font-style:italic;margin-top:0.15rem;}
+        .co-change-btn{position:absolute;top:0.75rem;right:0.75rem;font-size:0.65rem;font-weight:700;padding:0.25rem 0.65rem;border-radius:999px;background:rgba(255,255,255,0.18);color:#fff;border:1px solid rgba(255,255,255,0.28);cursor:pointer;backdrop-filter:blur(4px);font-family:inherit;}
+        .co-impact-band{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid #E5E7EB;}
+        .co-impact-item{padding:0.7rem 0.85rem;text-align:center;display:flex;flex-direction:column;gap:0.12rem;}
+        .co-impact-icon{font-size:0.95rem;}
+        .co-impact-val{font-size:0.95rem;font-weight:900;line-height:1;}
+        .co-impact-lbl{font-size:0.58rem;color:#6B7280;}
+        .co-order-footer{padding:0.85rem 1.1rem;}
+        .co-order-meta{display:flex;flex-wrap:wrap;gap:0.25rem;margin-bottom:0.6rem;}
+        .co-meta-tag{font-size:0.6rem;background:#D8F3DC;color:#1B4332;padding:0.13rem 0.45rem;border-radius:999px;font-weight:600;}
+        .co-order-line{display:flex;justify-content:space-between;align-items:center;font-size:0.85rem;font-weight:600;color:#2D3B36;}
+        .co-order-line-price{font-size:1.05rem;font-weight:900;}
+
+        /* HINT */
+        .co-hint{font-size:0.74rem;color:#5C7268;background:rgba(82,183,136,0.06);border:1px solid #B7E4C7;border-left:3px solid #52B788;border-radius:8px;padding:0.55rem 0.8rem;line-height:1.5;margin-bottom:0.85rem;}
+
+        /* GIFT PANEL */
+        .co-gift-panel{background:#F7F0FF;border:1.5px solid #E4D5FF;border-radius:14px;padding:1.1rem 1.2rem;}
+        .co-gift-title{font-size:0.75rem;font-weight:800;color:#7C3AED;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.85rem;}
+
+        /* FORM CARD */
+        .co-form-card{background:#fff;border:1.5px solid #B7E4C7;border-radius:16px;padding:1.35rem;position:sticky;top:20px;box-shadow:0 4px 24px rgba(27,67,50,0.07);}
+        .co-form-section-label{font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.11em;color:#5C7268;margin-bottom:0.75rem;}
+        .co-field{display:flex;flex-direction:column;gap:0.28rem;margin-bottom:0.55rem;}
+        .co-label{font-size:0.82rem;font-weight:700;color:#1B2E25;}
+        .co-input{width:100%;padding:0.65rem 0.85rem;border:1.5px solid #B7E4C7;border-radius:9px;font-size:0.92rem;color:#0D1F17;background:#fff;outline:none;font-family:inherit;transition:border-color 0.15s,box-shadow 0.15s;}
+        .co-input:focus{border-color:#52B788;box-shadow:0 0 0 3px rgba(82,183,136,0.1);}
+        .co-input--err{border-color:#dc2626 !important;}
+        .co-input::placeholder{color:#AABFB4;font-size:0.85rem;}
+        .co-field-row{display:grid;grid-template-columns:1fr 1fr;gap:0.55rem;}
+        .co-err{font-size:0.72rem;color:#dc2626;display:flex;align-items:center;gap:4px;margin-top:2px;}
+        .co-pan-note{font-size:0.72rem;color:#5C7268;background:#F4F7F4;padding:0.45rem 0.7rem;border-radius:7px;border-left:2.5px solid #52B788;margin-bottom:0.85rem;line-height:1.45;}
+        .co-divider{height:1px;margin:0.85rem 0;}
+        .co-pay-summary{background:#F4F7F4;border-radius:9px;padding:0.8rem 0.95rem;margin-bottom:0.85rem;}
+        .co-pay-line{display:flex;justify-content:space-between;font-size:0.82rem;color:#2D3B36;margin-bottom:0.28rem;font-weight:600;}
+        .co-pay-line--muted{color:#6B7280;font-weight:400;}
+        .co-pay-total{display:flex;justify-content:space-between;font-size:0.98rem;font-weight:900;border-top:1px solid;padding-top:0.5rem;margin-top:0.28rem;}
+        .co-cta-btn{width:100%;padding:0.95rem;border:none;border-radius:12px;font-size:0.96rem;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;font-family:inherit;margin-bottom:0.6rem;transition:all 0.18s;box-shadow:0 4px 18px rgba(27,67,50,0.25);}
+        .co-cta-btn:hover:not(:disabled){filter:brightness(1.08);transform:translateY(-1px);}
+        .co-cta-btn:disabled{cursor:not-allowed;}
+        .co-spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,0.3);border-top-color:currentColor;border-radius:50%;animation:cospin 0.6s linear infinite;}
+        @keyframes cospin{to{transform:rotate(360deg);}}
+        .co-pay-methods{text-align:center;font-size:0.68rem;color:#6B7280;margin-bottom:0.3rem;display:flex;justify-content:center;gap:0.3rem;}
+        .co-pay-trust{display:flex;justify-content:space-between;font-size:0.68rem;color:#6B7280;}
+
+        /* MOBILE STICKY */
+        .co-mob-cta{display:none;position:fixed;bottom:0;left:0;right:0;padding:10px 16px;z-index:200;align-items:center;justify-content:space-between;gap:12px;border-top:2px solid;box-shadow:0 -4px 20px rgba(0,0,0,0.15);}
+        .co-mob-cta-left{}
+        .co-mob-cta-name{font-size:0.7rem;color:rgba(255,255,255,0.6);font-weight:600;}
+        .co-mob-cta-price{font-size:1.1rem;font-weight:900;line-height:1.2;}
+        .co-mob-cta-btn{padding:0.62rem 1rem;border:none;border-radius:9px;font-size:0.8rem;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;}
+
+        /* RESPONSIVE */
+        @media(max-width:860px){
+          .co-layout{grid-template-columns:1fr;}
+          .co-form-card{position:static;}
+          .co-mob-cta{display:flex;}
+          .co-body{padding-bottom:80px;}
+        }
+        @media(max-width:540px){
+          .co-field-row{grid-template-columns:1fr;}
+          .co-steps{display:none;}
         }
       `}</style>
     </main>
