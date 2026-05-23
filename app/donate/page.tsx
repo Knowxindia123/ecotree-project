@@ -230,112 +230,118 @@ export default function DonatePage() {
           {mode === 'plant' ? (
             <div className="dp-detail" ref={detailRef}>
 
-              {/* ══ ₹1,000 INDIVIDUAL ══ */}
+              {/* ══ ₹1,000 INDIVIDUAL — Amazon style ══ */}
               {isIndiv && (
-                <div>
-                  {/* STEP 1 — SPECIES SLIDER: full width, 3 square cards */}
-                  <div className="dp-card dp-sp-carousel">
-                    <div className="dp-sp-carousel-hdr">
-                      <div>
-                        <div className="dp-card-eyebrow">
-                          Choose your tree species
-                          {spErr && <span className="dp-err-inline"> ⚠️ Please select a species</span>}
-                        </div>
-                        <div className="dp-card-sub">3 of {SPECIES_DATA.length} species shown · slide to explore all</div>
+                <div className="dp-amazon-layout">
+
+                  {/* LEFT: compact image + thumbnail strip below */}
+                  <div className="dp-amazon-left">
+
+                    {/* MAIN IMAGE — 4:3 compact */}
+                    <div className="dp-amazon-img">
+                      <Img
+                        src={selSp.img} fallback={selSp.fallback} alt={selSp.name}
+                        style={{width:'100%',height:'100%',objectFit:'cover',display:'block',transition:'opacity 0.3s ease'}}
+                      />
+                      <div className="dp-amazon-img-ov"/>
+                      <div className="dp-amazon-img-caption">
+                        <div className="dp-amazon-img-eyebrow">Your Selected Tree</div>
+                        <div className="dp-amazon-img-name">{selSp.name}</div>
+                        <div className="dp-amazon-img-title">{selSp.title}</div>
                       </div>
-                      <div className="dp-nav-btns">
-                        <button className="dp-nav-btn" onClick={()=>setCarIdx(i=>Math.max(0,i-1))} disabled={carIdx===0}>‹</button>
-                        <button className="dp-nav-btn" onClick={()=>setCarIdx(i=>Math.min(SPECIES_DATA.length-3,i+1))} disabled={carIdx>=SPECIES_DATA.length-3}>›</button>
-                      </div>
+                      {spErr && (
+                        <div className="dp-amazon-img-err">⚠️ Please select a species below</div>
+                      )}
                     </div>
-                    <div className="dp-sp-track-wrap">
-                      <div className="dp-sp-track3" style={{transform:`translateX(calc(-${carIdx*(100/3)}% - ${carIdx*10/3}px))`}}>
-                        {SPECIES_DATA.map((sp,i)=>(
-                          <button key={sp.name} onClick={()=>pickSp(i)} className={`dp-sp3-card${spIdx===i?' dp-sp3-card--on':''}`}>
-                            <div className="dp-sp3-img">
-                              <Img src={sp.img} fallback={sp.fallback} alt={sp.name} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
-                              {spIdx===i && <div className="dp-sp3-check">✓</div>}
-                            </div>
-                            <div className="dp-sp3-name">{sp.name}</div>
-                          </button>
+
+                    {/* THUMBNAIL STRIP — below main image */}
+                    <div className="dp-thumb-strip">
+                      <div className="dp-thumb-hdr">
+                        <span className="dp-thumb-label">
+                          Choose species
+                          {species && <span className="dp-thumb-selected"> · {species}</span>}
+                        </span>
+                        <div className="dp-nav-btns">
+                          <button className="dp-nav-btn" onClick={()=>setCarIdx(i=>Math.max(0,i-1))} disabled={carIdx===0}>‹</button>
+                          <button className="dp-nav-btn" onClick={()=>setCarIdx(i=>Math.min(SPECIES_DATA.length-4,i+1))} disabled={carIdx>=SPECIES_DATA.length-4}>›</button>
+                        </div>
+                      </div>
+                      <div className="dp-thumb-track-wrap">
+                        <div className="dp-thumb-track" style={{transform:`translateX(calc(-${carIdx*25}% - ${carIdx*6/4}px))`}}>
+                          {SPECIES_DATA.map((sp,i)=>(
+                            <button key={sp.name} onClick={()=>pickSp(i)} className={`dp-thumb${spIdx===i?' dp-thumb--on':''}`}>
+                              <div className="dp-thumb-img">
+                                <Img src={sp.img} fallback={sp.fallback} alt={sp.name} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+                                {spIdx===i && <div className="dp-thumb-chk">✓</div>}
+                              </div>
+                              <div className="dp-thumb-name">{sp.name}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Dots */}
+                      <div className="dp-sp-dots" style={{marginTop:'0.5rem'}}>
+                        {Array.from({length:SPECIES_DATA.length-4+1}).map((_,i)=>(
+                          <button key={i} onClick={()=>setCarIdx(i)} className={`dp-dot-btn${i===carIdx?' dp-dot-btn--on':''}`}/>
                         ))}
                       </div>
                     </div>
-                    <div className="dp-sp-dots">
-                      {Array.from({length:SPECIES_DATA.length-3+1}).map((_,i)=>(
-                        <button key={i} onClick={()=>setCarIdx(i)} className={`dp-dot-btn${i===carIdx?' dp-dot-btn--on':''}`}/>
+
+                    {/* IMPACT BAND below thumbnails */}
+                    <div className="dp-impact-band" style={{marginTop:'0.65rem'}}>
+                      {[{icon:'🌍',val:'~22kg',lbl:'CO₂/year'},{icon:'💧',val:'~1,000L',lbl:'Water/year'},{icon:'📍',val:'GPS',lbl:'3yr tracked'}].map(m=>(
+                        <div key={m.lbl} className="dp-impact-item">
+                          <span className="dp-impact-icon">{m.icon}</span>
+                          <span className="dp-impact-val">{m.val}</span>
+                          <span className="dp-impact-lbl">{m.lbl}</span>
+                        </div>
                       ))}
                     </div>
                   </div>
 
-                  {/* STEP 2 — IMAGE LEFT + STORY RIGHT */}
-                  <div className="dp-indiv-main">
-                    {/* LEFT — square selected tree image */}
-                    <div className="dp-indiv-img-col">
-                      <div className="dp-indiv-img">
-                        <Img src={selSp.img} fallback={selSp.fallback} alt={selSp.name} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
-                        <div className="dp-indiv-img-ov"/>
-                        <div className="dp-indiv-img-caption">
-                          <div className="dp-indiv-img-eyebrow">Your Tree</div>
-                          <div className="dp-indiv-img-name">{selSp.name}</div>
-                          <div className="dp-indiv-img-title">{selSp.title}</div>
-                        </div>
-                      </div>
-                      {/* Impact band below image */}
-                      <div className="dp-impact-band" style={{marginTop:'0.65rem'}}>
-                        {[{icon:'🌍',val:'~22kg',lbl:'CO₂/year'},{icon:'💧',val:'~1,000L',lbl:'Water/year'},{icon:'📍',val:'GPS',lbl:'3yr tracked'}].map(m=>(
-                          <div key={m.lbl} className="dp-impact-item">
-                            <span className="dp-impact-icon">{m.icon}</span>
-                            <span className="dp-impact-val">{m.val}</span>
-                            <span className="dp-impact-lbl">{m.lbl}</span>
-                          </div>
+                  {/* RIGHT: story + benefits + qty + CTA — always fully visible */}
+                  <div className="dp-amazon-right">
+                    <div className="dp-card dp-story-card" style={{marginBottom:'0.85rem'}}>
+                      <span className="dp-badge" style={{background:'#1B4332',color:'#D4A63F'}}>INDIVIDUAL TREE · ₹1,000</span>
+                      <h2 className="dp-story-name">{selSp.name}</h2>
+                      <div className="dp-story-title">{selSp.title}</div>
+                      <p className="dp-story-text">{selSp.story}</p>
+                      <div className="dp-story-benefits-label">Why this tree</div>
+                      {selSp.benefits.map(b=>(
+                        <div key={b} className="dp-benefit"><span className="dp-benefit-chk">✓</span>{b}</div>
+                      ))}
+                      <div className="dp-meta-tags">
+                        {['📍 GPS tracked','🌱 Native species','🛡 3-year care','📱 Personal dashboard','🧾 80G receipt','🤖 AI-verified','📜 Certificate'].map(m=>(
+                          <span key={m} className="dp-meta-tag">{m}</span>
                         ))}
                       </div>
                     </div>
 
-                    {/* RIGHT — story + benefits + qty + CTA */}
-                    <div className="dp-indiv-story-col">
-                      <div className="dp-card dp-story-card" style={{marginBottom:'0.85rem'}}>
-                        <span className="dp-badge" style={{background:'#1B4332',color:'#D4A63F'}}>INDIVIDUAL TREE · ₹1,000</span>
-                        <h2 className="dp-story-name">{selSp.name}</h2>
-                        <div className="dp-story-title">{selSp.title}</div>
-                        <p className="dp-story-text">{selSp.story}</p>
-                        <div className="dp-story-benefits-label">Why this tree</div>
-                        {selSp.benefits.map(b=>(
-                          <div key={b} className="dp-benefit"><span className="dp-benefit-chk">✓</span>{b}</div>
-                        ))}
-                        <div className="dp-meta-tags">
-                          {['📍 GPS tracked','🌱 Native species','🛡 3-year care','📱 Personal dashboard','🧾 80G receipt','🤖 AI-verified','📜 Certificate'].map(m=>(
-                            <span key={m} className="dp-meta-tag">{m}</span>
-                          ))}
+                    {/* Qty */}
+                    <div className="dp-card dp-qty-card" style={{marginBottom:'0.85rem'}}>
+                      <div className="dp-qty-row">
+                        <div>
+                          <div className="dp-qty-label">Number of trees</div>
+                          <div className="dp-qty-sub">Each gets unique GPS tracking</div>
+                        </div>
+                        <div className="dp-qty-ctrl">
+                          <button className="dp-qty-btn" onClick={()=>setQty(q=>Math.max(1,q-1))}>−</button>
+                          <span className="dp-qty-num">{qty}</span>
+                          <button className="dp-qty-btn" onClick={()=>setQty(q=>Math.min(100,q+1))}>+</button>
                         </div>
                       </div>
-
-                      {/* Qty */}
-                      <div className="dp-card dp-qty-card" style={{marginBottom:'0.85rem'}}>
-                        <div className="dp-qty-row">
-                          <div>
-                            <div className="dp-qty-label">Number of trees</div>
-                            <div className="dp-qty-sub">Each gets unique GPS tracking</div>
-                          </div>
-                          <div className="dp-qty-ctrl">
-                            <button className="dp-qty-btn" onClick={()=>setQty(q=>Math.max(1,q-1))}>−</button>
-                            <span className="dp-qty-num">{qty}</span>
-                            <button className="dp-qty-btn" onClick={()=>setQty(q=>Math.min(100,q+1))}>+</button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="dp-cta-row">
-                        <div className="dp-cta-price">
-                          <div className="dp-cta-price-lbl">Total</div>
-                          <div className="dp-cta-price-val">₹{total.toLocaleString('en-IN')}</div>
-                        </div>
-                        <button onClick={handleContinue} className="dp-cta-btn">{ctaLabel()}</button>
-                      </div>
-                      <div className="dp-cta-hint">Next: Add your details &amp; complete payment</div>
                     </div>
+
+                    <div className="dp-cta-row">
+                      <div className="dp-cta-price">
+                        <div className="dp-cta-price-lbl">Total</div>
+                        <div className="dp-cta-price-val">₹{total.toLocaleString('en-IN')}</div>
+                      </div>
+                      <button onClick={handleContinue} className="dp-cta-btn">{ctaLabel()}</button>
+                    </div>
+                    <div className="dp-cta-hint">Next: Add your details &amp; complete payment</div>
                   </div>
+
                 </div>
               )}
 
@@ -621,6 +627,54 @@ export default function DonatePage() {
         /* ── MAIN ── */
         .dp-main{padding:1.5rem 0 5rem;}
 
+        /* ── ₹1,000 AMAZON LAYOUT ── */
+        .dp-amazon-layout{display:grid;grid-template-columns:420px 1fr;gap:1.75rem;align-items:start;}
+        .dp-amazon-left{}
+        .dp-amazon-right{}
+
+        /* Main image — compact 4:3 */
+        .dp-amazon-img{
+          border-radius:var(--r);overflow:hidden;
+          position:relative;
+          aspect-ratio:4/3;
+          box-shadow:0 4px 20px rgba(27,67,50,0.12);
+          background:#f0ede8;
+        }
+        .dp-amazon-img-ov{position:absolute;inset:0;background:linear-gradient(to top,rgba(11,31,23,0.82) 0%,transparent 50%);}
+        .dp-amazon-img-caption{position:absolute;bottom:0;left:0;padding:1rem 1.15rem;}
+        .dp-amazon-img-eyebrow{font-size:0.58rem;font-weight:800;color:rgba(255,255,255,0.6);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.2rem;}
+        .dp-amazon-img-name{font-size:1.5rem;font-weight:900;color:#fff;line-height:1;}
+        .dp-amazon-img-title{font-size:0.78rem;color:#74C69D;font-style:italic;margin-top:0.18rem;}
+        .dp-amazon-img-err{position:absolute;top:0.75rem;left:0.75rem;background:#ef4444;color:#fff;font-size:0.72rem;font-weight:700;padding:0.28rem 0.7rem;border-radius:999px;}
+
+        /* Thumbnail strip */
+        .dp-thumb-strip{background:#fff;border:1px solid var(--md);border-radius:12px;padding:0.85rem 1rem;margin-top:0.75rem;box-shadow:var(--shadow);}
+        .dp-thumb-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.65rem;}
+        .dp-thumb-label{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--tb);}
+        .dp-thumb-selected{color:var(--ga);font-weight:800;text-transform:none;letter-spacing:0;}
+        .dp-thumb-track-wrap{overflow:hidden;}
+        .dp-thumb-track{display:flex;gap:6px;transition:transform 0.32s cubic-bezier(0.4,0,0.2,1);}
+        .dp-thumb{
+          flex:0 0 calc(25% - 4.5px);
+          border:2px solid #E2E8E4;
+          border-radius:10px;
+          overflow:hidden;
+          cursor:pointer;
+          padding:0;
+          font-family:inherit;
+          background:#fff;
+          transition:all 0.2s ease;
+          box-shadow:0 1px 3px rgba(27,67,50,0.06);
+        }
+        .dp-thumb:hover{border-color:#52B788;transform:translateY(-2px);box-shadow:0 4px 10px rgba(27,67,50,0.1);}
+        .dp-thumb--on{border-color:#D4A63F;border-width:2.5px;box-shadow:0 4px 12px rgba(212,166,63,0.2);transform:translateY(-2px);background:#FFFDF6;}
+        .dp-thumb-img{width:100%;aspect-ratio:1/1;overflow:hidden;position:relative;background:#f5f5f0;}
+        .dp-thumb-img img{transition:transform 0.3s ease;}
+        .dp-thumb:hover .dp-thumb-img img{transform:scale(1.08);}
+        .dp-thumb-chk{position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;background:#D4A63F;display:flex;align-items:center;justify-content:center;font-size:10px;color:#1B4332;font-weight:900;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.2);}
+        .dp-thumb-name{font-size:0.7rem;font-weight:700;color:var(--tb);padding:0.35rem 0.4rem 0.4rem;text-align:center;line-height:1.2;border-top:1px solid #F0F4F1;background:#fff;}
+        .dp-thumb--on .dp-thumb-name{background:#FFFDF6;color:#1B4332;border-top-color:#F0E8C0;}
+
         /* ── ₹1,000 NEW LAYOUT ── */
         .dp-indiv-main{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;align-items:start;margin-top:0;}
         .dp-indiv-img-col{}
@@ -866,6 +920,8 @@ export default function DonatePage() {
         /* ── RESPONSIVE ── */
         @media(max-width:860px){
           .dp-layout{grid-template-columns:1fr;}
+          .dp-amazon-layout{grid-template-columns:1fr;}
+          .dp-amazon-img{aspect-ratio:16/9;}
           .dp-indiv-main{grid-template-columns:1fr;}
           .dp-indiv-img{aspect-ratio:16/9;}
           .dp-trust-strip-inner{grid-template-columns:repeat(2,1fr);}
@@ -879,6 +935,7 @@ export default function DonatePage() {
           .dp-trust-signals .dp-dot:nth-child(n+6){display:none;}
           .dp-trust-signals span:nth-child(n+7){display:none;}
           .dp-sp-card{flex:0 0 calc(50% - 4px);}
+          .dp-thumb{flex:0 0 calc(33.333% - 4px);}
           .dp-sp3-card{flex:0 0 calc(50% - 5px);}
           .dp-sp3-img{height:75px;}
           .dp-occ-grid{grid-template-columns:repeat(2,1fr);}
