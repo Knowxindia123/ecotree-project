@@ -345,27 +345,33 @@ export default function DonatePage() {
                 </div>
               )}
 
-              {/* ══ COMMUNITY / JOINT / MIYAWAKI ══ */}
+              {/* ══ COMMUNITY / JOINT / MIYAWAKI — Amazon style ══ */}
               {(isComm||isJoint||isMiya) && (
-                <div className="dp-layout" ref={detailRef}>
-                  {/* LEFT — image + impact */}
-                  <div className="dp-left">
-                    <div className="dp-tier-hero">
+                <div className="dp-tier-amazon-layout" ref={detailRef}>
+
+                  {/* LEFT — compact image 4:3 + impact band below */}
+                  <div className="dp-tier-amazon-left">
+                    <div className="dp-tier-amazon-img">
                       <Img
                         src={tier.img} fallback={tier.fallback} alt={tier.name}
                         style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}
                       />
-                      <div className="dp-tier-hero-ov"/>
-                      <div className="dp-tier-hero-caption">
-                        <div className="dp-tier-hero-name">
+                      <div className="dp-amazon-img-ov"/>
+                      <div className="dp-amazon-img-caption">
+                        <div className="dp-amazon-img-eyebrow">
+                          {isComm?'Community Tier':isJoint?'Shared Tree':'Premium Forest'}
+                        </div>
+                        <div className="dp-amazon-img-name">
                           {isComm?'Community Forest':isJoint?'Shared Tree Impact':'Miyawaki Forest'}
                         </div>
-                        <div className="dp-tier-hero-sub">
+                        <div className="dp-amazon-img-title">
                           {isComm?"You're part of something bigger":isJoint?'Two donors. One living tree.':'Create an entire ecosystem.'}
                         </div>
                       </div>
                     </div>
-                    <div className="dp-impact-band">
+
+                    {/* Impact band below image */}
+                    <div className="dp-impact-band" style={{marginTop:'0.75rem'}}>
                       {(isComm
                         ? [{icon:'🌳',val:'Forest',lbl:'Community'},{icon:'🌍',val:'~5kg',lbl:'CO₂/year'},{icon:'📜',val:'Cert',lbl:'Instant'}]
                         : isJoint
@@ -379,12 +385,31 @@ export default function DonatePage() {
                         </div>
                       ))}
                     </div>
+
+                    {/* Community ₹100/₹250 toggle — LEFT column below image */}
+                    {isComm && (
+                      <div className="dp-comm-toggle" style={{marginTop:'0.75rem'}}>
+                        <div className="dp-card-eyebrow" style={{marginBottom:'0.5rem'}}>Choose your level</div>
+                        <div className="dp-comm-opts">
+                          {([100,250] as const).map(amt=>(
+                            <button key={amt} onClick={()=>{setCommLevel(amt);setTier(amt===100?TIERS[0]:TIERS[1])}} className={`dp-comm-opt${commLevel===amt?' dp-comm-opt--on':''}`}>
+                              <span className="dp-comm-amt">₹{amt}</span>
+                              <span className="dp-comm-lbl">{amt===100?'Contributor · Certificate':'Supporter · Priority updates'}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {/* RIGHT — story + details */}
-                  <div className="dp-right">
-                    <div className="dp-card dp-story-card">
-                      <span className="dp-badge" style={{background:tier.badgeColor,color:'#fff'}}>{tier.badge}</span>
+                  {/* RIGHT — story + features + qty + CTA — always visible */}
+                  <div className="dp-tier-amazon-right">
+
+                    {/* Story card */}
+                    <div className="dp-card dp-story-card" style={{marginBottom:'0.85rem'}}>
+                      <span className="dp-badge" style={{background:tier.badgeColor,color:'#fff'}}>
+                        {tier.badge}{isComm?` · ₹${commLevel}`:isJoint?' · ₹500':' · ₹5,000'}
+                      </span>
                       <h2 className="dp-story-name">
                         {isComm?'Community Forest':isJoint?'Shared Tree Impact':'Urban Forest Impact'}
                       </h2>
@@ -394,34 +419,20 @@ export default function DonatePage() {
                         {isMiya && "30+ native species planted in a dense Miyawaki forest patch — 10× faster growth than conventional planting. Creates a self-sustaining urban ecosystem."}
                       </p>
 
-                      {/* Community sub-toggle */}
-                      {isComm && (
-                        <div className="dp-comm-toggle">
-                          <div className="dp-card-eyebrow" style={{marginBottom:'0.5rem'}}>Choose your level</div>
-                          <div className="dp-comm-opts">
-                            {([100,250] as const).map(amt=>(
-                              <button key={amt} onClick={()=>{setCommLevel(amt);setTier(amt===100?TIERS[0]:TIERS[1])}} className={`dp-comm-opt${commLevel===amt?' dp-comm-opt--on':''}`}>
-                                <span className="dp-comm-amt">₹{amt}</span>
-                                <span className="dp-comm-lbl">{amt===100?'Contributor · Certificate':'Supporter · Priority updates'}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
                       {isJoint && (
                         <div className="dp-joint-note">
                           🌿 Native species assigned at planting — chosen by field ecologists for maximum survival.
                         </div>
                       )}
 
+                      {/* Features */}
                       {tier.what.map(w=>(
                         <div key={w} className="dp-benefit"><span className="dp-benefit-chk">✓</span>{w}</div>
                       ))}
                     </div>
 
                     {/* Qty */}
-                    <div className="dp-card dp-qty-card">
+                    <div className="dp-card dp-qty-card" style={{marginBottom:'0.85rem'}}>
                       <div className="dp-qty-row">
                         <div>
                           <div className="dp-qty-label">
@@ -436,14 +447,18 @@ export default function DonatePage() {
                       </div>
                     </div>
 
+                    {/* CTA */}
                     <div className="dp-cta-row">
                       <div className="dp-cta-price">
                         <div className="dp-cta-price-lbl">Total</div>
                         <div className="dp-cta-price-val">₹{total.toLocaleString('en-IN')}</div>
                       </div>
-                      <button onClick={handleContinue} className={`dp-cta-btn${isMiya?' dp-cta-btn--miya':''}`}>{ctaLabel()}</button>
+                      <button onClick={handleContinue} className={`dp-cta-btn${isMiya?' dp-cta-btn--miya':''}`}>
+                        {ctaLabel()}
+                      </button>
                     </div>
                     <div className="dp-cta-hint">Next: Add your details &amp; complete payment</div>
+
                   </div>
                 </div>
               )}
@@ -626,6 +641,12 @@ export default function DonatePage() {
 
         /* ── MAIN ── */
         .dp-main{padding:1.5rem 0 5rem;}
+
+        /* ── TIER AMAZON LAYOUT (community/joint/miyawaki) ── */
+        .dp-tier-amazon-layout{display:grid;grid-template-columns:380px 1fr;gap:1.75rem;align-items:start;}
+        .dp-tier-amazon-left{}
+        .dp-tier-amazon-right{}
+        .dp-tier-amazon-img{border-radius:var(--r);overflow:hidden;position:relative;aspect-ratio:4/3;box-shadow:0 4px 20px rgba(27,67,50,0.12);background:#f0ede8;}
 
         /* ── ₹1,000 AMAZON LAYOUT ── */
         .dp-amazon-layout{display:grid;grid-template-columns:420px 1fr;gap:1.75rem;align-items:start;}
@@ -921,7 +942,9 @@ export default function DonatePage() {
         @media(max-width:860px){
           .dp-layout{grid-template-columns:1fr;}
           .dp-amazon-layout{grid-template-columns:1fr;}
+          .dp-tier-amazon-layout{grid-template-columns:1fr;}
           .dp-amazon-img{aspect-ratio:16/9;}
+          .dp-tier-amazon-img{aspect-ratio:16/9;}
           .dp-indiv-main{grid-template-columns:1fr;}
           .dp-indiv-img{aspect-ratio:16/9;}
           .dp-trust-strip-inner{grid-template-columns:repeat(2,1fr);}
