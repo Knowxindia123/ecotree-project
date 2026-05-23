@@ -943,22 +943,32 @@ export default function DonatePage() {
           .dp-layout{grid-template-columns:1fr;}
           .dp-amazon-layout{grid-template-columns:1fr;}
           .dp-tier-amazon-layout{grid-template-columns:1fr;}
-          .dp-amazon-img{aspect-ratio:16/9;}
-          .dp-tier-amazon-img{aspect-ratio:16/9;}
+          /* Fix 1: main image fixed height — not aspect-ratio which is too tall */
+          .dp-amazon-img{aspect-ratio:unset;height:200px;}
+          .dp-tier-amazon-img{aspect-ratio:unset;height:200px;}
           .dp-indiv-main{grid-template-columns:1fr;}
-          .dp-indiv-img{aspect-ratio:16/9;}
+          .dp-indiv-img{aspect-ratio:unset;height:200px;}
           .dp-trust-strip-inner{grid-template-columns:repeat(2,1fr);}
           .dp-gallery{grid-template-columns:1fr 1fr;}
           .dp-mob-cta{display:flex;}
           .dp-main{padding-bottom:90px;}
-          .dp-sp-hero{height:240px;}
-          .dp-tier-hero{height:240px;}
+          .dp-sp-hero{height:200px;}
+          .dp-tier-hero{height:200px;}
+          /* Fix 2: thumbnails compact — wide and short on mobile */
+          .dp-thumb-img{aspect-ratio:unset;height:60px;}
+          .dp-thumb{flex:0 0 calc(25% - 4.5px);}
+          .dp-thumb-name{font-size:0.62rem;padding:0.28rem 0.3rem;}
+          /* Fix 3: reduce card padding so story visible sooner */
+          .dp-card{padding:0.85rem 0.95rem;}
+          .dp-story-text{font-size:0.82rem;line-height:1.55;}
         }
         @media(max-width:600px){
           .dp-trust-signals .dp-dot:nth-child(n+6){display:none;}
           .dp-trust-signals span:nth-child(n+7){display:none;}
           .dp-sp-card{flex:0 0 calc(50% - 4px);}
-          .dp-thumb{flex:0 0 calc(33.333% - 4px);}
+          .dp-thumb{flex:0 0 calc(25% - 4.5px);}
+          .dp-thumb-img{aspect-ratio:unset;height:55px;}
+          .dp-thumb-name{font-size:0.6rem;padding:0.25rem 0.3rem;}
           .dp-sp3-card{flex:0 0 calc(50% - 5px);}
           .dp-sp3-img{height:75px;}
           .dp-occ-grid{grid-template-columns:repeat(2,1fr);}
