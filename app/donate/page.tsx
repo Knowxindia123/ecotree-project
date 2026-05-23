@@ -4,124 +4,39 @@ import { supabase } from '@/lib/supabase'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 
-// ─────────────────────────────────────────────
-// CONSTANTS — unchanged from original
-// ─────────────────────────────────────────────
 const WHATSAPP = '919886094611'
-const SITE_URL  = 'https://ecotrees.org/donate'
-const WA_MSG    = encodeURIComponent(
-  `India's only NGO where you can see your tree growing live.\nPlant from ₹100 · AI-verified · GPS-tagged · Tracked 3 years · 80G tax benefit\n${SITE_URL}`
-)
+const SITE_URL = 'https://ecotrees.org/donate'
+const WA_MSG = encodeURIComponent(`India's only NGO where you can see your tree growing live.\nPlant from ₹100 · AI-verified · GPS-tagged · Tracked 3 years · 80G tax benefit\n${SITE_URL}`)
 
 const TIERS = [
-  {
-    id:'community_100', tier:'100', icon:'🌿', name:'Community Contributor',
-    price:100, co2:'~5kg', water:'~200L',
-    tag:'❤️ Most Accessible', tagColor:'#52B788',
-    desc:'Join our community forest. Certificate in your name.',
-    what:['Community forest certificate','Impact dashboard access','Project participation invites','Community tree tracking'],
-    img:'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=800&q=80',
-    species:null, occasionIds:[],
-    dashboard:'/community-dashboard', badge:'COMMUNITY', badgeColor:'#52B788',
-  },
-  {
-    id:'community_250', tier:'250', icon:'🌱', name:'Community Supporter',
-    price:250, co2:'~5kg', water:'~200L',
-    tag:'🌿 Great Value', tagColor:'#2D6A4F',
-    desc:'Support our community forest with greater impact.',
-    what:['Community forest certificate','Impact dashboard access','Priority project invites','Community tree tracking'],
-    img:'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&q=80',
-    species:null, occasionIds:['birthday','anniversary','festival','baby'],
-    dashboard:'/community-dashboard', badge:'COMMUNITY', badgeColor:'#52B788',
-  },
-  {
-    id:'joint_500', tier:'500', icon:'🤝', name:'Joint Tree Donor',
-    price:500, co2:'~11kg', water:'~500L',
-    tag:'👥 Share a Tree', tagColor:'#F59E0B',
-    desc:'Pool with 1 stranger — together you plant 1 tree.',
-    what:['Individual tree certificate','Shared tree dashboard','GPS location on map','Before & after photos','Species preference'],
-    img:'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=800&q=80',
-    species:['Neem','Peepal','Mango','Jamun','Any'],
-    occasionIds:['birthday','anniversary','festival','baby'],
-    dashboard:'/my-tree', badge:'JOINT', badgeColor:'#F59E0B',
-  },
-  {
-    id:'individual_1000', tier:'1000', icon:'🌳', name:'Individual Tree',
-    price:1000, co2:'~22kg', water:'~1,000L',
-    tag:'⭐ Most Popular', tagColor:'#1B4332',
-    desc:'Your own tree. Full dashboard. GPS tracked for 3 years.',
-    what:['Individual tree certificate','Personal tree dashboard','GPS location on map','Before & after photos','AI health score','80G tax receipt','Guaranteed species'],
-    img:'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&q=80',
-    species:['Neem','Peepal','Mango','Jamun','Guava','Rain Tree','Banyan','Gulmohar'],
-    occasionIds:['birthday','anniversary','memory','festival','baby','corporate','custom'],
-    dashboard:'/my-tree', badge:'INDIVIDUAL', badgeColor:'#1B4332',
-  },
-  {
-    id:'miyawaki_5000', tier:'5000', icon:'🏙️', name:'Miyawaki Forest',
-    price:5000, co2:'~200kg', water:'~8,000L',
-    tag:'🔥 Premium Impact', tagColor:'#7C3AED',
-    desc:'30+ native species. Dense urban forest. 10x faster growth.',
-    what:['Forest impact certificate','Miyawaki forest dashboard','GPS forest location','Species diversity report','BRSR-compatible report','80G tax receipt','Donor wall recognition'],
-    img:'https://images.unsplash.com/photo-1425913397330-cf8af2ff40a1?w=800&q=80',
-    species:null, occasionIds:['corporate','custom'],
-    dashboard:'/miyawaki-dashboard', badge:'FOREST', badgeColor:'#7C3AED',
-  },
+  { id:'community_100', tier:'100', icon:'🌿', name:'Community Contributor', price:100, co2:'~5kg', water:'~200L', tag:'❤️ Most Accessible', tagColor:'#52B788', desc:'Join our community forest. Certificate in your name.', what:['Community forest certificate','Impact dashboard access','Project participation invites','Community tree tracking'], img:'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=800&q=80', species:null, occasionIds:[], dashboard:'/community-dashboard', badge:'COMMUNITY', badgeColor:'#52B788' },
+  { id:'community_250', tier:'250', icon:'🌱', name:'Community Supporter', price:250, co2:'~5kg', water:'~200L', tag:'🌿 Great Value', tagColor:'#2D6A4F', desc:'Support our community forest with greater impact.', what:['Community forest certificate','Impact dashboard access','Priority project invites','Community tree tracking'], img:'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&q=80', species:null, occasionIds:['birthday','anniversary','festival','baby'], dashboard:'/community-dashboard', badge:'COMMUNITY', badgeColor:'#52B788' },
+  { id:'joint_500', tier:'500', icon:'🤝', name:'Joint Tree Donor', price:500, co2:'~11kg', water:'~500L', tag:'👥 Share a Tree', tagColor:'#F59E0B', desc:'Pool with 1 stranger — together you plant 1 tree.', what:['Individual tree certificate','Shared tree dashboard','GPS location on map','Before & after photos','Species preference'], img:'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=800&q=80', species:['Neem','Peepal','Mango','Jamun','Any'], occasionIds:['birthday','anniversary','festival','baby'], dashboard:'/my-tree', badge:'JOINT', badgeColor:'#F59E0B' },
+  { id:'individual_1000', tier:'1000', icon:'🌳', name:'Individual Tree', price:1000, co2:'~22kg', water:'~1,000L', tag:'⭐ Most Popular', tagColor:'#1B4332', desc:'Your own tree. Full dashboard. GPS tracked for 3 years.', what:['Individual tree certificate','Personal tree dashboard','GPS location on map','Before & after photos','AI health score','80G tax receipt','Guaranteed species'], img:'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&q=80', species:['Neem','Peepal','Mango','Jamun','Guava','Rain Tree','Banyan','Gulmohar'], occasionIds:['birthday','anniversary','memory','festival','baby','corporate','custom'], dashboard:'/my-tree', badge:'INDIVIDUAL', badgeColor:'#1B4332' },
+  { id:'miyawaki_5000', tier:'5000', icon:'🏙️', name:'Miyawaki Forest', price:5000, co2:'~200kg', water:'~8,000L', tag:'🔥 Premium Impact', tagColor:'#7C3AED', desc:'30+ native species. Dense urban forest. 10x faster growth.', what:['Forest impact certificate','Miyawaki forest dashboard','GPS forest location','Species diversity report','BRSR-compatible report','80G tax receipt','Donor wall recognition'], img:'https://images.unsplash.com/photo-1425913397330-cf8af2ff40a1?w=800&q=80', species:null, occasionIds:['corporate','custom'], dashboard:'/miyawaki-dashboard', badge:'FOREST', badgeColor:'#7C3AED' },
 ]
 
 const OCCASIONS = [
-  { id:'birthday',    icon:'🎂', label:'Birthday',    price:100 },
+  { id:'birthday', icon:'🎂', label:'Birthday', price:100 },
   { id:'anniversary', icon:'💍', label:'Anniversary', price:250 },
-  { id:'memory',      icon:'🕯️', label:'In Memory',   price:100 },
-  { id:'festival',    icon:'🎊', label:'Festival',     price:100 },
-  { id:'baby',        icon:'👶', label:'New Baby',     price:250 },
-  { id:'corporate',   icon:'🏢', label:'Corporate',   price:500 },
-  { id:'custom',      icon:'🎁', label:'Custom',       price:100 },
+  { id:'memory', icon:'🕯️', label:'In Memory', price:100 },
+  { id:'festival', icon:'🎊', label:'Festival', price:100 },
+  { id:'baby', icon:'👶', label:'New Baby', price:250 },
+  { id:'corporate', icon:'🏢', label:'Corporate', price:500 },
+  { id:'custom', icon:'🎁', label:'Custom', price:100 },
 ]
 
-// ─────────────────────────────────────────────
-// UTILITIES — unchanged from original
-// ─────────────────────────────────────────────
-function makeCertId()     { return `ET-BLR-${new Date().getFullYear()}-${String(Math.floor(Math.random()*900000+100000))}` }
+function makeCertId() { return `ET-BLR-${new Date().getFullYear()}-${String(Math.floor(Math.random()*900000+100000))}` }
 function generateTreeId() { return `ET-BLR-${new Date().getFullYear()}-${String(Math.floor(Math.random()*900000+100000))}` }
 
-async function sendEmail(type: string, donor: Record<string, unknown>) {
-  try {
-    await fetch('/api/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, donor }),
-    })
-  } catch (err) { console.error('Email send failed:', err) }
+async function sendEmail(type: string, donor: Record<string, any>) {
+  try { await fetch('/api/send-email', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type, donor }) }) }
+  catch (err) { console.error('Email send failed:', err) }
 }
 
-interface FormErrors {
-  name?: string; email?: string; phone?: string;
-  recipientName?: string; recipientEmail?: string; species?: string
-}
+interface FormErrors { name?: string; email?: string; phone?: string; recipientName?: string; recipientEmail?: string; species?: string }
 
-// ─────────────────────────────────────────────
-// HERO TREE SILHOUETTE SVG
-// ─────────────────────────────────────────────
-const TreeSilhouette = () => (
-  <svg
-    viewBox="0 0 400 500"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    style={{ position:'absolute', right:0, bottom:0, height:'100%', width:'auto', opacity:0.06, pointerEvents:'none' }}
-    aria-hidden="true"
-  >
-    <path d="M200 480 L200 200" stroke="white" strokeWidth="18" strokeLinecap="round"/>
-    <path d="M200 200 L140 300 L100 260 L160 180 L120 220 L80 160 L150 120 L110 160 L130 80 L200 40 L270 80 L290 160 L250 120 L320 160 L280 220 L340 180 L300 260 L260 300 L200 200Z" fill="white"/>
-    <path d="M200 200 L180 320 L160 280 L170 240" fill="white" opacity="0.5"/>
-    <path d="M200 200 L220 320 L240 280 L230 240" fill="white" opacity="0.5"/>
-  </svg>
-)
-
-// ─────────────────────────────────────────────
-// MAIN COMPONENT
-// ─────────────────────────────────────────────
 export default function DonatePage() {
-  // ── All state — variable names unchanged ──
   const [mode, setMode]       = useState<'plant'|'gift'>('plant')
   const [tier, setTier]       = useState(TIERS[3])
   const [occ,  setOcc]        = useState(OCCASIONS[0])
@@ -132,41 +47,27 @@ export default function DonatePage() {
   const [errors,  setErrors]  = useState<FormErrors>({})
   const [certId]              = useState(makeCertId)
   const formRef               = useRef<HTMLDivElement>(null)
-  const tierDetailRef         = useRef<HTMLDivElement>(null)
-  const [form, setForm]       = useState({
-    name:'', email:'', phone:'', address:'',
-    birthday:'', anniversary:'',
-    recipientName:'', recipientEmail:'', giftMessage:'',
-  })
+  const detailRef             = useRef<HTMLDivElement>(null)
+  const [form, setForm] = useState({ name:'', email:'', phone:'', address:'', birthday:'', anniversary:'', recipientName:'', recipientEmail:'', giftMessage:'' })
 
-  // ── All handlers — unchanged ──
-  const sf = (k: string, v: string) => {
-    setForm(p => ({ ...p, [k]: v }))
-    if (errors[k as keyof FormErrors]) setErrors(p => ({ ...p, [k]: undefined }))
-  }
-
-  // Gift mode: occ.price. Plant mode: tier.price * qty — unchanged
+  const sf = (k: string, v: string) => { setForm(p=>({...p,[k]:v})); if (errors[k as keyof FormErrors]) setErrors(p=>({...p,[k]:undefined})) }
   const total = mode === 'gift' ? occ.price : tier.price * qty
 
   const pickTier = (t: typeof TIERS[0]) => {
     setTier(t); setSpecies(''); setQty(1)
-    if (t.occasionIds.length > 0)
-      setOcc(OCCASIONS.find(o => t.occasionIds.includes(o.id)) || OCCASIONS[0])
-    // Scroll to tier detail section on all screen sizes
-    setTimeout(() => tierDetailRef.current?.scrollIntoView({ behavior:'smooth', block:'start' }), 80)
+    if (t.occasionIds.length > 0) setOcc(OCCASIONS.find(o => t.occasionIds.includes(o.id)) || OCCASIONS[0])
+    setTimeout(() => detailRef.current?.scrollIntoView({ behavior:'smooth', block:'start' }), 80)
   }
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(SITE_URL)
-    setCopied(true); setTimeout(() => setCopied(false), 2000)
-  }
+  const scrollToForm = () => setTimeout(() => formRef.current?.scrollIntoView({ behavior:'smooth', block:'start' }), 80)
 
-  // ── validate — unchanged ──
+  const copyLink = () => { navigator.clipboard.writeText(SITE_URL); setCopied(true); setTimeout(()=>setCopied(false),2000) }
+
   function validate(): boolean {
     const e: FormErrors = {}
     if (!form.name.trim() || form.name.trim().length < 2) e.name = 'Please enter your full name'
     if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Please enter a valid email'
-    if (!form.phone.trim() || !/^[6-9]\d{9}$/.test(form.phone.replace(/[\s+\-()]/g, ''))) e.phone = 'Please enter a valid 10-digit Indian mobile number'
+    if (!form.phone.trim() || !/^[6-9]\d{9}$/.test(form.phone.replace(/[\s+\-()]/g,''))) e.phone = 'Please enter a valid 10-digit Indian mobile number'
     if (mode === 'gift') {
       if (!form.recipientName.trim()) e.recipientName = 'Please enter recipient name'
       if (!form.recipientEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.recipientEmail)) e.recipientEmail = 'Please enter a valid recipient email'
@@ -176,48 +77,38 @@ export default function DonatePage() {
     return Object.keys(e).length === 0
   }
 
-  // ── handlePay — entirely unchanged ──
   const handlePay = async () => {
     if (loading) return
-    if (!validate()) { formRef.current?.scrollIntoView({ behavior:'smooth', block:'start' }); return }
+    if (!validate()) { scrollToForm(); return }
     setLoading(true)
     try {
       let donorId: number
       let isNewDonor = false
-      const { data: existing } = await supabase
-        .from('donors').select('id, total_trees, total_donated')
-        .eq('email', form.email).eq('tier', tier.tier).maybeSingle()
+      const { data: existing } = await supabase.from('donors').select('id, total_trees, total_donated').eq('email', form.email).eq('tier', tier.tier).maybeSingle()
       if (existing) {
         donorId = existing.id
         await supabase.from('donors').update({
-          total_trees: (tier.id === 'joint_500' || tier.id === 'community_100' || tier.id === 'community_250')
-            ? (existing.total_trees || 0)
-            : (existing.total_trees || 0) + 1,
+          total_trees: (tier.id === 'joint_500' || tier.id === 'community_100' || tier.id === 'community_250') ? (existing.total_trees || 0) : (existing.total_trees || 0) + 1,
           total_donated: (Number(existing.total_donated) || 0) + total,
-          phone: form.phone, address: form.address || null,
-          birthday: form.birthday || null, anniversary: form.anniversary || null,
+          phone: form.phone, address: form.address || null, birthday: form.birthday || null, anniversary: form.anniversary || null,
         }).eq('id', donorId)
       } else {
         const { data: newDonor, error: donorErr } = await supabase.from('donors').insert({
           name: form.name, email: form.email, phone: form.phone,
-          address: form.address || null, birthday: form.birthday || null,
-          anniversary: form.anniversary || null,
+          address: form.address || null, birthday: form.birthday || null, anniversary: form.anniversary || null,
           total_trees: (tier.id === 'joint_500' || tier.id === 'community_100' || tier.id === 'community_250') ? 0 : 1,
           total_donated: total, city: 'Bangalore',
           is_gift: mode === 'gift',
-          gift_from_name:  mode === 'gift' ? form.name      : null,
-          gift_from_email: mode === 'gift' ? form.email     : null,
-          gift_occasion:   mode === 'gift' ? occ.label      : null,
-          gift_message:    mode === 'gift' ? form.giftMessage : null,
+          gift_from_name: mode === 'gift' ? form.name : null,
+          gift_from_email: mode === 'gift' ? form.email : null,
+          gift_occasion: mode === 'gift' ? occ.label : null,
+          gift_message: mode === 'gift' ? form.giftMessage : null,
           tier: tier.tier,
         }).select('id').single()
         if (donorErr || !newDonor) throw new Error(donorErr?.message || 'Failed to create donor')
         donorId = newDonor.id
         isNewDonor = true
-        await fetch('/api/create-donor', {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ email:form.email, password:'123456', name:form.name, donorId }),
-        })
+        await fetch('/api/create-donor', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email:form.email, password:'123456', name:form.name, donorId }) })
       }
       let treeId = ''
       if (tier.id === 'community_100' || tier.id === 'community_250') {
@@ -234,7 +125,7 @@ export default function DonatePage() {
           }
           if (targetPool) {
             await supabase.from('tree_pool_members').insert({ pool_id:targetPool.id, donor_id:donorId, amount:500, is_gift:mode==='gift', gift_from_name:mode==='gift'?form.name:null, gift_occasion:mode==='gift'?occ.label:null })
-            const newFilled    = targetPool.slots_filled + 1
+            const newFilled = targetPool.slots_filled + 1
             const newCollected = targetPool.amount_collected + 500
             if (newFilled >= targetPool.slots_total) {
               treeId = generateTreeId()
@@ -245,9 +136,7 @@ export default function DonatePage() {
               for (const m of members || []) {
                 const d = Array.isArray(m.donors) ? m.donors[0] : m.donors as any
                 await supabase.from('donors').update({ total_trees:(d?.total_trees||0)+1 }).eq('id', m.donor_id)
-                if (d?.email) {
-                  await sendEmail('welcome', { name:d.name, email:d.email, tree_id:treeId, species:species||'Neem', password:'123456', tier:'500', dashboard:'/my-tree', joint:true, matched:true, partner:(members||[]).filter((mm:any)=>{const dd=Array.isArray(mm.donors)?mm.donors[0]:mm.donors as any;return dd?.email!==d.email}).map((mm:any)=>{const dd=Array.isArray(mm.donors)?mm.donors[0]:mm.donors as any;return dd?.name})[0]||'your co-donor' })
-                }
+                if (d?.email) await sendEmail('welcome', { name:d.name, email:d.email, tree_id:treeId, species:species||'Neem', password:'123456', tier:'500', dashboard:'/my-tree', joint:true, matched:true, partner:(members||[]).filter((mm:any)=>{const dd=Array.isArray(mm.donors)?mm.donors[0]:mm.donors as any;return dd?.email!==d.email}).map((mm:any)=>{const dd=Array.isArray(mm.donors)?mm.donors[0]:mm.donors as any;return dd?.name})[0]||'your co-donor' })
               }
             } else {
               await supabase.from('tree_pools').update({ slots_filled:newFilled, amount_collected:newCollected }).eq('id', targetPool.id)
@@ -282,546 +171,317 @@ export default function DonatePage() {
     }
   }
 
-  // ── payBtnLabel — unchanged ──
   const payBtnLabel = () => {
     if (loading) return '⏳ Saving...'
     if (tier.id === 'community_100' || tier.id === 'community_250') return `🌿 Join Community Forest · ₹${total}`
-    if (tier.id === 'joint_500')     return `🤝 Join Tree Pool · ₹${total}`
+    if (tier.id === 'joint_500') return `🤝 Join Tree Pool · ₹${total}`
     if (tier.id === 'miyawaki_5000') return `🏙️ Sponsor Miyawaki Forest · ₹${total}`
     return `🌳 Plant My Tree · ₹${total.toLocaleString('en-IN')}`
   }
 
-  const Err = ({ msg }: { msg?: string }) =>
-    msg ? <div className="et-err">⚠️ {msg}</div> : null
+  const Err = ({ msg }: { msg?: string }) => msg ? <div style={{fontSize:'0.76rem',color:'#dc2626',marginTop:'3px',display:'flex',alignItems:'center',gap:'4px'}}>⚠️ {msg}</div> : null
 
-  // ─────────────────────────────────────────────
-  // RENDER — new layout, all existing logic wired
-  // ─────────────────────────────────────────────
   return (
-    <main className="et">
+    <main style={{fontFamily:"var(--font-body,'Segoe UI',system-ui,sans-serif)",background:'#F4F7F4',color:'#0D1F17',minHeight:'100vh'}}>
 
-      {/* ══ ZONE 1: TRUST BAR ══ */}
-      <div className="et-trust">
-        <div className="et-c et-trust__inner">
-          <div className="et-trust__signals">
-            <span>🌱 10,000+ trees</span>
-            <span className="et-trust__dot">·</span>
-            <span>🎯 91% survival</span>
-            <span className="et-trust__dot">·</span>
-            <span>🤖 AI-verified</span>
-            <span className="et-trust__dot">·</span>
-            <span>🧾 80G approved</span>
-            <span className="et-trust__dot">·</span>
+      {/* ── ZONE 1: TRUST BAR ── */}
+      <div style={{background:'#1B4332',borderBottom:'1px solid rgba(82,183,136,0.2)',padding:'0.5rem 0',position:'sticky',top:'80px',zIndex:50}}>
+        <div style={{maxWidth:'1200px',margin:'0 auto',padding:'0 1.5rem',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem',flexWrap:'wrap'}}>
+          <div style={{display:'flex',alignItems:'center',gap:'0.55rem',flexWrap:'wrap',fontSize:'0.72rem',fontWeight:600,color:'rgba(255,255,255,0.65)'}}>
+            <span>🌱 10,000+ trees</span><span style={{opacity:0.4}}>·</span>
+            <span>🎯 91% survival</span><span style={{opacity:0.4}}>·</span>
+            <span>🤖 AI-verified</span><span style={{opacity:0.4}}>·</span>
+            <span>🧾 80G approved</span><span style={{opacity:0.4}}>·</span>
             <span>📍 GPS-tagged</span>
           </div>
-          <div className="et-trust__actions">
-            <a
-              href={`https://wa.me/?text=${WA_MSG}`}
-              target="_blank" rel="noopener"
-              className="et-trust__btn et-trust__btn--wa"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-              </svg>
+          <div style={{display:'flex',gap:'0.5rem',flexShrink:0}}>
+            <a href={`https://wa.me/?text=${WA_MSG}`} target="_blank" rel="noopener" style={{display:'inline-flex',alignItems:'center',gap:'0.3rem',fontSize:'0.72rem',fontWeight:700,padding:'0.3rem 0.8rem',borderRadius:'999px',background:'#25D366',color:'#fff',textDecoration:'none',border:'none'}}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
               Share
             </a>
-            <button className="et-trust__btn et-trust__btn--cp" onClick={copyLink}>
-              {copied ? '✓ Copied!' : '🔗 Copy Link'}
-            </button>
+            <button onClick={copyLink} style={{fontSize:'0.72rem',fontWeight:700,padding:'0.3rem 0.8rem',borderRadius:'999px',background:'rgba(255,255,255,0.12)',color:'#fff',border:'1px solid rgba(255,255,255,0.2)',cursor:'pointer'}}>{copied?'✓ Copied!':'🔗 Copy Link'}</button>
           </div>
         </div>
       </div>
 
-      {/* ══ ZONE 2: HERO BANNER ══ */}
-      <div className="et-hero">
-        <TreeSilhouette />
-        <div className="et-c et-hero__inner">
-
-          {/* Left: headline + toggle */}
-          <div className="et-hero__left">
-            <div className="et-hero__eyebrow">India&rsquo;s only NGO where you can see your tree growing live</div>
-            <h1 className="et-hero__h1">
-              Plant a<br />
-              <em>Living Legacy</em>
-            </h1>
-            <p className="et-hero__sub">
-              AI-verified · GPS-tagged · 3yr tracking · 80G tax benefit
-            </p>
-            <div className="et-hero__toggles">
-              <button
-                className={`et-tog et-tog--plant${mode==='plant'?' active':''}`}
-                onClick={() => setMode('plant')}
-              >
-                🌱 Plant For Myself
-              </button>
-              <button
-                className={`et-tog et-tog--gift${mode==='gift'?' active':''}`}
-                onClick={() => setMode('gift')}
-              >
-                🎁 Gift a Tree
-              </button>
+      {/* ── ZONE 2: HERO BANNER — compact, no image, faint tree silhouette ── */}
+      <div style={{background:'#1B4332',padding:'2rem 0 1.75rem',position:'relative',overflow:'hidden',borderBottom:'3px solid rgba(82,183,136,0.25)'}}>
+        {/* Faint tree silhouette */}
+        <svg viewBox="0 0 300 400" fill="none" style={{position:'absolute',right:0,bottom:0,height:'100%',width:'auto',opacity:0.05,pointerEvents:'none'}} aria-hidden="true">
+          <path d="M150 380 L150 160" stroke="white" strokeWidth="14" strokeLinecap="round"/>
+          <path d="M150 160 L105 240 L75 205 L120 145 L90 175 L60 128 L113 95 L83 128 L98 62 L150 30 L202 62 L217 128 L187 95 L240 128 L210 175 L255 145 L225 205 L195 240 Z" fill="white"/>
+        </svg>
+        <div style={{maxWidth:'1200px',margin:'0 auto',padding:'0 1.5rem',display:'grid',gridTemplateColumns:'auto 1fr',gap:'3rem',alignItems:'center',position:'relative',zIndex:1}}>
+          {/* Left: headline + toggles */}
+          <div>
+            <div style={{fontSize:'0.68rem',fontWeight:700,color:'#74C69D',letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:'0.5rem'}}>India's only NGO where you can see your tree growing live</div>
+            <h1 style={{fontSize:'clamp(1.8rem,3.5vw,2.8rem)',fontWeight:900,color:'#fff',lineHeight:0.95,letterSpacing:'-0.03em',marginBottom:'0.6rem'}}>Plant a<br/><span style={{color:'#74C69D'}}>Living Legacy</span></h1>
+            <p style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.55)',marginBottom:'1.2rem',letterSpacing:'0.03em'}}>AI-verified · GPS-tagged · 3yr tracking · 80G tax benefit</p>
+            <div style={{display:'flex',gap:'0.6rem',flexWrap:'wrap'}}>
+              <button onClick={()=>setMode('plant')} style={{padding:'0.65rem 1.4rem',borderRadius:'10px',fontFamily:'inherit',fontSize:'0.9rem',fontWeight:700,cursor:'pointer',border:`2px solid ${mode==='plant'?'#52B788':'rgba(255,255,255,0.2)'}`,background:mode==='plant'?'#2D6A4F':'rgba(255,255,255,0.08)',color:mode==='plant'?'#fff':'rgba(255,255,255,0.65)',transition:'all 0.2s'}}>🌱 Plant For Myself</button>
+              <button onClick={()=>setMode('gift')} style={{padding:'0.65rem 1.4rem',borderRadius:'10px',fontFamily:'inherit',fontSize:'0.9rem',fontWeight:700,cursor:'pointer',border:`2px solid ${mode==='gift'?'#7C3AED':'rgba(255,255,255,0.2)'}`,background:mode==='gift'?'#7C3AED':'rgba(255,255,255,0.08)',color:'#fff',transition:'all 0.2s'}}>🎁 Gift a Tree</button>
             </div>
           </div>
-
           {/* Right: tier pills */}
-          <div className="et-hero__tiers">
-            <div className="et-hero__tiers-label">Choose contribution level</div>
-            <div className="et-hero__tier-pills">
-              {TIERS.map(t => (
-                <button
-                  key={t.id}
-                  className={`et-tier-pill${tier.id===t.id?' on':''}`}
-                  onClick={() => pickTier(t)}
-                >
-                  {t.id === 'individual_1000' && (
-                    <span className="et-tier-pill__loved">★ MOST LOVED</span>
-                  )}
-                  <span className="et-tier-pill__amt">
-                    {t.id === 'community_100' ? '₹100/₹250' : `₹${t.price.toLocaleString('en-IN')}`}
-                  </span>
-                  <span className="et-tier-pill__name">{t.name}</span>
-                  <span className="et-tier-pill__desc">{t.desc.split('.')[0]}</span>
+          <div>
+            <div style={{fontSize:'0.65rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:'rgba(255,255,255,0.38)',marginBottom:'0.75rem'}}>Choose contribution level</div>
+            <div style={{display:'flex',gap:'0.55rem',overflowX:'auto',paddingBottom:'2px'}}>
+              {TIERS.map(t=>(
+                <button key={t.id} onClick={()=>pickTier(t)} style={{display:'flex',flexDirection:'column',alignItems:'flex-start',minWidth:'115px',padding:'0.85rem 1rem',borderRadius:'14px',border:`1.5px solid ${tier.id===t.id?'#fff':'rgba(255,255,255,0.2)'}`,background:tier.id===t.id?'#fff':'rgba(255,255,255,0.07)',color:tier.id===t.id?'#1B4332':'#fff',cursor:'pointer',fontFamily:'inherit',flexShrink:0,transition:'all 0.18s'}}>
+                  {t.id==='individual_1000'&&<span style={{fontSize:'0.58rem',fontWeight:800,color:'#D4A63F',letterSpacing:'0.07em',marginBottom:'0.2rem'}}>★ MOST LOVED</span>}
+                  <span style={{fontSize:'1.1rem',fontWeight:900,lineHeight:1,marginBottom:'0.3rem'}}>{t.id==='community_100'?'₹100/₹250':`₹${t.price.toLocaleString('en-IN')}`}</span>
+                  <span style={{fontSize:'0.75rem',fontWeight:700,marginBottom:'0.15rem'}}>{t.name}</span>
+                  <span style={{fontSize:'0.65rem',opacity:0.65,lineHeight:1.3}}>{t.desc.split('.')[0]}</span>
                 </button>
               ))}
             </div>
           </div>
-
         </div>
       </div>
 
-      {/* ══ ZONE 3: TWO COLUMNS ══ */}
-      <div className="et-body">
-        <div className="et-c et-body__cols">
+      {/* ── ZONE 3: TWO COLUMNS ── */}
+      <div style={{maxWidth:'1200px',margin:'0 auto',padding:'1.75rem 1.5rem 4rem',display:'grid',gridTemplateColumns:'1fr 380px',gap:'1.75rem',alignItems:'start'}}>
 
-          {/* ── ZONE 3A: TIER DETAIL ── */}
-          <div className="et-detail" ref={tierDetailRef}>
-
-            {mode === 'plant' ? (
-              <>
-                {/* PLANT MODE — tier image + impact + species + what + qty */}
-
-                {/* TIER IMAGE — Framer Motion fade on tier change */}
-                <div className="et-detail__img-wrap">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={tier.id}
-                      initial={{ opacity:0, y:12 }}
-                      animate={{ opacity:1, y:0 }}
-                      exit={{ opacity:0, y:-12 }}
-                      transition={{ duration:0.3, ease:'easeInOut' }}
-                      className="et-detail__img-inner"
-                    >
-                      <Image
-                        src={tier.img}
-                        alt={tier.name}
-                        fill
-                        className="et-detail__img"
-                        priority
-                      />
-                      <div className="et-detail__img-overlay" />
-                      <div className="et-detail__img-caption">
-                        <div className="et-detail__img-badge" style={{ background:tier.badgeColor }}>
-                          {tier.badge}
-                        </div>
-                        <div className="et-detail__img-name">{tier.icon} {tier.name}</div>
-                        <div className="et-detail__img-desc">{tier.desc}</div>
-                      </div>
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
-
-                {/* GPS MAP + IMPACT METRICS */}
-                <div className="et-impact">
-                  <div className="et-impact__map">
-                    <div className="et-impact__map-pin" aria-hidden="true" />
-                    <div className="et-impact__map-ring" aria-hidden="true" />
-                    <div className="et-impact__map-ring2" aria-hidden="true" />
-                    <span className="et-impact__map-pill">📍 GPS Tracking Enabled</span>
-                    <span className="et-impact__map-region">Bangalore Region</span>
-                  </div>
-                  <div className="et-impact__metric">
-                    <div className="et-impact__metric-icon">🌍</div>
-                    <div className="et-impact__metric-val">{tier.co2}</div>
-                    <div className="et-impact__metric-lbl">CO₂ absorbed/year</div>
-                  </div>
-                  <div className="et-impact__metric">
-                    <div className="et-impact__metric-icon">💧</div>
-                    <div className="et-impact__metric-val">{tier.water}</div>
-                    <div className="et-impact__metric-lbl">Water restored/year</div>
-                  </div>
-                </div>
-
-                {/* DASHBOARD PREVIEW LINE */}
-                <div className="et-dashboard-hint">
-                  <span>📊</span>
-                  <span>After planting, your dashboard shows real-time GPS location, tree photos and growth updates — updated monthly for 3 years.</span>
-                </div>
-
-                {/* SPECIES SELECTOR */}
-                {tier.species && (
-                  <div className="et-species">
-                    <div className="et-species__label">
-                      {tier.id === 'individual_1000' ? 'Choose species *' : 'Species preference'}
-                      {tier.id === 'joint_500' && <span className="et-species__opt"> (subject to availability)</span>}
+        {/* ── ZONE 3A: TIER DETAIL (left 60%) ── */}
+        <div ref={detailRef}>
+          {mode==='plant' ? (
+            <>
+              {/* TIER IMAGE — Framer Motion fade */}
+              <div style={{borderRadius:'20px',overflow:'hidden',position:'relative',height:'280px',marginBottom:'1rem'}}>
+                <AnimatePresence mode="wait">
+                  <motion.div key={tier.id} initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-10}} transition={{duration:0.3,ease:'easeInOut'}} style={{position:'absolute',inset:0}}>
+                    <Image src={tier.img} alt={tier.name} fill style={{objectFit:'cover'}} priority/>
+                    <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(11,31,23,0.85) 0%,rgba(0,0,0,0.15) 55%,transparent 100%)'}}/>
+                    <div style={{position:'absolute',bottom:0,left:0,padding:'1.25rem 1.5rem'}}>
+                      <span style={{display:'inline-block',fontSize:'0.58rem',fontWeight:800,color:'#fff',padding:'0.15rem 0.5rem',borderRadius:'4px',letterSpacing:'0.07em',marginBottom:'0.4rem',background:tier.badgeColor}}>{tier.badge}</span>
+                      <div style={{fontSize:'1.35rem',fontWeight:900,color:'#fff',lineHeight:1.1}}>{tier.icon} {tier.name}</div>
+                      <div style={{fontSize:'0.8rem',color:'rgba(255,255,255,0.72)',marginTop:'0.2rem'}}>{tier.desc}</div>
                     </div>
-                    <select
-                      value={species}
-                      onChange={e => setSpecies(e.target.value)}
-                      className={`et-species__select${errors.species?' et-err-border':''}`}
-                    >
-                      <option value="">— Select species —</option>
-                      {tier.species.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <Err msg={errors.species} />
-                  </div>
-                )}
-                {tier.id === 'miyawaki_5000' && (
-                  <div className="et-miyawaki-note">
-                    🌿 30+ native species mixed forest — EcoTree selects for maximum biodiversity
-                  </div>
-                )}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
 
-                {/* WHAT'S INCLUDED */}
-                <div className="et-what">
-                  <div className="et-what__label">What&rsquo;s included</div>
-                  <div className="et-what__grid">
-                    {tier.what.map(w => (
-                      <div key={w} className="et-what__item">
-                        <span className="et-what__check" aria-hidden="true">✓</span>
-                        <span>{w}</span>
-                      </div>
-                    ))}
-                  </div>
+              {/* GPS MAP + IMPACT — 3 columns */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'0.75rem',marginBottom:'0.85rem'}}>
+                <div style={{background:'#e8f5e9',border:'1px solid #B7E4C7',borderRadius:'12px',padding:'0.85rem',position:'relative',overflow:'hidden',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'90px'}}>
+                  <div style={{position:'absolute',width:'60px',height:'60px',borderRadius:'50%',border:'1.5px solid rgba(27,67,50,0.12)'}}/>
+                  <div style={{position:'absolute',width:'90px',height:'90px',borderRadius:'50%',border:'1px solid rgba(27,67,50,0.07)'}}/>
+                  <div style={{width:'10px',height:'10px',borderRadius:'50%',background:'#1B4332',zIndex:2,boxShadow:'0 0 0 3px rgba(27,67,50,0.15)'}}/>
+                  <div style={{fontSize:'0.62rem',fontWeight:700,color:'#1B4332',marginTop:'0.35rem',textAlign:'center',zIndex:2}}>📍 GPS Map<br/>Bangalore Region</div>
                 </div>
-
-                {/* QUANTITY SELECTOR */}
-                <div className="et-qty">
-                  <div className="et-qty__info">
-                    <div className="et-qty__label">
-                      {tier.id === 'miyawaki_5000' ? 'Number of forests'
-                        : tier.id === 'joint_500' ? 'Number of shares'
-                        : tier.id === 'community_100' || tier.id === 'community_250' ? 'Number of contributions'
-                        : 'Number of trees'}
-                    </div>
-                    {tier.id === 'individual_1000' && (
-                      <div className="et-qty__sub">Each tree gets unique GPS tracking</div>
-                    )}
-                  </div>
-                  <div className="et-qty__ctrl">
-                    <button
-                      className="et-qty__btn"
-                      onClick={() => setQty(q => Math.max(1, q - 1))}
-                      aria-label="Decrease quantity"
-                    >−</button>
-                    <span className="et-qty__num">{qty}</span>
-                    <button
-                      className="et-qty__btn"
-                      onClick={() => setQty(q => Math.min(
-                        tier.id === 'miyawaki_5000' || tier.id === 'joint_500' ? 10 : 100, q + 1
-                      ))}
-                      aria-label="Increase quantity"
-                    >+</button>
-                  </div>
+                <div style={{background:'#f0faf4',border:'1px solid #B7E4C7',borderRadius:'12px',padding:'0.85rem'}}>
+                  <div style={{fontSize:'1rem',marginBottom:'0.3rem'}}>🌍</div>
+                  <div style={{fontSize:'1.2rem',fontWeight:900,color:'#1B4332',lineHeight:1}}>{tier.co2}</div>
+                  <div style={{fontSize:'0.68rem',color:'#4A6358',marginTop:'0.2rem',lineHeight:1.3}}>CO₂ absorbed/year</div>
                 </div>
-              </>
-            ) : (
-              <>
-                {/* GIFT MODE — occasions grid replaces tier detail, exactly as original */}
-                <div className="et-detail__section-lbl">Choose the occasion</div>
+                <div style={{background:'#f0faf4',border:'1px solid #B7E4C7',borderRadius:'12px',padding:'0.85rem'}}>
+                  <div style={{fontSize:'1rem',marginBottom:'0.3rem'}}>💧</div>
+                  <div style={{fontSize:'1.2rem',fontWeight:900,color:'#1B4332',lineHeight:1}}>{tier.water}</div>
+                  <div style={{fontSize:'0.68rem',color:'#4A6358',marginTop:'0.2rem',lineHeight:1.3}}>Water restored/year</div>
+                </div>
+              </div>
 
-                <div className="et-ogrid">
-                  {OCCASIONS.map(o => (
-                    <div
-                      key={o.id}
-                      className={`et-ocard${occ.id===o.id?' sel':''}`}
-                      onClick={() => setOcc(o)}
-                    >
-                      <div className="et-oi">{o.icon}</div>
-                      <div className="et-ol">{o.label}</div>
-                      <div className="et-op">₹{o.price}</div>
-                      {occ.id === o.id && <div className="et-och" aria-hidden="true">✓</div>}
+              {/* DASHBOARD HINT — replaces live photos */}
+              <div style={{display:'flex',alignItems:'flex-start',gap:'0.55rem',background:'rgba(82,183,136,0.08)',border:'1px solid #B7E4C7',borderLeft:'3px solid #52B788',borderRadius:'10px',padding:'0.7rem 0.9rem',fontSize:'0.8rem',color:'#4A6358',lineHeight:1.55,marginBottom:'1rem'}}>
+                <span style={{fontSize:'0.95rem',flexShrink:0}}>📊</span>
+                <span>After planting, your dashboard shows real-time GPS location, tree photos and growth updates — updated monthly for 3 years.</span>
+              </div>
+
+              {/* SPECIES */}
+              {tier.species && (
+                <div style={{background:'#fff',border:'1.5px solid #B7E4C7',borderRadius:'12px',padding:'0.9rem 1rem',marginBottom:'0.85rem'}}>
+                  <label style={{display:'block',fontSize:'0.88rem',fontWeight:700,color:'#1B2E25',marginBottom:'0.5rem'}}>
+                    {tier.id==='individual_1000'?'Choose species *':'Species preference'}
+                    {tier.id==='joint_500'&&<span style={{fontWeight:400,color:'#4A6358',fontSize:'0.78rem'}}> (subject to availability)</span>}
+                  </label>
+                  <select value={species} onChange={e=>setSpecies(e.target.value)} style={{width:'100%',padding:'0.65rem 0.9rem',border:`1.5px solid ${errors.species?'#dc2626':'#B7E4C7'}`,borderRadius:'10px',fontSize:'0.95rem',color:'#0D1F17',background:'#fff',outline:'none',fontFamily:'inherit',cursor:'pointer'}}>
+                    <option value="">— Select species —</option>
+                    {tier.species.map(s=><option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <Err msg={errors.species}/>
+                </div>
+              )}
+              {tier.id==='miyawaki_5000'&&<div style={{fontSize:'0.78rem',color:'#2D6A4F',background:'#D8F3DC',padding:'0.6rem 0.9rem',borderRadius:'8px',borderLeft:'3px solid #52B788',marginBottom:'0.85rem'}}>🌿 30+ native species mixed forest — EcoTree selects for maximum biodiversity</div>}
+
+              {/* WHAT'S INCLUDED */}
+              <div style={{background:'#fff',border:'1px solid #B7E4C7',borderRadius:'12px',padding:'0.9rem 1rem',marginBottom:'1rem'}}>
+                <div style={{fontSize:'0.68rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:'#4A6358',marginBottom:'0.65rem'}}>What's included</div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.3rem 0.5rem'}}>
+                  {tier.what.map(w=>(
+                    <div key={w} style={{display:'flex',alignItems:'flex-start',gap:'0.4rem',fontSize:'0.78rem',color:'#2D6A4F',fontWeight:500}}>
+                      <span style={{color:'#52B788',fontWeight:800,flexShrink:0}}>✓</span><span>{w}</span>
                     </div>
                   ))}
                 </div>
+              </div>
 
-                {/* GIFT RECIPIENT FIELDS below occasions grid */}
-                <div className="et-gfields">
-                  <div className="et-detail__section-lbl" style={{ marginTop:'1.5rem' }}>
-                    Recipient details
+              {/* QUANTITY */}
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',background:'#fff',border:'1.5px solid #B7E4C7',borderRadius:'12px',padding:'0.9rem 1rem',marginBottom:'1rem'}}>
+                <div>
+                  <div style={{fontSize:'0.9rem',fontWeight:700,color:'#1B2E25'}}>{tier.id==='miyawaki_5000'?'Number of forests':tier.id==='joint_500'?'Number of shares':tier.id==='community_100'||tier.id==='community_250'?'Number of contributions':'Number of trees'}</div>
+                  {tier.id==='individual_1000'&&<div style={{fontSize:'0.72rem',color:'#4A6358',marginTop:'0.15rem'}}>Each tree gets unique GPS tracking</div>}
+                </div>
+                <div style={{display:'flex',alignItems:'center',gap:'0.65rem'}}>
+                  <button onClick={()=>setQty(q=>Math.max(1,q-1))} style={{width:'32px',height:'32px',borderRadius:'50%',border:'2px solid #B7E4C7',background:'#fff',fontSize:'1.1rem',cursor:'pointer',color:'#1B4332',fontFamily:'inherit',lineHeight:1,transition:'all 0.12s'}}>−</button>
+                  <span style={{fontSize:'1.1rem',fontWeight:900,color:'#1B4332',minWidth:'24px',textAlign:'center'}}>{qty}</span>
+                  <button onClick={()=>setQty(q=>Math.min(tier.id==='miyawaki_5000'||tier.id==='joint_500'?10:100,q+1))} style={{width:'32px',height:'32px',borderRadius:'50%',border:'2px solid #B7E4C7',background:'#fff',fontSize:'1.1rem',cursor:'pointer',color:'#1B4332',fontFamily:'inherit',lineHeight:1,transition:'all 0.12s'}}>+</button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* GIFT MODE — occasions grid replaces tier detail */}
+              <div style={{fontSize:'0.72rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.12em',color:'#4A6358',marginBottom:'0.85rem'}}>Choose the occasion</div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'0.6rem',marginBottom:'1.5rem'}}>
+                {OCCASIONS.map(o=>(
+                  <div key={o.id} onClick={()=>setOcc(o)} style={{position:'relative',border:`2px solid ${occ.id===o.id?'#52B788':'#B7E4C7'}`,borderRadius:'12px',padding:'0.85rem 0.4rem',cursor:'pointer',textAlign:'center',background:occ.id===o.id?'#D8F3DC':'#fff',transition:'all 0.2s'}}>
+                    <div style={{fontSize:'1.4rem',marginBottom:'0.2rem'}}>{o.icon}</div>
+                    <div style={{fontSize:'0.74rem',fontWeight:700,color:'#0D1F17',marginBottom:'0.15rem'}}>{o.label}</div>
+                    <div style={{fontSize:'0.78rem',fontWeight:800,color:'#1B4332'}}>₹{o.price}</div>
+                    {occ.id===o.id&&<div style={{position:'absolute',top:'0.3rem',right:'0.3rem',width:'16px',height:'16px',background:'#52B788',color:'#fff',borderRadius:'50%',fontSize:'0.6rem',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>✓</div>}
                   </div>
-                  <div className="et-field-row">
-                    <div className="et-field">
-                      <label htmlFor="et-rname-l">Recipient name *</label>
-                      <input
-                        id="et-rname-l"
-                        type="text"
-                        placeholder="Who is this gift for?"
-                        value={form.recipientName}
-                        onChange={e => sf('recipientName', e.target.value)}
-                        className={errors.recipientName ? 'et-err-border' : ''}
-                      />
-                      <Err msg={errors.recipientName} />
-                    </div>
-                    <div className="et-field">
-                      <label htmlFor="et-remail-l">Recipient email *</label>
-                      <input
-                        id="et-remail-l"
-                        type="email"
-                        placeholder="Their email for gift certificate"
-                        value={form.recipientEmail}
-                        onChange={e => sf('recipientEmail', e.target.value)}
-                        className={errors.recipientEmail ? 'et-err-border' : ''}
-                      />
-                      <Err msg={errors.recipientEmail} />
-                    </div>
-                  </div>
-                  <div className="et-field">
-                    <label htmlFor="et-gmsg-l">
-                      Personal message <span className="et-field__opt">(optional)</span>
-                    </label>
-                    <textarea
-                      id="et-gmsg-l"
-                      rows={2}
-                      placeholder="Add a personal message..."
-                      value={form.giftMessage}
-                      onChange={e => sf('giftMessage', e.target.value)}
-                    />
-                  </div>
+                ))}
+              </div>
+              {/* GIFT RECIPIENT FIELDS */}
+              <div style={{fontSize:'0.72rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.12em',color:'#4A6358',marginBottom:'0.75rem'}}>Recipient details</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem',marginBottom:'0.75rem'}}>
+                <div style={{display:'flex',flexDirection:'column',gap:'0.3rem'}}>
+                  <label style={{fontSize:'0.84rem',fontWeight:700,color:'#1B2E25'}}>Recipient name *</label>
+                  <input type="text" placeholder="Who is this gift for?" value={form.recipientName} onChange={e=>sf('recipientName',e.target.value)} style={{padding:'0.7rem 0.9rem',border:`1.5px solid ${errors.recipientName?'#dc2626':'#B7E4C7'}`,borderRadius:'10px',fontSize:'0.95rem',color:'#0D1F17',background:'#fff',outline:'none',fontFamily:'inherit'}}/>
+                  <Err msg={errors.recipientName}/>
                 </div>
-              </>
-            )}
-
-          </div>
-
-          {/* ── ZONE 3B: FORM PANEL ── */}
-          <div className="et-form-col" ref={formRef}>
-            <div className="et-form-panel">
-
-              {/* PANEL HEADER — selected tier summary */}
-              <div className="et-panel-hdr">
-                <div className="et-panel-hdr__icon">{tier.icon}</div>
-                <div className="et-panel-hdr__info">
-                  <div className="et-panel-hdr__eyebrow">Your order</div>
-                  <div className="et-panel-hdr__name">
-                    {mode === 'gift' ? `${occ.icon} ${occ.label} Gift` : tier.name}
-                  </div>
-                </div>
-                <div className="et-panel-hdr__price">
-                  ₹{total.toLocaleString('en-IN')}
+                <div style={{display:'flex',flexDirection:'column',gap:'0.3rem'}}>
+                  <label style={{fontSize:'0.84rem',fontWeight:700,color:'#1B2E25'}}>Recipient email *</label>
+                  <input type="email" placeholder="Their email for certificate" value={form.recipientEmail} onChange={e=>sf('recipientEmail',e.target.value)} style={{padding:'0.7rem 0.9rem',border:`1.5px solid ${errors.recipientEmail?'#dc2626':'#B7E4C7'}`,borderRadius:'10px',fontSize:'0.95rem',color:'#0D1F17',background:'#fff',outline:'none',fontFamily:'inherit'}}/>
+                  <Err msg={errors.recipientEmail}/>
                 </div>
               </div>
-
-              {/* ORDER META TAGS */}
-              <div className="et-order-meta">
-                {tier.id === 'community_100' || tier.id === 'community_250'
-                  ? <><span>🌿 Community forest</span><span>📜 Certificate</span><span>📊 Dashboard</span></>
-                  : tier.id === 'joint_500'
-                  ? <><span>🤝 Shared tree</span><span>📜 Certificate</span><span>📍 GPS</span><span>🧾 80G</span></>
-                  : tier.id === 'miyawaki_5000'
-                  ? <><span>🏙️ 30+ species</span><span>📊 Forest dashboard</span><span>🧾 80G</span></>
-                  : <><span>🌍 ~22kg CO₂/yr</span><span>📅 3yr tracking</span><span>📜 Certificate</span><span>🧾 80G</span></>
-                }
+              <div style={{display:'flex',flexDirection:'column',gap:'0.3rem'}}>
+                <label style={{fontSize:'0.84rem',fontWeight:700,color:'#1B2E25'}}>Personal message <span style={{fontWeight:400,color:'#4A6358',fontSize:'0.78rem'}}>(optional)</span></label>
+                <textarea rows={2} placeholder="Add a personal message..." value={form.giftMessage} onChange={e=>sf('giftMessage',e.target.value)} style={{padding:'0.7rem 0.9rem',border:'1.5px solid #B7E4C7',borderRadius:'10px',fontSize:'0.95rem',color:'#0D1F17',background:'#fff',outline:'none',fontFamily:'inherit',resize:'vertical'}}/>
               </div>
+            </>
+          )}
+        </div>
 
-              <div className="et-form-divider" />
+        {/* ── ZONE 3B: FORM PANEL (right 40%, sticky) ── */}
+        <div ref={formRef}>
+          <div style={{background:'#fff',border:'1.5px solid #B7E4C7',borderRadius:'16px',padding:'1.5rem',position:'sticky',top:'130px',boxShadow:'0 4px 24px rgba(27,67,50,0.08)'}}>
 
-              {/* GIFT MODE — summary only in right panel (occasions + recipient on left) */}
-              {mode === 'gift' && (
-                <div className="et-gift">
-                  <div className="et-gift__title">
-                    <span>🎁</span> {occ.icon} {occ.label} Gift · ₹{occ.price}
-                  </div>
-                  <div style={{ fontSize:'0.78rem', color:'#6D28D9', opacity:0.75, marginTop:'-0.25rem' }}>
-                    Recipient and message filled in on the left ←
-                  </div>
-                </div>
-              )}
-
-              {/* DONOR DETAILS FORM */}
-              <div className="et-section-label">
-                <span>Your Details</span>
+            {/* PANEL HEADER */}
+            <div style={{display:'flex',alignItems:'center',gap:'0.75rem',background:'#F4F7F4',borderRadius:'10px',padding:'0.75rem 0.9rem',marginBottom:'0.65rem'}}>
+              <span style={{fontSize:'1.5rem',flexShrink:0}}>{tier.icon}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:'0.62rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.12em',color:'#4A6358'}}>Your order</div>
+                <div style={{fontSize:'0.95rem',fontWeight:800,color:'#0D1F17',marginTop:'0.1rem'}}>{mode==='gift'?`${occ.icon} ${occ.label} Gift`:tier.name}</div>
               </div>
+              <div style={{fontSize:'1.1rem',fontWeight:900,color:'#1B4332',flexShrink:0}}>₹{total.toLocaleString('en-IN')}</div>
+            </div>
 
-              <div className="et-field">
-                <label htmlFor="et-name">Full name *</label>
-                <input
-                  id="et-name"
-                  type="text"
-                  placeholder="Your full name"
-                  value={form.name}
-                  onChange={e => sf('name', e.target.value)}
-                  className={errors.name ? 'et-err-border' : ''}
-                />
-                <Err msg={errors.name} />
+            {/* ORDER META */}
+            <div style={{display:'flex',flexWrap:'wrap',gap:'0.3rem',marginBottom:'0.85rem'}}>
+              {tier.id==='community_100'||tier.id==='community_250'?<><span style={metaTag}>🌿 Community</span><span style={metaTag}>📜 Certificate</span><span style={metaTag}>📊 Dashboard</span></>
+              :tier.id==='joint_500'?<><span style={metaTag}>🤝 Shared tree</span><span style={metaTag}>📍 GPS</span><span style={metaTag}>🧾 80G</span></>
+              :tier.id==='miyawaki_5000'?<><span style={metaTag}>🏙️ 30+ species</span><span style={metaTag}>📊 Dashboard</span><span style={metaTag}>🧾 80G</span></>
+              :<><span style={metaTag}>🌍 ~22kg CO₂/yr</span><span style={metaTag}>📅 3yr tracking</span><span style={metaTag}>🧾 80G</span></>}
+            </div>
+
+            <div style={{height:'1px',background:'#B7E4C7',margin:'0.85rem 0'}}/>
+
+            {/* DONOR FORM — dark visible labels */}
+            <div style={{fontSize:'0.68rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.12em',color:'#4A6358',marginBottom:'0.75rem'}}>Your Details</div>
+
+            {[
+              {k:'name',l:'Full Name *',p:'Your full name',t:'text'},
+              {k:'email',l:'Email Address *',p:'your@email.com',t:'email'},
+              {k:'phone',l:'Phone Number *',p:'98860 94611',t:'tel'},
+              {k:'address',l:'City / Address',p:'Bangalore',t:'text'},
+            ].map(f=>(
+              <div key={f.k} style={{marginBottom:'0.65rem'}}>
+                <label style={{display:'block',fontSize:'0.84rem',fontWeight:700,color:'#1B2E25',marginBottom:'0.3rem'}}>{f.l}</label>
+                <input type={f.t} placeholder={f.p} value={form[f.k as keyof typeof form]} onChange={e=>sf(f.k,e.target.value)} style={{width:'100%',padding:'0.68rem 0.85rem',border:`1.5px solid ${errors[f.k as keyof FormErrors]?'#dc2626':'#B7E4C7'}`,borderRadius:'10px',fontSize:'0.95rem',color:'#0D1F17',background:'#fff',outline:'none',fontFamily:'inherit',boxSizing:'border-box'}}/>
+                <Err msg={errors[f.k as keyof FormErrors]}/>
               </div>
+            ))}
 
-              <div className="et-field">
-                <label htmlFor="et-email">Email address *</label>
-                <input
-                  id="et-email"
-                  type="email"
-                  placeholder="your@email.com"
-                  value={form.email}
-                  onChange={e => sf('email', e.target.value)}
-                  className={errors.email ? 'et-err-border' : ''}
-                />
-                <Err msg={errors.email} />
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.65rem',marginBottom:'0.65rem'}}>
+              <div>
+                <label style={{display:'block',fontSize:'0.84rem',fontWeight:700,color:'#1B2E25',marginBottom:'0.3rem'}}>Birthday <span style={{fontWeight:400,fontSize:'0.74rem',color:'#4A6358'}}>(wishes)</span></label>
+                <input type="date" value={form.birthday} onChange={e=>sf('birthday',e.target.value)} style={{width:'100%',padding:'0.68rem 0.85rem',border:'1.5px solid #B7E4C7',borderRadius:'10px',fontSize:'0.9rem',color:'#0D1F17',background:'#fff',outline:'none',fontFamily:'inherit',boxSizing:'border-box'}}/>
               </div>
-
-              <div className="et-field">
-                <label htmlFor="et-phone">Phone number *</label>
-                <input
-                  id="et-phone"
-                  type="tel"
-                  placeholder="98860 94611"
-                  value={form.phone}
-                  onChange={e => sf('phone', e.target.value)}
-                  className={errors.phone ? 'et-err-border' : ''}
-                />
-                <Err msg={errors.phone} />
+              <div>
+                <label style={{display:'block',fontSize:'0.84rem',fontWeight:700,color:'#1B2E25',marginBottom:'0.3rem'}}>Anniversary <span style={{fontWeight:400,fontSize:'0.74rem',color:'#4A6358'}}>(optional)</span></label>
+                <input type="date" value={form.anniversary} onChange={e=>sf('anniversary',e.target.value)} style={{width:'100%',padding:'0.68rem 0.85rem',border:'1.5px solid #B7E4C7',borderRadius:'10px',fontSize:'0.9rem',color:'#0D1F17',background:'#fff',outline:'none',fontFamily:'inherit',boxSizing:'border-box'}}/>
               </div>
+            </div>
 
-              <div className="et-field">
-                <label htmlFor="et-addr">
-                  City / address <span className="et-field__opt">(optional)</span>
-                </label>
-                <input
-                  id="et-addr"
-                  type="text"
-                  placeholder="Bangalore"
-                  value={form.address}
-                  onChange={e => sf('address', e.target.value)}
-                />
+            {/* PAN NOTE */}
+            <div style={{fontSize:'0.75rem',color:'#4A6358',background:'#F4F7F4',padding:'0.5rem 0.75rem',borderRadius:'8px',borderLeft:'3px solid #52B788',marginBottom:'0.85rem',lineHeight:1.5}}>🧾 PAN for 80G tax benefit — collected after payment for faster checkout</div>
+
+            <div style={{height:'1px',background:'#B7E4C7',margin:'0.85rem 0'}}/>
+
+            {/* PAYMENT SUMMARY */}
+            <div style={{background:'#F4F7F4',borderRadius:'10px',padding:'0.85rem 1rem',marginBottom:'0.85rem'}}>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.84rem',color:'#2D3B36',marginBottom:'0.3rem',fontWeight:600}}>
+                <span>{mode==='gift'?`${occ.icon} ${occ.label} Gift`:`${tier.name} × ${qty}`}</span>
+                <span>₹{total.toLocaleString('en-IN')}</span>
               </div>
-
-              <div className="et-field-row">
-                <div className="et-field">
-                  <label htmlFor="et-bday">
-                    Birthday <span className="et-field__opt">(anniversary wishes)</span>
-                  </label>
-                  <input
-                    id="et-bday"
-                    type="date"
-                    value={form.birthday}
-                    onChange={e => sf('birthday', e.target.value)}
-                  />
-                </div>
-                <div className="et-field">
-                  <label htmlFor="et-ann">
-                    Anniversary <span className="et-field__opt">(optional)</span>
-                  </label>
-                  <input
-                    id="et-ann"
-                    type="date"
-                    value={form.anniversary}
-                    onChange={e => sf('anniversary', e.target.value)}
-                  />
-                </div>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.8rem',color:'#4A6358',marginBottom:'0.3rem'}}>
+                <span>Plantation &amp; Care</span><span>₹0</span>
               </div>
-
-              {/* PAN NOTE */}
-              <div className="et-pan-note">
-                🧾 PAN for 80G tax benefit — collected after payment for faster checkout
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:'1rem',fontWeight:900,color:'#1B4332',borderTop:'1px solid #B7E4C7',paddingTop:'0.55rem',marginTop:'0.3rem'}}>
+                <span>Total Amount</span><span>₹{total.toLocaleString('en-IN')}</span>
               </div>
+            </div>
 
-              <div className="et-form-divider" />
+            {/* CTA */}
+            <button onClick={handlePay} disabled={loading} style={{width:'100%',padding:'0.95rem',background:mode==='gift'?'#7C3AED':'#2C5F2D',color:'#fff',border:'none',borderRadius:'12px',fontSize:'0.97rem',fontWeight:700,cursor:loading?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'0.5rem',fontFamily:'inherit',boxShadow:mode==='gift'?'0 4px 20px rgba(124,58,237,0.3)':'0 4px 20px rgba(44,95,45,0.3)',marginBottom:'0.6rem',opacity:loading?0.7:1,transition:'all 0.2s'}}>
+              {loading?<><span style={{display:'inline-block',width:'14px',height:'14px',border:'2px solid rgba(255,255,255,0.3)',borderTopColor:'#fff',borderRadius:'50%',animation:'spin 0.6s linear infinite'}}/> Saving...</>:payBtnLabel()}
+            </button>
 
-              {/* PAYMENT SUMMARY */}
-              <div className="et-pay-summary">
-                <div className="et-pay-summary__line">
-                  <span>
-                    {mode === 'gift'
-                      ? `${occ.icon} ${occ.label} Gift`
-                      : `${tier.name} × ${qty}`}
-                  </span>
-                  <span>₹{total.toLocaleString('en-IN')}</span>
-                </div>
-                <div className="et-pay-summary__line et-pay-summary__line--muted">
-                  <span>Plantation &amp; Care</span>
-                  <span>₹0</span>
-                </div>
-                <div className="et-pay-summary__total">
-                  <span>Total Amount</span>
-                  <span>₹{total.toLocaleString('en-IN')}</span>
-                </div>
-              </div>
-
-              {/* MAIN CTA */}
-              <button
-                className={`et-pay-btn${mode==='gift'?' et-pay-btn--gift':''}`}
-                onClick={handlePay}
-                disabled={loading}
-              >
-                {loading
-                  ? <><span className="et-spin" aria-hidden="true" /> Saving...</>
-                  : payBtnLabel()
-                }
-              </button>
-
-              {/* PAYMENT METHODS */}
-              <div className="et-pay-methods">
-                <span>UPI</span>
-                <span>·</span>
-                <span>Card</span>
-                <span>·</span>
-                <span>Net Banking</span>
-                <span>·</span>
-                <span>Wallets</span>
-              </div>
-              <div className="et-pay-trust">
-                <span>🔒 Secure · Razorpay</span>
-                <span>📜 Certificate instantly</span>
-              </div>
-
+            <div style={{textAlign:'center',fontSize:'0.73rem',color:'#4A6358',marginBottom:'0.35rem',display:'flex',justifyContent:'center',gap:'0.35rem'}}>
+              <span>UPI</span><span>·</span><span>Card</span><span>·</span><span>Net Banking</span><span>·</span><span>Wallets</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.72rem',color:'#4A6358'}}>
+              <span>🔒 Secure · Razorpay</span><span>📜 Certificate instantly</span>
             </div>
           </div>
-
         </div>
+
       </div>
 
-      {/* ══ BELOW-FOLD SECTIONS — unchanged content ══ */}
-
-      {/* HOW IT WORKS */}
-      <section className="et-sec et-sec--how">
-        <div className="et-c">
-          <div className="et-sec__label">What Happens After You Pay</div>
-          <div className="et-how">
-            {[
-              { icon:'🌱', n:'01', t:'We Plant',       d:'Our field team plants your tree at a verified Bangalore site within 7 days.' },
-              { icon:'📍', n:'02', t:'GPS Tagged',      d:'A unique GPS coordinate and QR code is assigned to your specific tree.' },
-              { icon:'🤖', n:'03', t:'AI Verified',     d:'Claude AI verifies species, location, timestamp and health before it reaches you.' },
-              { icon:'📊', n:'04', t:'Live Dashboard',  d:'Track your tree with monthly photos and AI health scores for 3 full years.' },
-            ].map((s, i) => (
+      {/* ── BELOW FOLD: HOW IT WORKS ── */}
+      <section style={{padding:'3rem 0',background:'#fff',borderTop:'1px solid #B7E4C7',borderBottom:'1px solid #B7E4C7'}}>
+        <div style={{maxWidth:'1200px',margin:'0 auto',padding:'0 1.5rem'}}>
+          <div style={{display:'inline-block',fontSize:'0.72rem',fontWeight:700,letterSpacing:'0.13em',textTransform:'uppercase',color:'#52B788',background:'rgba(82,183,136,0.12)',padding:'0.3rem 0.9rem',borderRadius:'999px',marginBottom:'1.25rem'}}>What Happens After You Pay</div>
+          <div style={{display:'flex',alignItems:'flex-start',gap:0,flexWrap:'wrap'}}>
+            {[{icon:'🌱',n:'01',t:'We Plant',d:'Our field team plants your tree at a verified Bangalore site within 7 days.'},{icon:'📍',n:'02',t:'GPS Tagged',d:'A unique GPS coordinate and QR code is assigned to your specific tree.'},{icon:'🤖',n:'03',t:'AI Verified',d:'Claude AI verifies species, location, timestamp and health before it reaches you.'},{icon:'📊',n:'04',t:'Live Dashboard',d:'Track your tree with monthly photos and AI health scores for 3 full years.'}].map((s,i)=>(
               <React.Fragment key={s.n}>
-                <div className="et-how__item">
-                  <div className="et-how__icon">{s.icon}</div>
-                  <div className="et-how__num">{s.n}</div>
-                  <div className="et-how__title">{s.t}</div>
-                  <div className="et-how__desc">{s.d}</div>
+                <div style={{flex:1,minWidth:'120px',textAlign:'center',padding:'1.25rem 0.65rem',background:'#fff',borderRadius:'var(--r,14px)',border:'1px solid #B7E4C7',margin:'0 0.18rem',boxShadow:'0 1px 8px rgba(27,67,50,0.05)'}}>
+                  <div style={{fontSize:'2rem',marginBottom:'0.5rem'}}>{s.icon}</div>
+                  <div style={{fontSize:'0.62rem',fontWeight:700,color:'#52B788',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:'0.3rem'}}>{s.n}</div>
+                  <div style={{fontSize:'0.9rem',fontWeight:800,color:'#1B4332',marginBottom:'0.3rem'}}>{s.t}</div>
+                  <div style={{fontSize:'0.75rem',color:'#4A6358',lineHeight:1.5}}>{s.d}</div>
                 </div>
-                {i < 3 && <div className="et-how__arr" aria-hidden="true">→</div>}
+                {i<3&&<div style={{fontSize:'1.2rem',color:'#52B788',paddingTop:'3rem',flexShrink:0,opacity:0.5}}>→</div>}
               </React.Fragment>
             ))}
           </div>
         </div>
       </section>
 
-      {/* GALLERY */}
-      <section className="et-sec et-sec--white">
-        <div className="et-c">
-          <div className="et-sec__label">From Sapling to Forest</div>
-          <h2 className="et-h2">Real trees. <em>Real impact.</em></h2>
-          <div className="et-gallery">
-            {[
-              { img:'https://images.unsplash.com/photo-1509391366360-2e959784a276?w=500&q=80', l:'🌱 Day 1 — Sapling planted',    s:'GPS-tagged, QR code attached' },
-              { img:'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=500&q=80', l:'🌿 Month 6 — Growing strong',   s:'AI health score: 94%' },
-              { img:'https://images.unsplash.com/photo-1448375240586-882707db888b?w=500&q=80', l:'🌳 Year 3 — Full canopy',        s:'22kg CO₂ offset/year' },
-            ].map(g => (
-              <div className="et-gallery__item" key={g.l}>
-                <img src={g.img} alt={g.l} className="et-gallery__img" loading="lazy" />
-                <div className="et-gallery__cap">
-                  <div className="et-gallery__cap-title">{g.l}</div>
-                  <div className="et-gallery__cap-sub">{g.s}</div>
+      {/* ── GALLERY ── */}
+      <section style={{padding:'3rem 0',background:'#fff'}}>
+        <div style={{maxWidth:'1200px',margin:'0 auto',padding:'0 1.5rem'}}>
+          <div style={{display:'inline-block',fontSize:'0.72rem',fontWeight:700,letterSpacing:'0.13em',textTransform:'uppercase',color:'#52B788',background:'rgba(82,183,136,0.12)',padding:'0.3rem 0.9rem',borderRadius:'999px',marginBottom:'1.25rem'}}>From Sapling to Forest</div>
+          <h2 style={{fontSize:'clamp(1.5rem,3vw,2.2rem)',fontWeight:800,lineHeight:1.18,color:'#0D1F17',margin:'0 0 1.5rem'}}>Real trees. <em style={{color:'#52B788',fontStyle:'normal'}}>Real impact.</em></h2>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'1.25rem'}}>
+            {[{img:'https://images.unsplash.com/photo-1509391366360-2e959784a276?w=500&q=80',l:'🌱 Day 1 — Sapling planted',s:'GPS-tagged, QR code attached'},{img:'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=500&q=80',l:'🌿 Month 6 — Growing strong',s:'AI health score: 94%'},{img:'https://images.unsplash.com/photo-1448375240586-882707db888b?w=500&q=80',l:'🌳 Year 3 — Full canopy',s:'22kg CO₂ offset/year'}].map(g=>(
+              <div key={g.l} style={{borderRadius:'14px',overflow:'hidden',border:'1px solid #B7E4C7'}}>
+                <img src={g.img} alt={g.l} style={{width:'100%',aspectRatio:'4/3',objectFit:'cover',display:'block'}} loading="lazy"/>
+                <div style={{padding:'0.8rem 1rem',background:'#fff'}}>
+                  <div style={{fontSize:'0.88rem',fontWeight:700,color:'#1B4332',marginBottom:'0.15rem'}}>{g.l}</div>
+                  <div style={{fontSize:'0.74rem',color:'#4A6358'}}>{g.s}</div>
                 </div>
               </div>
             ))}
@@ -829,659 +489,65 @@ export default function DonatePage() {
         </div>
       </section>
 
-      {/* TRUST STRIP */}
-      <div className="et-trust-strip">
-        <div className="et-c et-trust-strip__inner">
-          {[
-            { i:'🧾', t:'80G Tax Benefit',     s:'Section 8 NGO · All donations eligible' },
-            { i:'📜', t:'Certificate Instantly', s:'PDF emailed after payment' },
-            { i:'🤖', t:'AI-Verified',           s:'Every photo independently checked' },
-            { i:'📅', t:'3-Year Tracking',        s:'Monthly updates on dashboard' },
-          ].map(x => (
-            <div className="et-trust-strip__item" key={x.t}>
-              <span className="et-trust-strip__icon">{x.i}</span>
-              <div>
-                <div className="et-trust-strip__title">{x.t}</div>
-                <div className="et-trust-strip__sub">{x.s}</div>
-              </div>
+      {/* ── TRUST STRIP ── */}
+      <div style={{background:'#1B4332',padding:'1.5rem 0'}}>
+        <div style={{maxWidth:'1200px',margin:'0 auto',padding:'0 1.5rem',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'1rem'}}>
+          {[{i:'🧾',t:'80G Tax Benefit',s:'Section 8 NGO · All donations eligible'},{i:'📜',t:'Certificate Instantly',s:'PDF emailed after payment'},{i:'🤖',t:'AI-Verified',s:'Every photo independently checked'},{i:'📅',t:'3-Year Tracking',s:'Monthly updates on dashboard'}].map(x=>(
+            <div key={x.t} style={{display:'flex',alignItems:'flex-start',gap:'0.65rem'}}>
+              <span style={{fontSize:'1.3rem',flexShrink:0}}>{x.i}</span>
+              <div><div style={{fontSize:'0.85rem',fontWeight:700,color:'#fff',marginBottom:'0.1rem'}}>{x.t}</div><div style={{fontSize:'0.7rem',color:'rgba(255,255,255,0.55)',lineHeight:1.4}}>{x.s}</div></div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* FAQ */}
-      <section className="et-sec et-sec--offwhite">
-        <div className="et-c et-c--narrow">
-          <div className="et-sec__label">FAQ</div>
-          <h2 className="et-h2">Quick answers</h2>
-          <FAQ />
+      {/* ── FAQ ── */}
+      <section style={{padding:'3rem 0',background:'#F4F7F4'}}>
+        <div style={{maxWidth:'740px',margin:'0 auto',padding:'0 1.5rem'}}>
+          <div style={{display:'inline-block',fontSize:'0.72rem',fontWeight:700,letterSpacing:'0.13em',textTransform:'uppercase',color:'#52B788',background:'rgba(82,183,136,0.12)',padding:'0.3rem 0.9rem',borderRadius:'999px',marginBottom:'1.25rem'}}>FAQ</div>
+          <h2 style={{fontSize:'clamp(1.5rem,3vw,2.2rem)',fontWeight:800,lineHeight:1.18,color:'#0D1F17',margin:'0 0 0.5rem'}}>Quick answers</h2>
+          <FAQ/>
         </div>
       </section>
 
-      {/* BOTTOM CTA */}
-      <div className="et-bcta">
-        <div className="et-c et-bcta__inner">
-          <span>🌱 Ready to plant? Scroll up to choose your tier.</span>
-          <div className="et-bcta__btns">
-            <button
-              className="et-btn et-btn--plant"
-              onClick={() => window.scrollTo({ top:0, behavior:'smooth' })}
-            >
-              Plant a Tree · From ₹100
-            </button>
-            <a
-              href={`https://wa.me/${WHATSAPP}?text=${WA_MSG}`}
-              target="_blank" rel="noopener"
-              className="et-btn et-btn--wa"
-            >
-              💬 WhatsApp Us
-            </a>
+      {/* ── BOTTOM CTA ── */}
+      <div style={{background:'#D8F3DC',padding:'1rem 0',borderTop:'1px solid #B7E4C7'}}>
+        <div style={{maxWidth:'1200px',margin:'0 auto',padding:'0 1.5rem',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem',flexWrap:'wrap'}}>
+          <span style={{fontSize:'0.88rem',fontWeight:600,color:'#1B4332'}}>🌱 Ready to plant? Scroll up to choose your tier.</span>
+          <div style={{display:'flex',gap:'0.6rem'}}>
+            <button onClick={()=>window.scrollTo({top:0,behavior:'smooth'})} style={{fontSize:'0.88rem',fontWeight:600,padding:'0.6rem 1.3rem',borderRadius:'999px',background:'#2C5F2D',color:'#fff',border:'none',cursor:'pointer',fontFamily:'inherit'}}>Plant a Tree · From ₹100</button>
+            <a href={`https://wa.me/${WHATSAPP}?text=${WA_MSG}`} target="_blank" rel="noopener" style={{fontSize:'0.88rem',fontWeight:600,padding:'0.6rem 1.3rem',borderRadius:'999px',background:'#25D366',color:'#fff',textDecoration:'none'}}>💬 WhatsApp Us</a>
           </div>
         </div>
       </div>
 
-      {/* ══ STYLES ══ */}
-      <style>{`
-        /* ── TOKENS ── */
-        .et {
-          --gd: #1B4332;
-          --gm: #2D6A4F;
-          --ga: #52B788;
-          --gl: #74C69D;
-          --mt: #D8F3DC;
-          --md: #B7E4C7;
-          --ow: #F4F7F4;
-          --td: #0D1F17;
-          --tb: #1B2E25;
-          --tm: #4A6358;
-          --gold: #D4A63F;
-          --purple: #7C3AED;
-          --r: 14px;
-          font-family: var(--font-body, 'Segoe UI', system-ui, sans-serif);
-          color: var(--td);
-          background: var(--ow);
-        }
-        .et-c { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; }
-        .et-c--narrow { max-width: 740px; }
-        .et-sec { padding: 3rem 0; }
-        .et-sec--white { background: #fff; }
-        .et-sec--offwhite { background: var(--ow); }
-        .et-sec--how { background: #fff; border-top: 1px solid var(--md); border-bottom: 1px solid var(--md); }
-        .et-sec__label { display:inline-block; font-size:0.72rem; font-weight:700; letter-spacing:0.13em; text-transform:uppercase; color:var(--ga); background:rgba(82,183,136,0.12); padding:0.3rem 0.9rem; border-radius:999px; margin-bottom:1.25rem; }
-        .et-h2 { font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 800; line-height: 1.18; color: var(--td); margin: 0 0 1.5rem; }
-        .et-h2 em { color: var(--ga); font-style: normal; }
-
-        /* ── ZONE 1: TRUST BAR ── */
-        .et-trust {
-          background: var(--gd);
-          border-bottom: 1px solid rgba(116,198,157,0.2);
-          padding: 0.55rem 0;
-          position: sticky; top: 80px; z-index: 50;
-        }
-        .et-trust__inner {
-          display: flex; align-items: center; justify-content: space-between;
-          gap: 1rem; flex-wrap: wrap;
-        }
-        .et-trust__signals {
-          display: flex; align-items: center; gap: 0.55rem;
-          flex-wrap: wrap;
-          font-size: 0.73rem; font-weight: 600; color: rgba(255,255,255,0.65);
-        }
-        .et-trust__dot { color: rgba(116,198,157,0.4); }
-        .et-trust__actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
-        .et-trust__btn {
-          display: inline-flex; align-items: center; gap: 0.35rem;
-          font-size: 0.73rem; font-weight: 700; padding: 0.32rem 0.85rem;
-          border-radius: 999px; cursor: pointer; border: none;
-          font-family: inherit; transition: all 0.2s; white-space: nowrap;
-        }
-        .et-trust__btn--wa { background: #25D366; color: #fff; }
-        .et-trust__btn--cp { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
-        .et-trust__btn:hover { filter: brightness(1.1); }
-
-        /* ── ZONE 2: HERO BANNER ── */
-        .et-hero {
-          background: var(--gd);
-          position: relative; overflow: hidden;
-          padding: 2.5rem 0 2rem;
-          border-bottom: 3px solid rgba(82,183,136,0.3);
-        }
-        .et-hero__inner {
-          display: grid;
-          grid-template-columns: auto 1fr;
-          gap: 3rem; align-items: center;
-        }
-        .et-hero__left { min-width: 0; }
-        .et-hero__eyebrow {
-          font-size: 0.72rem; font-weight: 700; color: var(--gl);
-          letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.6rem;
-        }
-        .et-hero__h1 {
-          font-size: clamp(2rem, 4vw, 3.2rem);
-          font-weight: 900; color: #fff; line-height: 0.95;
-          letter-spacing: -0.03em; margin-bottom: 0.7rem;
-        }
-        .et-hero__h1 em { color: var(--gl); font-style: normal; }
-        .et-hero__sub {
-          font-size: 0.8rem; color: rgba(255,255,255,0.55);
-          margin-bottom: 1.25rem; letter-spacing: 0.04em;
-        }
-        .et-hero__toggles { display: flex; gap: 0.6rem; flex-wrap: wrap; }
-        .et-tog {
-          padding: 0.65rem 1.4rem; border-radius: 10px;
-          font-size: 0.9rem; font-weight: 700;
-          cursor: pointer; border: 2px solid transparent;
-          font-family: inherit; transition: all 0.2s; white-space: nowrap;
-        }
-        .et-tog--plant {
-          background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7);
-          border-color: rgba(255,255,255,0.15);
-        }
-        .et-tog--plant.active {
-          background: var(--gm); color: #fff; border-color: var(--ga);
-          box-shadow: 0 3px 12px rgba(82,183,136,0.3);
-        }
-        .et-tog--gift {
-          background: rgba(124,58,237,0.15); color: rgba(255,255,255,0.7);
-          border-color: rgba(124,58,237,0.3);
-        }
-        .et-tog--gift.active {
-          background: var(--purple); color: #fff; border-color: var(--purple);
-          box-shadow: 0 3px 12px rgba(124,58,237,0.4);
-        }
-
-        /* TIER PILLS in hero */
-        .et-hero__tiers { min-width: 0; }
-        .et-hero__tiers-label {
-          font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
-          letter-spacing: 0.1em; color: rgba(255,255,255,0.4); margin-bottom: 0.75rem;
-        }
-        .et-hero__tier-pills {
-          display: flex; gap: 0.6rem; flex-wrap: nowrap; overflow-x: auto;
-        }
-        .et-hero__tier-pills::-webkit-scrollbar { display: none; }
-        .et-tier-pill {
-          display: flex; flex-direction: column; align-items: flex-start;
-          min-width: 120px; padding: 0.9rem 1rem;
-          border-radius: 14px; border: 1.5px solid rgba(255,255,255,0.2);
-          background: rgba(255,255,255,0.07);
-          color: #fff; cursor: pointer;
-          transition: all 0.2s; font-family: inherit; text-align: left;
-          flex-shrink: 0;
-        }
-        .et-tier-pill:hover { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.35); }
-        .et-tier-pill.on {
-          background: #fff; color: var(--gd);
-          border-color: #fff; box-shadow: 0 4px 18px rgba(0,0,0,0.2);
-        }
-        .et-tier-pill__loved {
-          font-size: 0.6rem; font-weight: 800; color: var(--gold);
-          letter-spacing: 0.07em; margin-bottom: 0.2rem;
-          text-transform: uppercase;
-        }
-        .et-tier-pill.on .et-tier-pill__loved { color: var(--gold); }
-        .et-tier-pill__amt {
-          font-size: 1.15rem; font-weight: 900; line-height: 1; margin-bottom: 0.3rem;
-        }
-        .et-tier-pill__name { font-size: 0.78rem; font-weight: 700; margin-bottom: 0.15rem; }
-        .et-tier-pill__desc { font-size: 0.68rem; opacity: 0.65; line-height: 1.3; }
-        .et-tier-pill.on .et-tier-pill__desc { opacity: 0.6; }
-
-        /* ── ZONE 3: TWO COLUMNS ── */
-        .et-body { padding: 2rem 0 4rem; }
-        .et-body__cols {
-          display: grid;
-          grid-template-columns: 1fr 400px;
-          gap: 2rem; align-items: start;
-        }
-
-        /* ── ZONE 3A: TIER DETAIL ── */
-        .et-detail {}
-
-        /* Image */
-        .et-detail__img-wrap {
-          border-radius: 20px; overflow: hidden;
-          position: relative; height: 300px;
-          margin-bottom: 1rem;
-        }
-        .et-detail__img-inner {
-          position: absolute; inset: 0;
-        }
-        .et-detail__img {
-          object-fit: cover;
-        }
-        .et-detail__img-overlay {
-          position: absolute; inset: 0;
-          background: linear-gradient(to top, rgba(11,31,23,0.82) 0%, rgba(0,0,0,0.2) 50%, transparent 100%);
-        }
-        .et-detail__img-caption {
-          position: absolute; bottom: 0; left: 0; padding: 1.25rem 1.5rem;
-          z-index: 2;
-        }
-        .et-detail__img-badge {
-          display: inline-block; font-size: 0.6rem; font-weight: 800;
-          color: #fff; padding: 0.15rem 0.5rem; border-radius: 4px;
-          letter-spacing: 0.07em; margin-bottom: 0.4rem;
-        }
-        .et-detail__img-name {
-          font-size: 1.4rem; font-weight: 900; color: #fff; line-height: 1.1;
-        }
-        .et-detail__img-desc {
-          font-size: 0.8rem; color: rgba(255,255,255,0.72); margin-top: 0.25rem;
-        }
-
-        /* GPS + Impact */
-        .et-impact {
-          display: grid; grid-template-columns: 1fr 1fr 1fr;
-          gap: 0.75rem; margin-bottom: 0.85rem;
-        }
-        .et-impact__map {
-          border-radius: 12px; background: #e8f5e9;
-          border: 1px solid var(--md);
-          position: relative; overflow: hidden;
-          display: flex; align-items: center; justify-content: center;
-          flex-direction: column; gap: 0.3rem;
-          padding: 0.85rem 0.5rem; min-height: 90px;
-        }
-        .et-impact__map-pin {
-          width: 10px; height: 10px; border-radius: 50%;
-          background: var(--gd); position: relative; z-index: 2;
-          box-shadow: 0 0 0 3px rgba(27,67,50,0.15);
-        }
-        .et-impact__map-ring {
-          position: absolute; width: 40px; height: 40px;
-          border-radius: 50%; border: 1.5px solid rgba(27,67,50,0.15);
-        }
-        .et-impact__map-ring2 {
-          position: absolute; width: 65px; height: 65px;
-          border-radius: 50%; border: 1px solid rgba(27,67,50,0.08);
-        }
-        .et-impact__map-pill {
-          font-size: 0.65rem; font-weight: 700; color: var(--gd);
-          position: absolute; top: 0.45rem; left: 0.45rem;
-          background: rgba(255,255,255,0.9); padding: 0.15rem 0.5rem;
-          border-radius: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-        }
-        .et-impact__map-region {
-          font-size: 0.62rem; color: var(--tm); font-weight: 600; z-index: 2;
-          margin-top: 0.3rem;
-        }
-        .et-impact__metric {
-          background: #f0faf4; border: 1px solid var(--md);
-          border-radius: 12px; padding: 0.85rem;
-          display: flex; flex-direction: column; justify-content: center;
-        }
-        .et-impact__metric-icon { font-size: 1.1rem; margin-bottom: 0.3rem; }
-        .et-impact__metric-val {
-          font-size: 1.3rem; font-weight: 900; color: var(--gd); line-height: 1;
-        }
-        .et-impact__metric-lbl {
-          font-size: 0.7rem; color: var(--tm); margin-top: 0.2rem; line-height: 1.3;
-        }
-
-        /* Dashboard hint */
-        .et-dashboard-hint {
-          display: flex; align-items: flex-start; gap: 0.6rem;
-          background: rgba(82,183,136,0.08); border: 1px solid var(--md);
-          border-left: 3px solid var(--ga);
-          border-radius: 10px; padding: 0.7rem 0.9rem;
-          font-size: 0.8rem; color: var(--tm); line-height: 1.55;
-          margin-bottom: 1rem;
-        }
-        .et-dashboard-hint span:first-child { font-size: 1rem; flex-shrink: 0; }
-
-        /* Species */
-        .et-species {
-          background: #fff; border: 1.5px solid var(--md);
-          border-radius: 12px; padding: 0.9rem 1rem; margin-bottom: 0.85rem;
-        }
-        .et-species__label {
-          font-size: 0.88rem; font-weight: 700; color: var(--tb); margin-bottom: 0.5rem;
-        }
-        .et-species__opt { font-weight: 400; color: var(--tm); font-size: 0.78rem; }
-        .et-species__select {
-          width: 100%; padding: 0.65rem 0.9rem;
-          border: 1.5px solid var(--md); border-radius: 10px;
-          font-size: 0.95rem; color: var(--td); background: #fff;
-          outline: none; font-family: inherit; cursor: pointer;
-        }
-        .et-species__select:focus { border-color: var(--ga); }
-        .et-miyawaki-note {
-          font-size: 0.78rem; color: var(--gm); background: var(--mt);
-          padding: 0.6rem 0.9rem; border-radius: 8px;
-          border-left: 3px solid var(--ga); margin-bottom: 0.85rem;
-        }
-
-        /* What's included */
-        .et-what {
-          background: #fff; border: 1px solid var(--md);
-          border-radius: 12px; padding: 0.9rem 1rem; margin-bottom: 1rem;
-        }
-        .et-what__label {
-          font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-          letter-spacing: 0.1em; color: var(--tm); margin-bottom: 0.65rem;
-        }
-        .et-what__grid {
-          display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem 0.5rem;
-        }
-        .et-what__item {
-          display: flex; align-items: flex-start; gap: 0.4rem;
-          font-size: 0.78rem; color: var(--gm); font-weight: 500;
-        }
-        .et-what__check { color: var(--ga); font-weight: 800; flex-shrink: 0; font-size: 0.8rem; }
-
-        /* Quantity */
-        .et-qty {
-          display: flex; align-items: center; justify-content: space-between;
-          background: #fff; border: 1.5px solid var(--md);
-          border-radius: 12px; padding: 0.9rem 1rem; margin-bottom: 1rem;
-        }
-        .et-qty__label { font-size: 0.9rem; font-weight: 700; color: var(--tb); }
-        .et-qty__sub { font-size: 0.73rem; color: var(--tm); margin-top: 0.2rem; }
-        .et-qty__ctrl { display: flex; align-items: center; gap: 0.65rem; }
-        .et-qty__btn {
-          width: 32px; height: 32px; border-radius: 50%;
-          border: 2px solid var(--md); background: #fff;
-          font-size: 1.1rem; cursor: pointer; color: var(--gd);
-          display: flex; align-items: center; justify-content: center;
-          font-family: inherit; line-height: 1; transition: all 0.15s;
-        }
-        .et-qty__btn:hover { background: var(--gd); color: #fff; border-color: var(--gd); }
-        .et-qty__num { font-size: 1.1rem; font-weight: 900; color: var(--gd); min-width: 24px; text-align: center; }
-
-        /* ── ZONE 3B: FORM PANEL ── */
-        .et-form-col {}
-        .et-form-panel {
-          background: #fff; border: 1.5px solid var(--md);
-          border-radius: var(--r); padding: 1.5rem;
-          position: sticky; top: 130px;
-          box-shadow: 0 4px 24px rgba(27,67,50,0.08);
-        }
-
-        /* Panel header */
-        .et-panel-hdr {
-          display: flex; align-items: center; gap: 0.75rem;
-          background: var(--ow); border-radius: 10px;
-          padding: 0.75rem 0.9rem; margin-bottom: 0.65rem;
-        }
-        .et-panel-hdr__icon { font-size: 1.5rem; flex-shrink: 0; }
-        .et-panel-hdr__info { flex: 1; min-width: 0; }
-        .et-panel-hdr__eyebrow {
-          font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
-          letter-spacing: 0.12em; color: var(--tm);
-        }
-        .et-panel-hdr__name { font-size: 0.95rem; font-weight: 800; color: var(--td); margin-top: 0.1rem; }
-        .et-panel-hdr__price { font-size: 1.15rem; font-weight: 900; color: var(--gd); flex-shrink: 0; }
-
-        /* Order meta tags */
-        .et-order-meta {
-          display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.85rem;
-        }
-        .et-order-meta span {
-          font-size: 0.68rem; background: var(--mt); color: var(--gd);
-          padding: 0.18rem 0.5rem; border-radius: 999px; font-weight: 600;
-        }
-
-        .et-form-divider { height: 1px; background: var(--md); margin: 0.85rem 0; }
-
-        /* Gift section */
-        .et-gift {
-          background: #F7F0FF; border: 1.5px solid #E4D5FF;
-          border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 0.85rem;
-        }
-        .et-gift__title {
-          font-size: 0.88rem; font-weight: 700; color: var(--purple);
-          margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem;
-        }
-
-        /* Section label */
-        .et-section-label {
-          font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-          letter-spacing: 0.12em; color: var(--tm); margin-bottom: 0.75rem;
-        }
-
-        /* Form fields — VISIBLE DARK LABELS */
-        .et-field { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.65rem; }
-        .et-field label {
-          font-size: 0.84rem; font-weight: 700; color: var(--tb);
-          /* DARK VISIBLE LABEL */
-        }
-        .et-field__opt { font-weight: 400; color: var(--tm); font-size: 0.76rem; }
-        .et-field input,
-        .et-field select,
-        .et-field textarea,
-        .et-field__select,
-        .et-gift .et-field__select {
-          width: 100%; padding: 0.68rem 0.85rem;
-          border: 1.5px solid var(--md); border-radius: 10px;
-          font-size: 0.95rem; color: var(--td); background: #fff;
-          outline: none; transition: border-color 0.2s, box-shadow 0.2s;
-          font-family: inherit; box-sizing: border-box;
-        }
-        .et-field input:focus,
-        .et-field select:focus,
-        .et-field textarea:focus,
-        .et-field__select:focus {
-          border-color: var(--ga); box-shadow: 0 0 0 3px rgba(82,183,136,0.1);
-        }
-        .et-field input::placeholder,
-        .et-field textarea::placeholder { color: #AABFB4; font-size: 0.85rem; }
-        .et-field textarea { resize: vertical; min-height: 66px; }
-        .et-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; }
-
-        /* Gift field labels — purple */
-        .et-gift .et-field label { color: #6D28D9; }
-        .et-gift .et-field input,
-        .et-gift .et-field select,
-        .et-gift .et-field textarea,
-        .et-gift .et-field__select {
-          border-color: #E4D5FF;
-        }
-        .et-gift .et-field input:focus,
-        .et-gift .et-field select:focus,
-        .et-gift .et-field textarea:focus {
-          border-color: var(--purple); box-shadow: 0 0 0 3px rgba(124,58,237,0.08);
-        }
-
-        /* Error states */
-        .et-err-border { border-color: #DC2626 !important; }
-        .et-err {
-          font-size: 0.76rem; color: #DC2626;
-          margin-top: 2px; display: flex; align-items: center; gap: 4px;
-        }
-
-        /* PAN note */
-        .et-pan-note {
-          font-size: 0.76rem; color: var(--tm); background: var(--ow);
-          padding: 0.5rem 0.75rem; border-radius: 8px;
-          border-left: 3px solid var(--ga); margin-bottom: 0.85rem; line-height: 1.5;
-        }
-
-        /* Payment summary */
-        .et-pay-summary {
-          background: var(--ow); border-radius: 10px;
-          padding: 0.85rem 1rem; margin-bottom: 0.85rem;
-        }
-        .et-pay-summary__line {
-          display: flex; justify-content: space-between;
-          font-size: 0.84rem; color: var(--tb); margin-bottom: 0.3rem;
-          font-weight: 600;
-        }
-        .et-pay-summary__line--muted { color: var(--tm); font-weight: 400; }
-        .et-pay-summary__total {
-          display: flex; justify-content: space-between;
-          font-size: 1rem; font-weight: 900; color: var(--gd);
-          border-top: 1px solid var(--md); padding-top: 0.55rem; margin-top: 0.3rem;
-        }
-
-        /* CTA button */
-        .et-pay-btn {
-          width: 100%; padding: 0.95rem;
-          background: #2C5F2D; color: #fff;
-          border: none; border-radius: 12px;
-          font-size: 0.97rem; font-weight: 700;
-          cursor: pointer; display: flex; align-items: center;
-          justify-content: center; gap: 0.5rem;
-          transition: all 0.2s; font-family: inherit;
-          box-shadow: 0 4px 20px rgba(44,95,45,0.3); margin-bottom: 0.6rem;
-        }
-        .et-pay-btn:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
-        .et-pay-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
-        .et-pay-btn--gift { background: var(--purple); box-shadow: 0 4px 20px rgba(124,58,237,0.3); }
-        .et-pay-btn--gift:hover:not(:disabled) { filter: brightness(1.08); }
-
-        .et-spin {
-          display: inline-block; width: 14px; height: 14px;
-          border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
-          border-radius: 50%; animation: et-sp 0.6s linear infinite;
-        }
-        @keyframes et-sp { to { transform: rotate(360deg); } }
-
-        .et-pay-methods {
-          text-align: center; font-size: 0.73rem; color: var(--tm);
-          margin-bottom: 0.3rem; display: flex; justify-content: center; gap: 0.35rem;
-        }
-        .et-pay-trust {
-          display: flex; justify-content: space-between;
-          font-size: 0.72rem; color: var(--tm);
-        }
-
-        /* ── GIFT MODE — OCCASIONS GRID (left side) ── */
-        .et-detail__section-lbl {
-          font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
-          letter-spacing: 0.12em; color: var(--tm); margin-bottom: 0.85rem;
-        }
-        .et-ogrid {
-          display: grid; grid-template-columns: repeat(4, 1fr);
-          gap: 0.6rem; margin-bottom: 0.5rem;
-        }
-        .et-ocard {
-          position: relative; border: 2px solid var(--md);
-          border-radius: 12px; padding: 0.85rem 0.4rem;
-          cursor: pointer; text-align: center;
-          transition: all 0.2s; background: #fff;
-        }
-        .et-ocard:hover, .et-ocard.sel {
-          border-color: var(--ga); background: var(--mt);
-        }
-        .et-oi { font-size: 1.4rem; margin-bottom: 0.2rem; }
-        .et-ol { font-size: 0.74rem; font-weight: 700; color: var(--td); margin-bottom: 0.15rem; }
-        .et-op { font-size: 0.78rem; font-weight: 800; color: var(--gd); }
-        .et-och {
-          position: absolute; top: 0.3rem; right: 0.3rem;
-          width: 16px; height: 16px; background: var(--ga); color: #fff;
-          border-radius: 50%; font-size: 0.6rem;
-          display: flex; align-items: center; justify-content: center; font-weight: 700;
-        }
-        .et-gfields { display: flex; flex-direction: column; gap: 0.75rem; }
-
-        /* ── BELOW FOLD ── */
-        .et-how { display: flex; align-items: flex-start; gap: 0; margin-top: 2rem; }
-        .et-how__item {
-          flex: 1; min-width: 120px; text-align: center;
-          padding: 1.25rem 0.65rem; background: #fff;
-          border-radius: var(--r); border: 1px solid var(--md);
-          margin: 0 0.18rem; box-shadow: 0 1px 8px rgba(27,67,50,0.05);
-        }
-        .et-how__icon { font-size: 2rem; margin-bottom: 0.5rem; }
-        .et-how__num { font-size: 0.62rem; font-weight: 700; color: var(--ga); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.3rem; }
-        .et-how__title { font-size: 0.9rem; font-weight: 800; color: var(--gd); margin-bottom: 0.3rem; }
-        .et-how__desc { font-size: 0.75rem; color: var(--tm); line-height: 1.5; }
-        .et-how__arr { font-size: 1.2rem; color: var(--ga); padding-top: 3rem; flex-shrink: 0; opacity: 0.5; }
-
-        .et-gallery { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.25rem; }
-        .et-gallery__item { border-radius: var(--r); overflow: hidden; border: 1px solid var(--md); }
-        .et-gallery__img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; transition: transform 0.3s; }
-        .et-gallery__item:hover .et-gallery__img { transform: scale(1.03); }
-        .et-gallery__cap { padding: 0.8rem 1rem; background: #fff; }
-        .et-gallery__cap-title { font-size: 0.88rem; font-weight: 700; color: var(--gd); margin-bottom: 0.15rem; }
-        .et-gallery__cap-sub { font-size: 0.74rem; color: var(--tm); }
-
-        .et-trust-strip { background: var(--gd); padding: 1.5rem 0; }
-        .et-trust-strip__inner { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; }
-        .et-trust-strip__item { display: flex; align-items: flex-start; gap: 0.65rem; }
-        .et-trust-strip__icon { font-size: 1.3rem; flex-shrink: 0; }
-        .et-trust-strip__title { font-size: 0.85rem; font-weight: 700; color: #fff; margin-bottom: 0.1rem; }
-        .et-trust-strip__sub { font-size: 0.7rem; color: rgba(255,255,255,0.55); line-height: 1.4; }
-
-        .et-bcta { background: var(--mt); padding: 1rem 0; border-top: 1px solid var(--md); }
-        .et-bcta__inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-        .et-bcta__inner > span { font-size: 0.88rem; font-weight: 600; color: var(--gd); }
-        .et-bcta__btns { display: flex; gap: 0.6rem; }
-        .et-btn {
-          display: inline-flex; align-items: center; justify-content: center;
-          gap: 0.4rem; font-size: 0.88rem; font-weight: 600;
-          padding: 0.6rem 1.3rem; border-radius: 999px;
-          text-decoration: none; cursor: pointer; border: none;
-          transition: all 0.2s; font-family: inherit; white-space: nowrap;
-        }
-        .et-btn--plant { background: #2C5F2D; color: #fff; }
-        .et-btn--wa { background: #25D366; color: #fff; }
-
-        /* ── RESPONSIVE ── */
-        @media (max-width: 1024px) {
-          .et-body__cols { grid-template-columns: 1fr 360px; }
-        }
-        @media (max-width: 860px) {
-          .et-hero__inner { grid-template-columns: 1fr; gap: 1.5rem; }
-          .et-body__cols { grid-template-columns: 1fr; }
-          .et-form-panel { position: static; }
-        }
-        @media (max-width: 640px) {
-          .et-hero { padding: 1.75rem 0 1.5rem; }
-          .et-hero__h1 { font-size: 2rem; }
-          .et-impact { grid-template-columns: 1fr 1fr 1fr; }
-          .et-what__grid { grid-template-columns: 1fr; }
-          .et-field-row { grid-template-columns: 1fr; }
-          .et-gallery { grid-template-columns: 1fr; }
-          .et-trust-strip__inner { grid-template-columns: repeat(2,1fr); }
-          .et-how { flex-wrap: wrap; gap: 1rem; }
-          .et-how__arr { display: none; }
-          .et-bcta__inner { flex-direction: column; align-items: stretch; }
-          .et-bcta__btns { flex-direction: column; }
-          .et-trust__signals { display: none; }
-        }
-        @media (max-width: 420px) {
-          .et-impact { grid-template-columns: 1fr 1fr; }
-          .et-impact__map { grid-column: 1 / -1; }
-        }
-      `}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}@media(max-width:900px){}`}</style>
     </main>
   )
 }
 
-// ─────────────────────────────────────────────
-// FAQ COMPONENT — unchanged from original
-// ─────────────────────────────────────────────
+const metaTag: React.CSSProperties = { fontSize:'0.68rem', background:'#D8F3DC', color:'#1B4332', padding:'0.18rem 0.5rem', borderRadius:'999px', fontWeight:600 }
+
 function FAQ() {
   const [o, setO] = useState<number|null>(null)
   const qs = [
-    { q:'What is the difference between Community and Individual?', a:'Community (₹100/₹250) contributes to our shared forest — you get a certificate and dashboard but no individual tree ID. Individual (₹1000) plants a specific tree in your name with GPS tracking, photos and AI health scores.' },
-    { q:'How does the Joint Tree (₹500) work?', a:'Two people each donate ₹500 — together ₹1000 plants one tree. You are auto-matched with one other donor. Once matched, both receive the shared tree dashboard with GPS, photos and health updates.' },
-    { q:'When will I receive my certificate?', a:'Your PDF certificate is emailed instantly after payment. Community donors get a Community Forest Certificate. Individual donors get a personalized tree certificate.' },
-    { q:'How do I know my tree was actually planted?', a:'Within 7 days, our field team plants and GPS-tags your tree. Claude AI verifies the photo — species, GPS, timestamp, health — before it appears on your dashboard.' },
-    { q:'How do I claim the 80G tax benefit?', a:'Provide your PAN on the thank-you page after payment. EcoTree Impact Foundation is a registered Section 8 company with 80G approval.' },
-    { q:'What is the Miyawaki Forest option?', a:'Miyawaki creates dense micro-forests with 30+ native species — 10x faster growth, 30x more biodiversity. At ₹5,000 you sponsor one forest patch and get a dedicated forest dashboard with BRSR-compatible reports.' },
+    {q:'What is the difference between Community and Individual?',a:'Community (₹100/₹250) contributes to our shared forest — you get a certificate and dashboard but no individual tree ID. Individual (₹1000) plants a specific tree in your name with GPS tracking, photos and AI health scores.'},
+    {q:'How does the Joint Tree (₹500) work?',a:'Two people each donate ₹500 — together ₹1000 plants one tree. You are auto-matched with one other donor. Once matched, both receive the shared tree dashboard with GPS, photos and health updates.'},
+    {q:'When will I receive my certificate?',a:'Your PDF certificate is emailed instantly after payment. Community donors get a Community Forest Certificate. Individual donors get a personalized tree certificate.'},
+    {q:'How do I know my tree was actually planted?',a:'Within 7 days, our field team plants and GPS-tags your tree. Claude AI verifies the photo — species, GPS, timestamp, health — before it appears on your dashboard.'},
+    {q:'How do I claim the 80G tax benefit?',a:'Provide your PAN on the thank-you page after payment. EcoTree Impact Foundation is a registered Section 8 company with 80G approval.'},
+    {q:'What is the Miyawaki Forest option?',a:'Miyawaki creates dense micro-forests with 30+ native species — 10x faster growth, 30x more biodiversity. At ₹5,000 you sponsor one forest patch and get a dedicated forest dashboard with BRSR-compatible reports.'},
   ]
   return (
-    <div className="fq">
-      {qs.map((f, i) => (
-        <div key={i} className="fqi">
-          <button className={`fqq${o===i?' op':''}`} onClick={() => setO(o===i ? null : i)}>
-            <span>{f.q}</span>
-            <span className="fqc">{o===i ? '−' : '+'}</span>
+    <div style={{display:'flex',flexDirection:'column',gap:'0.6rem',marginTop:'1.5rem'}}>
+      {qs.map((f,i)=>(
+        <div key={i} style={{border:'1px solid #B7E4C7',borderRadius:'0.6rem',overflow:'hidden'}}>
+          <button onClick={()=>setO(o===i?null:i)} style={{width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',gap:'1rem',padding:'1rem 1.1rem',fontSize:'0.92rem',fontWeight:600,color:'#1B4332',background:o===i?'#D8F3DC':'#F8FAF8',border:'none',cursor:'pointer',textAlign:'left',fontFamily:'inherit'}}>
+            <span>{f.q}</span><span style={{fontSize:'1.2rem',color:'#52B788',flexShrink:0}}>{o===i?'−':'+'}</span>
           </button>
-          {o===i && <div className="fqa">{f.a}</div>}
+          {o===i&&<div style={{padding:'0.9rem 1.1rem',fontSize:'0.9rem',lineHeight:1.7,color:'#2D3B36',background:'#fff',borderTop:'1px solid #B7E4C7'}}>{f.a}</div>}
         </div>
       ))}
-      <style>{`
-        .fq { display:flex; flex-direction:column; gap:0.6rem; margin-top:1.5rem; }
-        .fqi { border:1px solid #B7E4C7; border-radius:0.6rem; overflow:hidden; }
-        .fqq { width:100%; display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:1rem 1.1rem; font-size:0.92rem; font-weight:600; color:#1B4332; background:#F8FAF8; border:none; cursor:pointer; text-align:left; font-family:inherit; transition:background 0.15s; }
-        .fqq:hover, .fqq.op { background:#D8F3DC; }
-        .fqc { font-size:1.2rem; color:#52B788; flex-shrink:0; }
-        .fqa { padding:0.9rem 1.1rem; font-size:0.9rem; line-height:1.7; color:#2D3B36; background:#fff; border-top:1px solid #B7E4C7; }
-      `}</style>
     </div>
   )
 }
