@@ -87,7 +87,13 @@ export default function DonatePage() {
   const pickTier = (t: typeof TIERS[0]) => {
     setTier(t); setSpecies(''); setQty(1); setSpErr(false)
     if (t.occasionIds.length > 0) setOcc(OCCASIONS.find(o=>t.occasionIds.includes(o.id))||OCCASIONS[0])
-    setTimeout(() => detailRef.current?.scrollIntoView({ behavior:'smooth', block:'start' }), 80)
+    setTimeout(() => {
+      if (!detailRef.current) return
+      // Account for both sticky bars (trust bar ~30px + tier bar ~60px + navbar ~80px + 16px gap)
+      const stickyOffset = (tierBarRef.current?.offsetHeight || 60) + 80 + 32
+      const top = detailRef.current.getBoundingClientRect().top + window.scrollY - stickyOffset
+      window.scrollTo({ top, behavior: 'smooth' })
+    }, 80)
   }
 
   const copyLink = () => { navigator.clipboard.writeText(SITE_URL); setCopied(true); setTimeout(()=>setCopied(false),2000) }
@@ -95,7 +101,15 @@ export default function DonatePage() {
   const pickSp = (i: number) => { setSpIdx(i); setSpecies(SPECIES_DATA[i].name); setSpErr(false) }
 
   const handleContinue = () => {
-    if (isIndiv && !species) { setSpErr(true); detailRef.current?.scrollIntoView({behavior:'smooth',block:'start'}); return }
+    if (isIndiv && !species) {
+      setSpErr(true)
+      if (detailRef.current) {
+        const stickyOffset = (tierBarRef.current?.offsetHeight || 60) + 80 + 32
+        const top = detailRef.current.getBoundingClientRect().top + window.scrollY - stickyOffset
+        window.scrollTo({ top, behavior: 'smooth' })
+      }
+      return
+    }
     sessionStorage.setItem('ecotree_selection', JSON.stringify({
       tierId: tier.id, tierName: tier.name, tierIcon: tier.icon,
       tierImg: isIndiv ? selSp.img : tier.img,
@@ -133,26 +147,24 @@ export default function DonatePage() {
       ? (t.id==='community_100'||t.id==='community_250')
       : tier.id===t.id
     if (t.id === 'community_250') return null
-    const label    = t.id==='community_100' ? '₹100/₹250' : `₹${t.price.toLocaleString('en-IN')}`
-    const sublabel = t.id==='community_100' ? 'Community' : t.id==='joint_500' ? 'Shared Tree' : t.id==='individual_1000' ? 'Individual' : 'Miyawaki'
+
+    // Compact labels that fit in 83px on mobile
+    const label    = t.id==='community_100' ? '₹100/250' : `₹${t.price.toLocaleString('en-IN')}`
+    const sublabel = t.id==='community_100' ? 'Forest' : t.id==='joint_500' ? 'Shared' : t.id==='individual_1000' ? 'Individual' : 'Miyawaki'
     const col      = PILL_COLORS[t.id] || PILL_COLORS.community_100
 
     const activeStyle: React.CSSProperties = active ? {
-      background:   col.bg,
-      color:        col.color,
-      borderColor:  col.border,
-      boxShadow:    col.shadow,
-      transform:    'translateY(-2px)',
+      background:  col.bg,
+      color:       col.color,
+      borderColor: col.border,
+      boxShadow:   col.shadow,
+      transform:   'translateY(-2px)',
     } : {}
 
     return (
-      <button
-        onClick={()=>pickTier(t)}
-        className="dp-pill"
-        style={activeStyle}
-      >
+      <button onClick={()=>pickTier(t)} className="dp-pill" style={activeStyle}>
         {t.id==='individual_1000' && (
-          <span style={{fontSize:'0.6rem',fontWeight:800,color:active?col.color:'#D4A63F',letterSpacing:'0.06em',marginBottom:'0.1rem',display:'block'}}>★ MOST LOVED</span>
+          <span className="dp-pill-star-badge" style={{color:active?col.color:'#D4A63F'}}>★</span>
         )}
         <span className="dp-pill-amt" style={active?{color:col.color}:{}}>{label}</span>
         <span className="dp-pill-sub" style={active?{color:col.color,opacity:0.85}:{}}>{sublabel}</span>
@@ -569,7 +581,7 @@ export default function DonatePage() {
         .dp-err-inline{font-size:0.7rem;color:#ef4444;font-weight:600;margin-left:0.5rem;}
 
         /* ── TRUST BAR ── */
-        .dp-trust{background:var(--gd);position:sticky;top:80px;z-index:60;border-bottom:1px solid rgba(82,183,136,0.18);padding:0.42rem 0;}
+        .dp-trust{background:var(--gd);position:sticky;top:80px;z-index:60;border-bottom:1px solid rgba(82,183,136,0.18);padding:0.38rem 0;}
         .dp-trust-inner{display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;}
         .dp-trust-signals{display:flex;align-items:center;gap:0.5rem;font-size:0.75rem;font-weight:600;color:rgba(255,255,255,0.72);flex-wrap:wrap;}
         .dp-trust-acts{display:flex;gap:0.35rem;flex-shrink:0;}
@@ -587,8 +599,8 @@ export default function DonatePage() {
         .dp-hero-sub{font-size:0.72rem;color:rgba(255,255,255,0.45);letter-spacing:0.03em;margin:0;}
 
         /* ── TIER BAR sticky ── */
-        .dp-tier-bar{background:var(--gd);border-bottom:3px solid rgba(82,183,136,0.25);padding:0.65rem 0;position:sticky;top:calc(80px + 30px);z-index:55;}
-        .dp-tier-bar-inner{display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;}
+        .dp-tier-bar{background:var(--gd);border-bottom:3px solid rgba(82,183,136,0.25);padding:0.6rem 0;position:sticky;top:calc(80px + 28px);z-index:55;}
+        .dp-tier-bar-inner{display:flex;align-items:center;gap:0.75rem;flex-wrap:nowrap;}
         .dp-mode-pills{display:flex;gap:0.35rem;flex-shrink:0;}
         .dp-mode{padding:0.35rem 0.9rem;border-radius:999px;font-size:0.75rem;font-weight:700;cursor:pointer;border:1.5px solid rgba(255,255,255,0.2);background:transparent;color:rgba(255,255,255,0.6);font-family:inherit;transition:all 0.15s;white-space:nowrap;}
         .dp-mode--on{border-color:var(--ga);background:var(--gm);color:#fff;}
@@ -599,6 +611,7 @@ export default function DonatePage() {
         .dp-pill:hover{background:rgba(255,255,255,0.17);border-color:rgba(255,255,255,0.45);color:#fff;}
         .dp-pill--on{background:#fff !important;color:var(--gd) !important;border-color:#fff !important;box-shadow:0 4px 16px rgba(0,0,0,0.25);transform:translateY(-1px);}
         .dp-pill-star{font-size:0.6rem;color:var(--gold);margin-bottom:0.12rem;display:block;}
+        .dp-pill-star-badge{font-size:0.6rem;font-weight:800;letter-spacing:0.04em;margin-bottom:0.1rem;display:block;}
         .dp-pill--on .dp-pill-star{color:var(--gold) !important;}
         .dp-pill-amt{font-size:0.88rem;font-weight:900;line-height:1;margin-bottom:0.14rem;}
         .dp-pill-sub{font-size:0.66rem;font-weight:600;opacity:0.72;}
@@ -647,7 +660,7 @@ export default function DonatePage() {
           background:#FFFDF6;
         }
         .dp-sp3-img{
-          height:85px;
+          height:68px;
           overflow:hidden;
           position:relative;
           background:#f0f0e8;
@@ -879,11 +892,13 @@ export default function DonatePage() {
           .dp-trust-strip-inner{grid-template-columns:1fr 1fr;}
           .dp-cta-row{flex-wrap:wrap;}
           .dp-cta-btn{width:100%;padding:0.95rem;font-size:1rem;}
-          .dp-tier-bar-inner{flex-direction:column;align-items:stretch;gap:0.5rem;}
-          .dp-mode-pills{justify-content:center;}
-          .dp-tier-pills{justify-content:flex-start;}
-          .dp-pill{padding:0.42rem 0.85rem;}
-          .dp-pill-amt{font-size:0.82rem;}
+          .dp-tier-bar-inner{flex-direction:column;align-items:stretch;gap:0.42rem;}
+          .dp-mode-pills{display:flex;justify-content:center;gap:0.5rem;}
+          .dp-tier-pills{display:flex;flex-direction:row;flex-wrap:nowrap;gap:0.3rem;overflow:visible;}
+          .dp-pill{flex:1;padding:0.32rem 0.25rem;min-width:0;align-items:center;text-align:center;}
+          .dp-pill-amt{font-size:0.72rem;white-space:nowrap;margin-bottom:0.08rem;}
+          .dp-pill-sub{font-size:0.56rem;white-space:nowrap;opacity:0.75;}
+          .dp-pill-star-badge{font-size:0.48rem;margin-bottom:0.06rem;}
           .dp-story-name{font-size:1.2rem;}
           .dp-sp-hero{height:210px;}
           .dp-tier-hero{height:210px;}
