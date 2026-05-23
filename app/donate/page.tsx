@@ -255,35 +255,55 @@ export default function DonatePage() {
                     </div>
 
                     {/* THUMBNAIL STRIP — below main image */}
-                    <div className="dp-thumb-strip">
-                      <div className="dp-thumb-hdr">
-                        <span className="dp-thumb-label">
+                    {/* SPECIES SELECTOR — text pills on mobile, image thumbs on desktop */}
+                    <div className="dp-sp-selector">
+                      <div className="dp-sp-sel-hdr">
+                        <span className="dp-sp-sel-label">
                           Choose species
-                          {species && <span className="dp-thumb-selected"> · {species}</span>}
+                          {spErr && <span className="dp-err-inline"> ⚠️ Required</span>}
                         </span>
-                        <div className="dp-nav-btns">
-                          <button className="dp-nav-btn" onClick={()=>setCarIdx(i=>Math.max(0,i-1))} disabled={carIdx===0}>‹</button>
-                          <button className="dp-nav-btn" onClick={()=>setCarIdx(i=>Math.min(SPECIES_DATA.length-4,i+1))} disabled={carIdx>=SPECIES_DATA.length-4}>›</button>
-                        </div>
+                        {species && <span className="dp-sp-sel-chosen">{species}</span>}
                       </div>
-                      <div className="dp-thumb-track-wrap">
-                        <div className="dp-thumb-track" style={{transform:`translateX(calc(-${carIdx*25}% - ${carIdx*6/4}px))`}}>
-                          {SPECIES_DATA.map((sp,i)=>(
-                            <button key={sp.name} onClick={()=>pickSp(i)} className={`dp-thumb${spIdx===i?' dp-thumb--on':''}`}>
-                              <div className="dp-thumb-img">
-                                <Img src={sp.img} fallback={sp.fallback} alt={sp.name} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
-                                {spIdx===i && <div className="dp-thumb-chk">✓</div>}
-                              </div>
-                              <div className="dp-thumb-name">{sp.name}</div>
-                            </button>
+
+                      {/* MOBILE: horizontal scrolling text pills */}
+                      <div className="dp-sp-pills-mob">
+                        {SPECIES_DATA.map((sp,i)=>(
+                          <button
+                            key={sp.name}
+                            onClick={()=>pickSp(i)}
+                            className={`dp-sp-pill${spIdx===i?' dp-sp-pill--on':''}`}
+                          >
+                            {sp.name}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* DESKTOP: image thumbnail carousel */}
+                      <div className="dp-thumb-strip-desk">
+                        <div className="dp-thumb-hdr">
+                          <div className="dp-nav-btns">
+                            <button className="dp-nav-btn" onClick={()=>setCarIdx(i=>Math.max(0,i-1))} disabled={carIdx===0}>‹</button>
+                            <button className="dp-nav-btn" onClick={()=>setCarIdx(i=>Math.min(SPECIES_DATA.length-4,i+1))} disabled={carIdx>=SPECIES_DATA.length-4}>›</button>
+                          </div>
+                        </div>
+                        <div className="dp-thumb-track-wrap">
+                          <div className="dp-thumb-track" style={{transform:`translateX(calc(-${carIdx*25}% - ${carIdx*6/4}px))`}}>
+                            {SPECIES_DATA.map((sp,i)=>(
+                              <button key={sp.name} onClick={()=>pickSp(i)} className={`dp-thumb${spIdx===i?' dp-thumb--on':''}`}>
+                                <div className="dp-thumb-img">
+                                  <Img src={sp.img} fallback={sp.fallback} alt={sp.name} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+                                  {spIdx===i && <div className="dp-thumb-chk">✓</div>}
+                                </div>
+                                <div className="dp-thumb-name">{sp.name}</div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="dp-sp-dots" style={{marginTop:'0.5rem'}}>
+                          {Array.from({length:SPECIES_DATA.length-4+1}).map((_,i)=>(
+                            <button key={i} onClick={()=>setCarIdx(i)} className={`dp-dot-btn${i===carIdx?' dp-dot-btn--on':''}`}/>
                           ))}
                         </div>
-                      </div>
-                      {/* Dots */}
-                      <div className="dp-sp-dots" style={{marginTop:'0.5rem'}}>
-                        {Array.from({length:SPECIES_DATA.length-4+1}).map((_,i)=>(
-                          <button key={i} onClick={()=>setCarIdx(i)} className={`dp-dot-btn${i===carIdx?' dp-dot-btn--on':''}`}/>
-                        ))}
                       </div>
                     </div>
 
@@ -669,8 +689,21 @@ export default function DonatePage() {
         .dp-amazon-img-err{position:absolute;top:0.75rem;left:0.75rem;background:#ef4444;color:#fff;font-size:0.72rem;font-weight:700;padding:0.28rem 0.7rem;border-radius:999px;}
 
         /* Thumbnail strip */
-        .dp-thumb-strip{background:#fff;border:1px solid var(--md);border-radius:12px;padding:0.85rem 1rem;margin-top:0.75rem;box-shadow:var(--shadow);}
-        .dp-thumb-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.65rem;}
+        /* ── SPECIES SELECTOR — dual mode ── */
+        .dp-sp-selector{background:#fff;border:1px solid var(--md);border-radius:12px;padding:0.85rem 1rem;margin-top:0.65rem;box-shadow:var(--shadow);}
+        .dp-sp-sel-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.65rem;flex-wrap:wrap;gap:0.4rem;}
+        .dp-sp-sel-label{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--tb);}
+        .dp-sp-sel-chosen{font-size:0.75rem;font-weight:700;color:var(--ga);background:var(--mt);padding:0.14rem 0.5rem;border-radius:999px;}
+        /* Mobile text pills — hidden on desktop */
+        .dp-sp-pills-mob{display:none;flex-wrap:wrap;gap:0.45rem;}
+        .dp-sp-pill{display:inline-flex;align-items:center;padding:0.38rem 0.85rem;border-radius:999px;border:1.5px solid #E2E8E4;background:#fff;font-size:0.82rem;font-weight:600;color:var(--tb);cursor:pointer;font-family:inherit;white-space:nowrap;transition:all 0.15s;flex-shrink:0;}
+        .dp-sp-pill:hover{border-color:var(--ga);color:var(--gd);}
+        .dp-sp-pill--on{background:var(--gd);color:#D4A63F;border-color:var(--gd);font-weight:700;}
+        /* Desktop image carousel — shown on desktop, hidden on mobile */
+        .dp-thumb-strip-desk{display:block;}
+
+        .dp-thumb-strip{background:#fff;border:1px solid var(--md);border-radius:12px;padding:0.75rem 0.85rem;margin-top:0.65rem;box-shadow:var(--shadow);}
+        .dp-thumb-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;}
         .dp-thumb-label{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--tb);}
         .dp-thumb-selected{color:var(--ga);font-weight:800;text-transform:none;letter-spacing:0;}
         .dp-thumb-track-wrap{overflow:hidden;}
@@ -943,7 +976,6 @@ export default function DonatePage() {
           .dp-layout{grid-template-columns:1fr;}
           .dp-amazon-layout{grid-template-columns:1fr;}
           .dp-tier-amazon-layout{grid-template-columns:1fr;}
-          /* Fix 1: main image fixed height — not aspect-ratio which is too tall */
           .dp-amazon-img{aspect-ratio:unset;height:200px;}
           .dp-tier-amazon-img{aspect-ratio:unset;height:200px;}
           .dp-indiv-main{grid-template-columns:1fr;}
@@ -954,21 +986,20 @@ export default function DonatePage() {
           .dp-main{padding-bottom:90px;}
           .dp-sp-hero{height:200px;}
           .dp-tier-hero{height:200px;}
-          /* Fix 2: thumbnails compact — wide and short on mobile */
-          .dp-thumb-img{aspect-ratio:unset;height:60px;}
-          .dp-thumb{flex:0 0 calc(25% - 4.5px);}
-          .dp-thumb-name{font-size:0.62rem;padding:0.28rem 0.3rem;}
-          /* Fix 3: reduce card padding so story visible sooner */
+          /* Switch species selector: show text pills, hide image carousel */
+          .dp-sp-pills-mob{display:flex;}
+          .dp-thumb-strip-desk{display:none;}
           .dp-card{padding:0.85rem 0.95rem;}
           .dp-story-text{font-size:0.82rem;line-height:1.55;}
+          .dp-impact-band{grid-template-columns:repeat(3,1fr);}
         }
         @media(max-width:600px){
           .dp-trust-signals .dp-dot:nth-child(n+6){display:none;}
           .dp-trust-signals span:nth-child(n+7){display:none;}
           .dp-sp-card{flex:0 0 calc(50% - 4px);}
-          .dp-thumb{flex:0 0 calc(25% - 4.5px);}
-          .dp-thumb-img{aspect-ratio:unset;height:55px;}
-          .dp-thumb-name{font-size:0.6rem;padding:0.25rem 0.3rem;}
+          .dp-thumb{flex:0 0 calc(25% - 5px) !important;}
+          .dp-thumb-img{aspect-ratio:unset !important;height:48px !important;}
+          .dp-thumb-name{font-size:0.58rem !important;padding:0.22rem 0.28rem !important;}
           .dp-sp3-card{flex:0 0 calc(50% - 5px);}
           .dp-sp3-img{height:75px;}
           .dp-occ-grid{grid-template-columns:repeat(2,1fr);}
@@ -993,8 +1024,11 @@ export default function DonatePage() {
           .dp-sp-hero{height:210px;}
           .dp-tier-hero{height:210px;}
           .dp-indiv-img-name{font-size:1.2rem;}
-          .dp-main{padding:1rem 0 90px;}
-          .dp-impact-val{font-size:0.88rem;}
+          .dp-main{padding:0.75rem 0 90px;}
+          .dp-impact-val{font-size:0.82rem;}
+          .dp-impact-band{gap:0.4rem;}
+          .dp-impact-item{padding:0.5rem 0.55rem;}
+          .dp-impact-lbl{font-size:0.6rem;}
           .dp-qty-btn{width:34px;height:34px;}
           .dp-qty-num{font-size:1.1rem;}
           .dp-mob-cta-price{font-size:1.2rem;}
