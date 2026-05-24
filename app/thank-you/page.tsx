@@ -482,7 +482,7 @@ const boxes = [
                         <div className="tyc-award__details">
                           <div className="tyc-award__detail">
                             <span className="tyc-award__detail-label">Tree ID</span>
-                            <span className="tyc-award__detail-val">{data.certId}</span>
+                           <span className="tyc-award__detail-val">{data.treeId || data.certId}</span>
                           </div>
                           <div className="tyc-award__detail">
                             <span className="tyc-award__detail-label">CO₂ Offset</span>
