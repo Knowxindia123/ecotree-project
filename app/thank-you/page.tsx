@@ -194,7 +194,7 @@ const isJoint = tierId === 'joint_500'
         doc.text('TRACKING', rx, 81)
         doc.setTextColor(255, 255, 255)
         doc.setFontSize(11)
-        doc.text(data.certId, rx, 89)
+        doc.text(data.treeId || data.certId, rx, 89)
         doc.setFontSize(8)
         doc.setFont('helvetica', 'normal')
         doc.text('Tracked: 3 years · AI-Verified', rx, 96)
