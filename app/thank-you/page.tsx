@@ -423,7 +423,7 @@ const boxes = [
     ? <>Contribution ID <strong>{data.certId}</strong> · Forest will be assigned shortly</>
     : data.tierId === 'joint_500'
     ? <>Pool ID <strong>{data.certId}</strong> · Waiting for a partner donor</>
-    : <>Tree ID <strong>{data.certId}</strong> · Planted within 7 days</>}
+    : <>Tree ID <strong>{data.treeId || data.certId}</strong> · Planted within 7 days</>}
   {isGift && data.recipientEmail && ` and ${data.recipientEmail}`}
 </p>
         </div>
