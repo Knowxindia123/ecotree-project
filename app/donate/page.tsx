@@ -40,9 +40,8 @@ const SPECIES_DATA = [
 ]
 
 function Img({ src, fallback, alt, style }: { src:string; fallback:string; alt:string; style?:React.CSSProperties }) {
-  // Try src as-is → swap extension → Unsplash fallback
   const alt1 = src.endsWith('.webp') ? src.replace('.webp', '.jpg') : src.replace('.jpg', '.webp')
-  const [attempt, setAttempt] = React.useState(0)
+  const [attempt, setAttempt] = useState(0)
   const srcs = [src, alt1, fallback]
   return <img src={srcs[Math.min(attempt, srcs.length-1)]} alt={alt} style={style} onError={()=>setAttempt(a=>Math.min(a+1, srcs.length-1))} loading="lazy"/>
 }
