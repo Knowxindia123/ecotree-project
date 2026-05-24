@@ -80,6 +80,7 @@ export default function DonatePage() {
   }, [])
 
   // Hide fixed mob CTA when keyboard opens
+  const [kbOpen, setKbOpen] = useState(false)
   useEffect(() => {
     const vv = window.visualViewport
     if (!vv) return
