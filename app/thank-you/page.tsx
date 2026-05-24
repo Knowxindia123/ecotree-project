@@ -28,11 +28,9 @@ interface TYData {
   treeName: string; species: string; co2: string; amount: number
   qty: number; mode: string; recipientName?: string
   recipientEmail?: string; occasion?: string; occasionId?: string
-  giftMessage?: string
-tierId?: string
-dashboard?: string
+  giftMessage?: string; tierId?: string; dashboard?: string
+  treeId?: string; donorId?: number
 }
-
 export default function ThankYouPage() {
   const [data, setData] = useState<TYData | null>(null)
   const [pan, setPan] = useState('')
