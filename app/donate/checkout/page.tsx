@@ -25,8 +25,11 @@ interface Sel {
 }
 
 function Img({ src, fallback, alt, style }: { src:string; fallback:string; alt:string; style?:React.CSSProperties }) {
-  const [err, setErr] = useState(false)
-  return <img src={err?fallback:src} alt={alt} style={style} onError={()=>setErr(true)}/>
+  const alt1 = src.endsWith('.webp') ? src.replace('.webp', '.jpg') : src.replace('.jpg', '.webp')
+  const srcs = [src, alt1, fallback]
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => { setAttempt(0) }, [src])
+  return <img src={srcs[Math.min(attempt, srcs.length-1)]} alt={alt} style={style} onError={()=>setAttempt(a=>Math.min(a+1, srcs.length-1))} loading="lazy"/>
 }
 
 export default function CheckoutPage() {
@@ -43,6 +46,9 @@ export default function CheckoutPage() {
     try {
       const s: Sel = JSON.parse(sessionStorage.getItem('ecotree_selection') || 'null')
       if (!s?.tierId) { router.replace('/donate'); return }
+      // Sanitize image paths — strip /trees/ prefix if present (handles stale sessionStorage)
+      if (s.tierImg) s.tierImg = s.tierImg.replace('/trees/', '/')
+      if (s.tierFallback) s.tierFallback = s.tierFallback.replace('/trees/', '/')
       setSel(s)
     } catch { router.replace('/donate') }
     setReady(true)
@@ -205,6 +211,16 @@ export default function CheckoutPage() {
     if (isMiya)  return `🏙️ Create Urban Forest · ₹${total.toLocaleString('en-IN')}`
     return `🌿 Join Community Forest · ₹${total.toLocaleString('en-IN')}`
   }
+
+  // Hide fixed CTA bar when keyboard opens (prevents page shake)
+  const [keyboardOpen, setKeyboardOpen] = useState(false)
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const handler = () => setKeyboardOpen(window.innerHeight - vv.height > 150)
+    vv.addEventListener('resize', handler)
+    return () => vv.removeEventListener('resize', handler)
+  }, [])
 
   if (!ready||!sel) return (
     <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',fontFamily:'system-ui',color:'#4A6358',fontSize:'0.9rem'}}>
@@ -387,7 +403,7 @@ export default function CheckoutPage() {
       </div>
 
       {/* ── MOBILE STICKY CTA ── */}
-      <div className="co-mob-cta" style={{background:accentBg,borderTopColor:isGift?'#7C3AED':'#D4A63F'}}>
+      <div className={`co-mob-cta${keyboardOpen?' co-mob-cta--hidden':''}`} style={{background:accentBg,borderTopColor:isGift?'#7C3AED':'#D4A63F'}}>
         <div className="co-mob-cta-left">
           <div className="co-mob-cta-name">{isGift?`${sel.occLabel} Gift`:isIndiv&&sel.species?sel.species:sel.tierName}</div>
           <div className="co-mob-cta-price">₹{total.toLocaleString('en-IN')}</div>
@@ -420,11 +436,11 @@ export default function CheckoutPage() {
 
         /* ORDER CARD */
         .co-order-card{background:#fff;border:1px solid #B7E4C7;border-radius:16px;overflow:hidden;margin-bottom:0.85rem;box-shadow:0 2px 16px rgba(27,67,50,0.07);}
-        .co-order-img{position:relative;height:200px;}
+        .co-order-img{position:relative;aspect-ratio:4/3;height:auto;}
         .co-order-img-ov{position:absolute;inset:0;background:linear-gradient(to top,rgba(11,31,23,0.88) 0%,transparent 52%);}
         .co-order-img-caption{position:absolute;bottom:0;left:0;padding:1rem 1.2rem;}
         .co-order-badge{display:inline-block;font-size:0.55rem;font-weight:800;color:#fff;padding:0.12rem 0.48rem;border-radius:4px;letter-spacing:0.07em;margin-bottom:0.35rem;}
-        .co-order-name{font-size:1.5rem;font-weight:900;color:#fff;line-height:1;}
+        .co-order-name{font-size:1.35rem;font-weight:900;color:#fff;line-height:1.1;}
         .co-order-subtitle{font-size:0.74rem;font-style:italic;margin-top:0.15rem;}
         .co-change-btn{position:absolute;top:0.75rem;right:0.75rem;font-size:0.65rem;font-weight:700;padding:0.25rem 0.65rem;border-radius:999px;background:rgba(255,255,255,0.18);color:#fff;border:1px solid rgba(255,255,255,0.28);cursor:pointer;backdrop-filter:blur(4px);font-family:inherit;}
         .co-impact-band{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid #E5E7EB;}
@@ -433,9 +449,9 @@ export default function CheckoutPage() {
         .co-impact-val{font-size:1.05rem;font-weight:900;line-height:1;}
         .co-impact-lbl{font-size:0.72rem;color:#4A6358;font-weight:500;}
         .co-order-footer{padding:0.85rem 1.1rem;}
-        .co-order-meta{display:flex;flex-wrap:wrap;gap:0.25rem;margin-bottom:0.6rem;}
-        .co-meta-tag{font-size:0.72rem;background:#D8F3DC;color:#1B4332;padding:0.2rem 0.6rem;border-radius:999px;font-weight:600;}
-        .co-order-line{display:flex;justify-content:space-between;align-items:center;font-size:0.92rem;font-weight:600;color:#2D3B36;}
+        .co-order-meta{display:flex;flex-wrap:wrap;gap:0.25rem;margin-bottom:0.6rem;max-width:100%;}
+        .co-meta-tag{font-size:0.68rem;background:#D8F3DC;color:#1B4332;padding:0.18rem 0.5rem;border-radius:999px;font-weight:600;white-space:nowrap;}
+        .co-order-line{display:flex;justify-content:space-between;align-items:center;font-size:0.88rem;font-weight:600;color:#2D3B36;gap:0.5rem;}
         .co-order-line-price{font-size:1.15rem;font-weight:900;}
 
         /* HINT */
@@ -471,6 +487,7 @@ export default function CheckoutPage() {
         .co-pay-trust{display:flex;justify-content:space-between;font-size:0.8rem;color:#4A6358;font-weight:600;}
 
         /* MOBILE STICKY */
+        .co-mob-cta--hidden{display:none !important;}
         .co-mob-cta{display:none;position:fixed;bottom:0;left:0;right:0;padding:10px 16px;z-index:200;align-items:center;justify-content:space-between;gap:12px;border-top:2px solid;box-shadow:0 -4px 20px rgba(0,0,0,0.15);}
         .co-mob-cta-left{}
         .co-mob-cta-name{font-size:0.7rem;color:rgba(255,255,255,0.6);font-weight:600;}
@@ -483,13 +500,13 @@ export default function CheckoutPage() {
           .co-form-card{position:static;}
           .co-mob-cta{display:flex;}
           .co-body{padding-bottom:90px;}
-          .co-order-img{height:220px;}
+          .co-order-img{aspect-ratio:4/3;height:auto;}
         }
         @media(max-width:540px){
           .co-field-row{grid-template-columns:1fr;}
           .co-steps{display:none;}
           .co-back{font-size:0.78rem;padding:0.35rem 0.85rem;}
-          .co-order-img{height:190px;}
+          .co-order-img{aspect-ratio:4/3;height:auto;}
           .co-order-name{font-size:1.3rem;}
           .co-label{font-size:0.85rem;}
           .co-input{font-size:0.92rem;padding:0.65rem 0.85rem;}
