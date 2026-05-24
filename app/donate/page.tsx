@@ -73,6 +73,21 @@ export default function DonatePage() {
   const total    = mode === 'gift' ? occ.price : effPrice * qty
   const selSp    = SPECIES_DATA[spIdx]
 
+  // Prevent snap jump on back-navigation from checkout
+  useEffect(() => {
+    document.documentElement.style.scrollBehavior = 'auto'
+    setTimeout(() => { document.documentElement.style.scrollBehavior = '' }, 500)
+  }, [])
+
+  // Hide fixed mob CTA when keyboard opens
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const h = () => setKbOpen(window.innerHeight - vv.height > 150)
+    vv.addEventListener('resize', h)
+    return () => vv.removeEventListener('resize', h)
+  }, [])
+
   // Restore from sessionStorage on back-nav
   useEffect(() => {
     try {
@@ -532,7 +547,7 @@ export default function DonatePage() {
       </div>
 
       {/* ── MOBILE STICKY CTA ── */}
-      <div className="dp-mob-cta">
+      <div className={`dp-mob-cta${kbOpen?' dp-mob-cta--hidden':''}`}>
         <div className="dp-mob-cta-left">
           <div className="dp-mob-cta-name">{isIndiv&&species?species:tier.name}</div>
           <div className="dp-mob-cta-price">₹{total.toLocaleString('en-IN')}</div>
@@ -935,6 +950,7 @@ export default function DonatePage() {
         .dp-gift-field textarea{resize:vertical;min-height:68px;}
 
         /* ── MOBILE STICKY CTA ── */
+        .dp-mob-cta--hidden{display:none !important;}
         .dp-mob-cta{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--gd);padding:10px 16px;z-index:200;align-items:center;justify-content:space-between;gap:12px;border-top:2px solid var(--gold);box-shadow:0 -4px 20px rgba(0,0,0,0.2);}
         .dp-mob-cta-left{}
         .dp-mob-cta-name{font-size:0.8rem;color:rgba(255,255,255,0.8);font-weight:700;}
