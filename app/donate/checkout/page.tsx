@@ -91,7 +91,7 @@ export default function CheckoutPage() {
 
     const species  = sel.species || 'Neem'
     const qty      = sel.qty || 1
-    const tier     = { id:sel.tierId, tier: sel.tierId.includes('100')?'100':sel.tierId.includes('250')?'250':sel.tierId.includes('5000')?'5000':sel.tierId.includes('1000')?'1000':'500', name:sel.tierName, badge:sel.tierBadge, dashboard:sel.tierDashboard, co2:sel.tierCo2 }
+    const tier     = { id:sel.tierId, tier: sel.tierId.includes('5000')?'5000':sel.tierId.includes('1000')?'1000':sel.tierId.includes('250')?'250':sel.tierId.includes('100')?'100':'500', name:sel.tierName, badge:sel.tierBadge, dashboard:sel.tierDashboard, co2:sel.tierCo2 }
     const occ      = { id:sel.occId, label:sel.occLabel, price:sel.occPrice }
     const mode     = sel.mode
 
