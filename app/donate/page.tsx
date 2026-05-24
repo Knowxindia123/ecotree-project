@@ -41,8 +41,10 @@ const SPECIES_DATA = [
 
 function Img({ src, fallback, alt, style }: { src:string; fallback:string; alt:string; style?:React.CSSProperties }) {
   const alt1 = src.endsWith('.webp') ? src.replace('.webp', '.jpg') : src.replace('.jpg', '.webp')
-  const [attempt, setAttempt] = useState(0)
   const srcs = [src, alt1, fallback]
+  const [attempt, setAttempt] = useState(0)
+  // Reset when src changes — ensures new species always loads from src first
+  useEffect(() => { setAttempt(0) }, [src])
   return <img src={srcs[Math.min(attempt, srcs.length-1)]} alt={alt} style={style} onError={()=>setAttempt(a=>Math.min(a+1, srcs.length-1))} loading="lazy"/>
 }
 
