@@ -18,3 +18,4 @@ npm-debug.log*
 
 # node modules
 node_modules/
+tsconfig.tsbuildinfo
