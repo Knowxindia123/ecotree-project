@@ -3,30 +3,15 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 interface CSRPartner {
-  id: number
-  company_name: string
-  contact_name: string | null
-  contact_email: string | null
-  contact_phone: string | null
-  designation: string | null
-  trees_assigned: number
-  trees_verified: number
-  budget: string | null
-  project_type: string | null
-  tree_count: number | null
-  message: string | null
-  is_active: boolean
-  status: string | null
-  payment_status: string | null
-  payment_mode: string | null
-  amount_paid: number | null
-  worker_id: number | null
-  site_id: number | null
-  start_date: string | null
-  assigned_at: string | null
-  created_at: string
+  id: number; company_name: string; contact_name: string | null
+  contact_email: string | null; contact_phone: string | null
+  designation: string | null; trees_assigned: number; trees_verified: number
+  budget: string | null; project_type: string | null; tree_count: number | null
+  message: string | null; is_active: boolean; status: string | null
+  payment_status: string | null; payment_mode: string | null; amount_paid: number | null
+  worker_id: number | null; site_id: number | null; start_date: string | null
+  assigned_at: string | null; created_at: string
 }
-
 interface Worker { id: number; name: string }
 interface Site   { id: number; name: string }
 
@@ -42,13 +27,16 @@ export default function AdminCSR() {
   const [success,   setSuccess]   = useState('')
   const [error,     setError]     = useState('')
 
-  // Batch assignment form
   const [assignForm, setAssignForm] = useState({
     partner_id: '', worker_id: '', site_id: '', start_date: '', due_date: '', notes: ''
   })
   const [showAssignForm, setShowAssignForm] = useState(false)
 
-  // Add partner form
+  // Site creation
+  const [showSiteForm,  setShowSiteForm]  = useState(false)
+  const [siteForm,      setSiteForm]      = useState({ name: '', city: 'Bangalore', state: 'Karnataka', description: '' })
+  const [creatingSite,  setCreatingSite]  = useState(false)
+
   const [form, setForm] = useState({
     company_name: '', contact_name: '', contact_email: '',
     contact_phone: '', budget: '', project_type: ''
@@ -71,107 +59,92 @@ export default function AdminCSR() {
     setLoading(false)
   }
 
-  // ── Approve partner ──
+  async function handleCreateSite() {
+    if (!siteForm.name.trim()) return
+    setCreatingSite(true)
+    const { data: newSite, error: siteErr } = await supabase.from('sites').insert({
+      name: siteForm.name, city: siteForm.city || 'Bangalore',
+      state: siteForm.state || 'Karnataka',
+      description: siteForm.description || null, is_active: true,
+    }).select('id, name').single()
+    if (!siteErr && newSite) {
+      setSites(prev => [...prev, newSite])
+      setAssignForm(prev => ({ ...prev, site_id: String(newSite.id) }))
+      setSiteForm({ name: '', city: 'Bangalore', state: 'Karnataka', description: '' })
+      setShowSiteForm(false)
+      setSuccess(`Site "${newSite.name}" created!`)
+    }
+    setCreatingSite(false)
+  }
+
   async function approvePartner(id: number, company: string) {
     setActionId(id)
-    const { error: err } = await supabase
-      .from('csr_partners')
-      .update({ is_active: true, status: 'ACTIVE' })
-      .eq('id', id)
+    const { error: err } = await supabase.from('csr_partners').update({ is_active: true, status: 'ACTIVE' }).eq('id', id)
     if (err) setError(err.message)
     else { setSuccess(`✅ ${company} approved!`); loadAll() }
     setActionId(null)
   }
 
-  // ── Reject partner ──
   async function rejectPartner(id: number, company: string) {
     if (!confirm(`Reject ${company}?`)) return
-    const { error: err } = await supabase
-      .from('csr_partners').update({ status: 'REJECTED' }).eq('id', id)
+    const { error: err } = await supabase.from('csr_partners').update({ status: 'REJECTED' }).eq('id', id)
     if (err) setError(err.message)
     else { setSuccess(`${company} rejected.`); loadAll() }
   }
 
-  // ── Mark paid offline ──
   async function markPaidOffline(id: number, company: string) {
     setActionId(id)
-    const { error: err } = await supabase
-      .from('csr_partners')
-      .update({ payment_status: 'PAID', payment_mode: 'OFFLINE', is_active: true, status: 'ACTIVE' })
-      .eq('id', id)
+    const { error: err } = await supabase.from('csr_partners')
+      .update({ payment_status: 'PAID', payment_mode: 'OFFLINE', is_active: true, status: 'ACTIVE' }).eq('id', id)
     if (err) setError(err.message)
-    else { setSuccess(`✅ ${company} marked as paid and activated!`); loadAll() }
+    else { setSuccess(`✅ ${company} marked as paid!`); loadAll() }
     setActionId(null)
   }
 
-  // ── Send Razorpay link (placeholder) ──
   async function sendPaymentLink(id: number, company: string, email: string | null) {
     setActionId(id)
-    // Mark as awaiting payment
-    const { error: err } = await supabase
-      .from('csr_partners')
-      .update({ payment_status: 'AWAITING' })
-      .eq('id', id)
+    const { error: err } = await supabase.from('csr_partners').update({ payment_status: 'AWAITING' }).eq('id', id)
     if (err) setError(err.message)
-    else { setSuccess(`💳 Payment link sent to ${email || company}! Status set to Awaiting.`); loadAll() }
+    else { setSuccess(`💳 Payment link sent to ${email || company}!`); loadAll() }
     setActionId(null)
   }
 
-  // ── Batch assign ──
   async function handleBatchAssign(e: React.FormEvent) {
     e.preventDefault()
-    setSaving(true)
-    setError('')
+    setSaving(true); setError('')
     const partner = partners.find(p => String(p.id) === assignForm.partner_id)
     if (!partner) { setError('Please select a partner'); setSaving(false); return }
-
-    const { error: err } = await supabase
-      .from('csr_partners')
-      .update({
-        worker_id:   Number(assignForm.worker_id),
-        site_id:     Number(assignForm.site_id),
-        start_date:  assignForm.start_date || null,
-        assigned_at: new Date().toISOString(),
-        status:      'ASSIGNED',
-        trees_assigned: partner.tree_count || 0,
-        notes:       assignForm.notes || null,
-      })
-      .eq('id', partner.id)
-
+    const { error: err } = await supabase.from('csr_partners').update({
+      worker_id:      Number(assignForm.worker_id),
+      site_id:        Number(assignForm.site_id),
+      start_date:     assignForm.start_date || null,
+      assigned_at:    new Date().toISOString(),
+      status:         'ASSIGNED',
+      trees_assigned: partner.tree_count || 0,
+      notes:          assignForm.notes || null,
+    }).eq('id', partner.id)
     if (err) { setError(err.message); setSaving(false); return }
-
     const worker = workers.find(w => String(w.id) === assignForm.worker_id)
     const site   = sites.find(s => String(s.id) === assignForm.site_id)
-    setSuccess(`✅ ${partner.company_name} batch assigned to ${worker?.name} at ${site?.name}!`)
+    setSuccess(`✅ ${partner.company_name} assigned to ${worker?.name} at ${site?.name}!`)
     setAssignForm({ partner_id: '', worker_id: '', site_id: '', start_date: '', due_date: '', notes: '' })
     setShowAssignForm(false)
-    loadAll()
-    setSaving(false)
+    loadAll(); setSaving(false)
   }
 
-  // ── Add partner manually ──
   async function addPartner(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    setError('')
+    e.preventDefault(); setSaving(true); setError('')
     const { error: err } = await supabase.from('csr_partners').insert({
-      company_name:   form.company_name,
-      contact_name:   form.contact_name,
-      contact_email:  form.contact_email,
-      contact_phone:  form.contact_phone,
-      budget:         form.budget || null,
-      project_type:   form.project_type,
-      is_active:      true,
-      status:         'ACTIVE',
-      payment_status: 'PAID',
-      payment_mode:   'OFFLINE',
+      company_name: form.company_name, contact_name: form.contact_name,
+      contact_email: form.contact_email, contact_phone: form.contact_phone,
+      budget: form.budget || null, project_type: form.project_type,
+      is_active: true, status: 'ACTIVE', payment_status: 'PAID', payment_mode: 'OFFLINE',
     })
     if (err) { setError(err.message) }
     else {
       setSuccess(`${form.company_name} added!`)
       setForm({ company_name: '', contact_name: '', contact_email: '', contact_phone: '', budget: '', project_type: '' })
-      setShowForm(false)
-      loadAll()
+      setShowForm(false); loadAll()
     }
     setSaving(false)
   }
@@ -180,7 +153,6 @@ export default function AdminCSR() {
     if (!p.trees_assigned) return '—'
     return Math.round((p.trees_verified / p.trees_assigned) * 100) + '%'
   }
-
   function paymentBadge(p: CSRPartner) {
     switch (p.payment_status) {
       case 'PAID':     return { bg: '#dcfce7', color: '#166534', label: '✅ Paid' }
@@ -188,7 +160,6 @@ export default function AdminCSR() {
       default:         return { bg: '#f3f4f6', color: '#6B7280', label: '💳 Unpaid' }
     }
   }
-
   function statusBadge(status: string | null) {
     switch (status) {
       case 'ACTIVE':    return { bg: '#dcfce7', color: '#166534', label: 'Active' }
@@ -201,15 +172,59 @@ export default function AdminCSR() {
 
   const inp = { width: '100%', padding: '0.6rem 0.85rem', border: '1.5px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' as const }
   const lbl = { display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' } as React.CSSProperties
+  const assignablePartners = partners.filter(p => p.payment_status === 'PAID' && p.status === 'ACTIVE')
 
-  // Partners eligible for batch assignment (ACTIVE + PAID + not yet ASSIGNED)
-  const assignablePartners = partners.filter(p =>
-    p.payment_status === 'PAID' && p.status === 'ACTIVE'
+  // Site dropdown with create option
+  const SiteField = () => (
+    <div>
+      <label style={lbl}>Planting Site *</label>
+      {sites.length === 0 && !showSiteForm ? (
+        <button type="button" onClick={() => setShowSiteForm(true)}
+          style={{ width:'100%', padding:'0.6rem', background:'#f0fdf4', border:'1.5px dashed #86efac', borderRadius:'8px', fontSize:'14px', color:'#166534', cursor:'pointer', fontFamily:'inherit' }}>
+          + Create your first site
+        </button>
+      ) : (
+        <>
+          <select value={assignForm.site_id}
+            onChange={e => setAssignForm({...assignForm, site_id: e.target.value})}
+            style={inp}>
+            <option value="">— Select site —</option>
+            {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <button type="button" onClick={() => setShowSiteForm(!showSiteForm)}
+            style={{ background:'none', border:'none', color:'#2C5F2D', fontSize:'12px', cursor:'pointer', padding:'4px 0', fontFamily:'inherit' }}>
+            {showSiteForm ? '▲ Cancel' : '+ Create new site'}
+          </button>
+        </>
+      )}
+      {showSiteForm && (
+        <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:'8px', padding:'12px', marginTop:'8px' }}>
+          <div style={{ fontSize:'13px', fontWeight:600, color:'#166534', marginBottom:'8px' }}>Create new site</div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px', marginBottom:'8px' }}>
+            <div style={{ gridColumn:'span 2' }}>
+              <input type="text" placeholder="Site name *" value={siteForm.name}
+                onChange={e => setSiteForm({...siteForm, name: e.target.value})} style={{ ...inp }} />
+            </div>
+            <input type="text" placeholder="City" value={siteForm.city}
+              onChange={e => setSiteForm({...siteForm, city: e.target.value})} style={{ ...inp }} />
+            <input type="text" placeholder="State" value={siteForm.state}
+              onChange={e => setSiteForm({...siteForm, state: e.target.value})} style={{ ...inp }} />
+            <div style={{ gridColumn:'span 2' }}>
+              <input type="text" placeholder="Description (optional)" value={siteForm.description}
+                onChange={e => setSiteForm({...siteForm, description: e.target.value})} style={{ ...inp }} />
+            </div>
+          </div>
+          <button type="button" onClick={handleCreateSite} disabled={creatingSite || !siteForm.name.trim()}
+            style={{ padding:'6px 16px', background: creatingSite || !siteForm.name.trim() ? '#9ca3af' : '#2C5F2D', color:'white', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+            {creatingSite ? 'Creating...' : '✅ Save Site'}
+          </button>
+        </div>
+      )}
+    </div>
   )
 
   return (
     <div>
-      {/* ── HEADER ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1A1A1A', marginBottom: '4px' }}>CSR Partners</h1>
@@ -229,63 +244,37 @@ export default function AdminCSR() {
         </div>
       </div>
 
-      {success && <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', padding: '10px 14px', marginBottom: '1rem', fontSize: '13px', color: '#166534' }}>{success}</div>}
-      {error   && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', marginBottom: '1rem', fontSize: '13px', color: '#dc2626' }}>{error}</div>}
+      {success && <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', padding: '10px 14px', marginBottom: '1rem', fontSize: '13px', color: '#166534' }}>{success}<button onClick={()=>setSuccess('')} style={{float:'right',background:'none',border:'none',cursor:'pointer'}}>✕</button></div>}
+      {error   && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', marginBottom: '1rem', fontSize: '13px', color: '#dc2626' }}>{error}<button onClick={()=>setError('')} style={{float:'right',background:'none',border:'none',cursor:'pointer'}}>✕</button></div>}
 
-      {/* ── BATCH ASSIGN FORM ── */}
+      {/* BATCH ASSIGN FORM */}
       {showAssignForm && (
         <div style={{ background: 'white', border: '1.5px solid #bfdbfe', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.5rem' }}>
           <div style={{ fontSize: '14px', fontWeight: 600, color: '#1e40af', marginBottom: '1rem' }}>👷 Assign CSR Batch to Worker</div>
           <form onSubmit={handleBatchAssign}>
             <div className="form-grid" style={{ marginBottom: '1rem' }}>
-              {/* Partner */}
               <div style={{ gridColumn: 'span 2' }}>
-                <label style={lbl}>CSR Partner * <span style={{ fontWeight: 400, color: '#9ca3af', fontSize: '12px' }}>({assignablePartners.length} ready to assign)</span></label>
-                <select required value={assignForm.partner_id}
-                  onChange={e => setAssignForm({...assignForm, partner_id: e.target.value})}
-                  style={inp}>
+                <label style={lbl}>CSR Partner * <span style={{ fontWeight: 400, color: '#9ca3af', fontSize: '12px' }}>({assignablePartners.length} ready)</span></label>
+                <select required value={assignForm.partner_id} onChange={e => setAssignForm({...assignForm, partner_id: e.target.value})} style={inp}>
                   <option value="">— Select partner —</option>
-                  {assignablePartners.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.company_name} · {p.tree_count || 0} trees · {p.project_type || '—'}
-                    </option>
-                  ))}
+                  {assignablePartners.map(p => <option key={p.id} value={p.id}>{p.company_name} · {p.tree_count || 0} trees · {p.project_type || '—'}</option>)}
                 </select>
               </div>
-              {/* Worker */}
               <div>
                 <label style={lbl}>Field Worker *</label>
-                <select required value={assignForm.worker_id}
-                  onChange={e => setAssignForm({...assignForm, worker_id: e.target.value})}
-                  style={inp}>
+                <select required value={assignForm.worker_id} onChange={e => setAssignForm({...assignForm, worker_id: e.target.value})} style={inp}>
                   <option value="">Select worker</option>
                   {workers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </select>
               </div>
-              {/* Site */}
-              <div>
-                <label style={lbl}>Planting Site *</label>
-                <select required value={assignForm.site_id}
-                  onChange={e => setAssignForm({...assignForm, site_id: e.target.value})}
-                  style={inp}>
-                  <option value="">Select site</option>
-                  {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
-              {/* Start date */}
+              <SiteField />
               <div>
                 <label style={lbl}>Start Date</label>
-                <input type="date" value={assignForm.start_date}
-                  onChange={e => setAssignForm({...assignForm, start_date: e.target.value})}
-                  style={inp} />
+                <input type="date" value={assignForm.start_date} onChange={e => setAssignForm({...assignForm, start_date: e.target.value})} style={inp} />
               </div>
-              {/* Notes */}
               <div>
                 <label style={lbl}>Notes</label>
-                <input type="text" placeholder="e.g. Plant near north boundary"
-                  value={assignForm.notes}
-                  onChange={e => setAssignForm({...assignForm, notes: e.target.value})}
-                  style={inp} />
+                <input type="text" placeholder="e.g. Plant near north boundary" value={assignForm.notes} onChange={e => setAssignForm({...assignForm, notes: e.target.value})} style={inp} />
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -302,7 +291,7 @@ export default function AdminCSR() {
         </div>
       )}
 
-      {/* ── PENDING APPROVALS ── */}
+      {/* PENDING APPROVALS */}
       {pending.length > 0 && (
         <div style={{ background: 'white', border: '1.5px solid #fde68a', borderRadius: '12px', overflow: 'hidden', marginBottom: '1.5rem' }}>
           <div style={{ padding: '0.875rem 1.25rem', borderBottom: '1px solid #fde68a', background: '#fffbeb', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -313,7 +302,7 @@ export default function AdminCSR() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#fffbeb' }}>
-                  {['Company', 'Contact', 'Budget', 'Trees', 'Interests', 'Registered', 'Actions'].map(h => (
+                  {['Company','Contact','Budget','Trees','Interests','Registered','Actions'].map(h => (
                     <th key={h} style={{ padding: '10px 16px', fontSize: '12px', color: '#92400e', fontWeight: 500, textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -339,31 +328,17 @@ export default function AdminCSR() {
                         ))}
                       </div>
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: '12px', color: '#9ca3af', whiteSpace: 'nowrap' }}>
-                      {new Date(p.created_at).toLocaleDateString('en-IN')}
-                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: '12px', color: '#9ca3af', whiteSpace: 'nowrap' }}>{new Date(p.created_at).toLocaleDateString('en-IN')}</td>
                     <td style={{ padding: '12px 16px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {/* Approve */}
                         <button onClick={() => approvePartner(p.id, p.company_name)} disabled={actionId === p.id}
-                          style={{ padding: '5px 12px', background: actionId === p.id ? '#9ca3af' : '#2C5F2D', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                          ✅ Approve
-                        </button>
-                        {/* Mark paid offline */}
+                          style={{ padding: '5px 12px', background: '#2C5F2D', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>✅ Approve</button>
                         <button onClick={() => markPaidOffline(p.id, p.company_name)} disabled={actionId === p.id}
-                          style={{ padding: '5px 12px', background: '#166534', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                          💵 Mark Paid
-                        </button>
-                        {/* Send payment link */}
+                          style={{ padding: '5px 12px', background: '#166534', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>💵 Mark Paid</button>
                         <button onClick={() => sendPaymentLink(p.id, p.company_name, p.contact_email)} disabled={actionId === p.id}
-                          style={{ padding: '5px 12px', background: '#1e40af', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                          💳 Payment Link
-                        </button>
-                        {/* Reject */}
+                          style={{ padding: '5px 12px', background: '#1e40af', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>💳 Payment Link</button>
                         <button onClick={() => rejectPartner(p.id, p.company_name)}
-                          style={{ padding: '5px 12px', background: 'transparent', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                          Reject
-                        </button>
+                          style={{ padding: '5px 12px', background: 'transparent', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>Reject</button>
                       </div>
                     </td>
                   </tr>
@@ -374,7 +349,7 @@ export default function AdminCSR() {
         </div>
       )}
 
-      {/* ── ADD PARTNER FORM ── */}
+      {/* ADD PARTNER FORM */}
       {showForm && (
         <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.5rem' }}>
           <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '1rem' }}>Add CSR partner manually</h3>
@@ -402,120 +377,68 @@ export default function AdminCSR() {
                 {saving ? 'Adding...' : 'Add partner'}
               </button>
               <button type="button" onClick={() => setShowForm(false)}
-                style={{ padding: '10px 20px', background: 'transparent', color: '#6B7280', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', cursor: 'pointer' }}>
-                Cancel
-              </button>
+                style={{ padding: '10px 20px', background: 'transparent', color: '#6B7280', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', cursor: 'pointer' }}>Cancel</button>
             </div>
           </form>
         </div>
       )}
 
-      {loading ? (
-        <div style={{ color: '#6B7280', fontSize: '14px' }}>Loading...</div>
-      ) : (
-        <>
-          {/* ── ACTIVE PARTNERS TABLE ── */}
-          <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden' }}>
-            <div style={{ padding: '0.875rem 1.25rem', borderBottom: '1px solid #e5e7eb' }}>
-              <span style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A' }}>Active Partners</span>
-            </div>
-            <div className="desk-table" style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: '#f9fafb' }}>
-                    {['Company','Contact','Trees','Verified','Survival','Budget','Payment','Status','Assigned To'].map(h => (
-                      <th key={h} style={{ padding: '10px 16px', fontSize: '12px', color: '#6B7280', fontWeight: 500, textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {partners.length === 0 ? (
-                    <tr><td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af', fontSize: '14px' }}>No active CSR partners yet</td></tr>
-                  ) : partners.map(p => {
-                    const pay  = paymentBadge(p)
-                    const stat = statusBadge(p.status)
-                    const worker = workers.find(w => w.id === p.worker_id)
-                    const site   = sites.find(s => s.id === p.site_id)
-                    return (
-                      <tr key={p.id} style={{ borderTop: '1px solid #f3f4f6' }}>
-                        <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 500, color: '#1A1A1A', whiteSpace: 'nowrap' }}>{p.company_name}</td>
-                        <td style={{ padding: '12px 16px' }}>
-                          <div style={{ fontSize: '13px', color: '#374151' }}>{p.contact_name || '—'}</div>
-                          <div style={{ fontSize: '12px', color: '#9ca3af' }}>{p.contact_email || ''}</div>
-                        </td>
-                        <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 600, color: '#2C5F2D' }}>{p.trees_assigned || p.tree_count || 0}</td>
-                        <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151' }}>{p.trees_verified}</td>
-                        <td style={{ padding: '12px 16px' }}>
-                          <span style={{ background: '#dcfce7', color: '#166534', fontSize: '12px', padding: '3px 8px', borderRadius: '6px', fontWeight: 500 }}>
-                            {survivalRate(p)}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151', whiteSpace: 'nowrap' }}>{p.budget || '—'}</td>
-                        <td style={{ padding: '12px 16px' }}>
-                          <span style={{ background: pay.bg, color: pay.color, fontSize: '12px', padding: '3px 8px', borderRadius: '6px', fontWeight: 500 }}>
-                            {pay.label}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px 16px' }}>
-                          <span style={{ background: stat.bg, color: stat.color, fontSize: '12px', padding: '3px 8px', borderRadius: '6px', fontWeight: 500 }}>
-                            {stat.label}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151' }}>
-                          {worker ? (
-                            <div>
-                              <div style={{ fontWeight: 500 }}>👷 {worker.name}</div>
-                              {site && <div style={{ fontSize: '12px', color: '#9ca3af' }}>📍 {site.name}</div>}
-                            </div>
-                          ) : '—'}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mob-cards">
-              {partners.map(p => {
-                const pay  = paymentBadge(p)
-                const stat = statusBadge(p.status)
-                const worker = workers.find(w => w.id === p.worker_id)
-                return (
-                  <div key={p.id} style={{ padding: '1rem', borderTop: '1px solid #f3f4f6' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
-                      <span style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A' }}>{p.company_name}</span>
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <span style={{ background: pay.bg, color: pay.color, fontSize: '11px', padding: '2px 8px', borderRadius: '6px' }}>{pay.label}</span>
-                        <span style={{ background: stat.bg, color: stat.color, fontSize: '11px', padding: '2px 8px', borderRadius: '6px' }}>{stat.label}</span>
-                      </div>
-                    </div>
-                    {p.contact_name  && <div style={{ fontSize: '13px', color: '#6B7280', marginBottom: '3px' }}>👤 {p.contact_name}</div>}
-                    {p.contact_email && <div style={{ fontSize: '13px', color: '#6B7280', marginBottom: '3px' }}>✉️ {p.contact_email}</div>}
-                    {worker && <div style={{ fontSize: '13px', color: '#6B7280', marginBottom: '3px' }}>👷 {worker.name}</div>}
-                    <div style={{ display: 'flex', gap: '1rem', marginTop: '8px' }}>
-                      <div><div style={{ fontSize: '16px', fontWeight: 700, color: '#2C5F2D' }}>{p.trees_assigned || p.tree_count || 0}</div><div style={{ fontSize: '11px', color: '#9ca3af' }}>Trees</div></div>
-                      <div><div style={{ fontSize: '16px', fontWeight: 700, color: '#2C5F2D' }}>{survivalRate(p)}</div><div style={{ fontSize: '11px', color: '#9ca3af' }}>Survival</div></div>
-                      {p.budget && <div><div style={{ fontSize: '14px', fontWeight: 700, color: '#374151' }}>{p.budget}</div><div style={{ fontSize: '11px', color: '#9ca3af' }}>Budget</div></div>}
-                    </div>
-                  </div>
-                )
-              })}
-              {partners.length === 0 && <div style={{ textAlign: 'center', color: '#9ca3af', fontSize: '14px', padding: '2rem' }}>No active CSR partners yet</div>}
-            </div>
+      {loading ? <div style={{ color: '#6B7280', fontSize: '14px' }}>Loading...</div> : (
+        <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+          <div style={{ padding: '0.875rem 1.25rem', borderBottom: '1px solid #e5e7eb' }}>
+            <span style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A' }}>Active Partners</span>
           </div>
-        </>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: '#f9fafb' }}>
+                  {['Company','Contact','Trees','Verified','Survival','Budget','Payment','Status','Assigned To'].map(h => (
+                    <th key={h} style={{ padding: '10px 16px', fontSize: '12px', color: '#6B7280', fontWeight: 500, textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {partners.length === 0 ? (
+                  <tr><td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af', fontSize: '14px' }}>No active CSR partners yet</td></tr>
+                ) : partners.map(p => {
+                  const pay  = paymentBadge(p)
+                  const stat = statusBadge(p.status)
+                  const worker = workers.find(w => w.id === p.worker_id)
+                  const site   = sites.find(s => s.id === p.site_id)
+                  return (
+                    <tr key={p.id} style={{ borderTop: '1px solid #f3f4f6' }}>
+                      <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 500, color: '#1A1A1A', whiteSpace: 'nowrap' }}>{p.company_name}</td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ fontSize: '13px', color: '#374151' }}>{p.contact_name || '—'}</div>
+                        <div style={{ fontSize: '12px', color: '#9ca3af' }}>{p.contact_email || ''}</div>
+                      </td>
+                      <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 600, color: '#2C5F2D' }}>{p.trees_assigned || p.tree_count || 0}</td>
+                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151' }}>{p.trees_verified}</td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{ background: '#dcfce7', color: '#166534', fontSize: '12px', padding: '3px 8px', borderRadius: '6px', fontWeight: 500 }}>{survivalRate(p)}</span>
+                      </td>
+                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151', whiteSpace: 'nowrap' }}>{p.budget || '—'}</td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{ background: pay.bg, color: pay.color, fontSize: '12px', padding: '3px 8px', borderRadius: '6px', fontWeight: 500 }}>{pay.label}</span>
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{ background: stat.bg, color: stat.color, fontSize: '12px', padding: '3px 8px', borderRadius: '6px', fontWeight: 500 }}>{stat.label}</span>
+                      </td>
+                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151' }}>
+                        {worker ? <div><div style={{ fontWeight: 500 }}>👷 {worker.name}</div>{site && <div style={{ fontSize: '12px', color: '#9ca3af' }}>📍 {site.name}</div>}</div> : '—'}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
 
       <style>{`
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-        .desk-table { display: block; }
-        .mob-cards  { display: none; }
-        @media (max-width: 768px) {
-          .form-grid { grid-template-columns: 1fr; }
-          .desk-table { display: none; }
-          .mob-cards  { display: block; }
-        }
+        @media (max-width: 768px) { .form-grid { grid-template-columns: 1fr; } }
         button:hover { opacity: 0.9; }
         select:focus, input:focus { border-color: #2C5F2D !important; }
       `}</style>
