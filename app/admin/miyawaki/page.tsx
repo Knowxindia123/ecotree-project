@@ -43,6 +43,11 @@ export default function AdminMiyawaki() {
     species_count: '30', worker_id: '', notes: ''
   })
 
+  // Site creation
+  const [showSiteForm, setShowSiteForm] = useState(false)
+  const [siteForm,     setSiteForm]     = useState({ name: '', city: 'Bangalore', state: 'Karnataka', description: '' })
+  const [creatingSite, setCreatingSite] = useState(false)
+
   useEffect(() => { loadData() }, [])
 
   async function loadData() {
@@ -96,6 +101,30 @@ export default function AdminMiyawaki() {
     setLoading(false)
   }
 
+  // Generate forest code: MF-BLR-2026-004
+  async function generateForestCode(): Promise<string> {
+    const { data } = await supabase.rpc('nextval', { sequence_name: 'miyawaki_forest_seq' }).single().catch(() => ({ data: null }))
+    const seq = data ? String(data).padStart(3, '0') : String(Math.floor(Math.random() * 900) + 100)
+    return `MF-BLR-${new Date().getFullYear()}-${seq}`
+  }
+
+  async function handleCreateSite() {
+    if (!siteForm.name.trim()) return
+    setCreatingSite(true)
+    const { data: newSite, error: siteErr } = await supabase.from('sites').insert({
+      name: siteForm.name, city: siteForm.city || 'Bangalore',
+      state: siteForm.state || 'Karnataka',
+      description: siteForm.description || null, is_active: true,
+    }).select('id, name').single()
+    if (!siteErr && newSite) {
+      setSites(prev => [...prev, newSite])
+      setForm(prev => ({ ...prev, site_id: String(newSite.id) }))
+      setSiteForm({ name: '', city: 'Bangalore', state: 'Karnataka', description: '' })
+      setShowSiteForm(false)
+      setSuccess(`Site "${newSite.name}" created!`)
+    }
+    setCreatingSite(false)
+  }
 
   async function handleCreateForest(e: React.FormEvent) {
     e.preventDefault()
@@ -103,10 +132,10 @@ export default function AdminMiyawaki() {
     setSaving(true); setError('')
 
     // Generate forest code
-    const { count } = await supabase
-  .from('miyawaki_forests').select('*', { count: 'exact', head: true })
-const seq = String((count || 0) + 1).padStart(3, '0')
-const forest_code = `MF-BLR-${new Date().getFullYear()}-${seq}`
+    const { data: countData } = await supabase
+      .from('miyawaki_forests').select('id', { count: 'exact', head: true })
+    const seq = String((countData as any || 0) + 1).padStart(3, '0')
+    const forest_code = `MF-BLR-${new Date().getFullYear()}-${seq}`
 
     const { data: newForest, error: err } = await supabase.from('miyawaki_forests').insert({
       forest_name:   form.forest_name,
@@ -301,10 +330,46 @@ const forest_code = `MF-BLR-${new Date().getFullYear()}-${seq}`
             </div>
             <div>
               <label style={lbl}>Site</label>
-              <select value={form.site_id} onChange={e=>setForm({...form,site_id:e.target.value})} style={inp}>
-                <option value="">— Select site —</option>
-                {sites.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+              {sites.length === 0 && !showSiteForm ? (
+                <button type="button" onClick={() => setShowSiteForm(true)}
+                  style={{ width:'100%', padding:'0.6rem', background:'#f5f3ff', border:'1.5px dashed #ddd6fe', borderRadius:'8px', fontSize:'14px', color:'#7C3AED', cursor:'pointer', fontFamily:'inherit' }}>
+                  + Create your first site
+                </button>
+              ) : (
+                <>
+                  <select value={form.site_id} onChange={e=>setForm({...form,site_id:e.target.value})} style={inp}>
+                    <option value="">— Select site —</option>
+                    {sites.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                  <button type="button" onClick={() => setShowSiteForm(!showSiteForm)}
+                    style={{ background:'none', border:'none', color:'#7C3AED', fontSize:'12px', cursor:'pointer', padding:'4px 0', fontFamily:'inherit' }}>
+                    {showSiteForm ? '▲ Cancel' : '+ Create new site'}
+                  </button>
+                </>
+              )}
+              {showSiteForm && (
+                <div style={{ background:'#f5f3ff', border:'1px solid #ddd6fe', borderRadius:'8px', padding:'12px', marginTop:'8px' }}>
+                  <div style={{ fontSize:'13px', fontWeight:600, color:'#7C3AED', marginBottom:'8px' }}>Create new site</div>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px', marginBottom:'8px' }}>
+                    <div style={{ gridColumn:'span 2' }}>
+                      <input type="text" placeholder="Site name *" value={siteForm.name}
+                        onChange={e => setSiteForm({...siteForm, name: e.target.value})} style={{ ...inp }} />
+                    </div>
+                    <input type="text" placeholder="City" value={siteForm.city}
+                      onChange={e => setSiteForm({...siteForm, city: e.target.value})} style={{ ...inp }} />
+                    <input type="text" placeholder="State" value={siteForm.state}
+                      onChange={e => setSiteForm({...siteForm, state: e.target.value})} style={{ ...inp }} />
+                    <div style={{ gridColumn:'span 2' }}>
+                      <input type="text" placeholder="Description (optional)" value={siteForm.description}
+                        onChange={e => setSiteForm({...siteForm, description: e.target.value})} style={{ ...inp }} />
+                    </div>
+                  </div>
+                  <button type="button" onClick={handleCreateSite} disabled={creatingSite || !siteForm.name.trim()}
+                    style={{ padding:'6px 16px', background: creatingSite || !siteForm.name.trim() ? '#9ca3af' : '#7C3AED', color:'white', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+                    {creatingSite ? 'Creating...' : '✅ Save Site'}
+                  </button>
+                </div>
+              )}
             </div>
             <div>
               <label style={lbl}>Assigned worker</label>
