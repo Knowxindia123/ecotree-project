@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 
 interface CSRPartner {
@@ -32,9 +32,12 @@ export default function AdminCSR() {
   })
   const [showAssignForm, setShowAssignForm] = useState(false)
 
-  // Site creation
+  // Site creation — separate state to avoid remount issues
   const [showSiteForm,  setShowSiteForm]  = useState(false)
-  const [siteForm,      setSiteForm]      = useState({ name: '', city: 'Bangalore', state: 'Karnataka', description: '' })
+  const [siteName,      setSiteName]      = useState('')
+  const [siteCity,      setSiteCity]      = useState('Bangalore')
+  const [siteState,     setSiteState]     = useState('Karnataka')
+  const [siteDesc,      setSiteDesc]      = useState('')
   const [creatingSite,  setCreatingSite]  = useState(false)
 
   const [form, setForm] = useState({
@@ -60,17 +63,17 @@ export default function AdminCSR() {
   }
 
   async function handleCreateSite() {
-    if (!siteForm.name.trim()) return
+    if (!siteName.trim()) return
     setCreatingSite(true)
     const { data: newSite, error: siteErr } = await supabase.from('sites').insert({
-      name: siteForm.name, city: siteForm.city || 'Bangalore',
-      state: siteForm.state || 'Karnataka',
-      description: siteForm.description || null, is_active: true,
+      name: siteName.trim(), city: siteCity || 'Bangalore',
+      state: siteState || 'Karnataka',
+      description: siteDesc || null, is_active: true,
     }).select('id, name').single()
     if (!siteErr && newSite) {
       setSites(prev => [...prev, newSite])
       setAssignForm(prev => ({ ...prev, site_id: String(newSite.id) }))
-      setSiteForm({ name: '', city: 'Bangalore', state: 'Karnataka', description: '' })
+      setSiteName(''); setSiteCity('Bangalore'); setSiteState('Karnataka'); setSiteDesc('')
       setShowSiteForm(false)
       setSuccess(`Site "${newSite.name}" created!`)
     }
@@ -174,55 +177,6 @@ export default function AdminCSR() {
   const lbl = { display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' } as React.CSSProperties
   const assignablePartners = partners.filter(p => p.payment_status === 'PAID' && p.status === 'ACTIVE')
 
-  // Site dropdown with create option
-  const SiteField = () => (
-    <div>
-      <label style={lbl}>Planting Site *</label>
-      {sites.length === 0 && !showSiteForm ? (
-        <button type="button" onClick={() => setShowSiteForm(true)}
-          style={{ width:'100%', padding:'0.6rem', background:'#f0fdf4', border:'1.5px dashed #86efac', borderRadius:'8px', fontSize:'14px', color:'#166534', cursor:'pointer', fontFamily:'inherit' }}>
-          + Create your first site
-        </button>
-      ) : (
-        <>
-          <select value={assignForm.site_id}
-            onChange={e => setAssignForm({...assignForm, site_id: e.target.value})}
-            style={inp}>
-            <option value="">— Select site —</option>
-            {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-          <button type="button" onClick={() => setShowSiteForm(!showSiteForm)}
-            style={{ background:'none', border:'none', color:'#2C5F2D', fontSize:'12px', cursor:'pointer', padding:'4px 0', fontFamily:'inherit' }}>
-            {showSiteForm ? '▲ Cancel' : '+ Create new site'}
-          </button>
-        </>
-      )}
-      {showSiteForm && (
-        <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:'8px', padding:'12px', marginTop:'8px' }}>
-          <div style={{ fontSize:'13px', fontWeight:600, color:'#166534', marginBottom:'8px' }}>Create new site</div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px', marginBottom:'8px' }}>
-            <div style={{ gridColumn:'span 2' }}>
-              <input type="text" placeholder="Site name *" value={siteForm.name}
-                onChange={e => setSiteForm({...siteForm, name: e.target.value})} style={{ ...inp }} />
-            </div>
-            <input type="text" placeholder="City" value={siteForm.city}
-              onChange={e => setSiteForm({...siteForm, city: e.target.value})} style={{ ...inp }} />
-            <input type="text" placeholder="State" value={siteForm.state}
-              onChange={e => setSiteForm({...siteForm, state: e.target.value})} style={{ ...inp }} />
-            <div style={{ gridColumn:'span 2' }}>
-              <input type="text" placeholder="Description (optional)" value={siteForm.description}
-                onChange={e => setSiteForm({...siteForm, description: e.target.value})} style={{ ...inp }} />
-            </div>
-          </div>
-          <button type="button" onClick={handleCreateSite} disabled={creatingSite || !siteForm.name.trim()}
-            style={{ padding:'6px 16px', background: creatingSite || !siteForm.name.trim() ? '#9ca3af' : '#2C5F2D', color:'white', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
-            {creatingSite ? 'Creating...' : '✅ Save Site'}
-          </button>
-        </div>
-      )}
-    </div>
-  )
-
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -267,7 +221,51 @@ export default function AdminCSR() {
                   {workers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </select>
               </div>
-              <SiteField />
+
+              {/* SITE — inline, no subcomponent */}
+              <div>
+                <label style={lbl}>Planting Site *</label>
+                {sites.length === 0 && !showSiteForm ? (
+                  <button type="button" onClick={() => setShowSiteForm(true)}
+                    style={{ width:'100%', padding:'0.6rem', background:'#f0fdf4', border:'1.5px dashed #86efac', borderRadius:'8px', fontSize:'14px', color:'#166534', cursor:'pointer', fontFamily:'inherit' }}>
+                    + Create your first site
+                  </button>
+                ) : (
+                  <>
+                    <select value={assignForm.site_id} onChange={e => setAssignForm({...assignForm, site_id: e.target.value})} style={inp}>
+                      <option value="">— Select site —</option>
+                      {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                    <button type="button" onClick={() => setShowSiteForm(!showSiteForm)}
+                      style={{ background:'none', border:'none', color:'#2C5F2D', fontSize:'12px', cursor:'pointer', padding:'4px 0', fontFamily:'inherit' }}>
+                      {showSiteForm ? '▲ Cancel' : '+ Create new site'}
+                    </button>
+                  </>
+                )}
+                {showSiteForm && (
+                  <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:'8px', padding:'12px', marginTop:'8px' }}>
+                    <div style={{ fontSize:'13px', fontWeight:600, color:'#166534', marginBottom:'8px' }}>Create new site</div>
+                    <div style={{ display:'flex', flexDirection:'column', gap:'8px', marginBottom:'8px' }}>
+                      <input type="text" placeholder="Site name *" value={siteName}
+                        onChange={e => setSiteName(e.target.value)}
+                        autoFocus style={{ ...inp }} />
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
+                        <input type="text" placeholder="City" value={siteCity}
+                          onChange={e => setSiteCity(e.target.value)} style={{ ...inp }} />
+                        <input type="text" placeholder="State" value={siteState}
+                          onChange={e => setSiteState(e.target.value)} style={{ ...inp }} />
+                      </div>
+                      <input type="text" placeholder="Description (optional)" value={siteDesc}
+                        onChange={e => setSiteDesc(e.target.value)} style={{ ...inp }} />
+                    </div>
+                    <button type="button" onClick={handleCreateSite} disabled={creatingSite || !siteName.trim()}
+                      style={{ padding:'6px 16px', background: creatingSite || !siteName.trim() ? '#9ca3af' : '#2C5F2D', color:'white', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+                      {creatingSite ? 'Creating...' : '✅ Save Site'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label style={lbl}>Start Date</label>
                 <input type="date" value={assignForm.start_date} onChange={e => setAssignForm({...assignForm, start_date: e.target.value})} style={inp} />
