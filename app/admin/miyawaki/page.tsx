@@ -505,7 +505,7 @@ export default function AdminMiyawaki() {
               <select value={poolForestId || ''} onChange={e => setPoolForestId(Number(e.target.value))}
                 style={{ ...inp }}>
                 <option value="">— Select forest —</option>
-                {forests.map(f => (
+                {forests.filter(f => f.status !== 'COMPLETE').map(f => (
                   <option key={f.id} value={f.id}>{f.forest_code ? `${f.forest_code} · ` : ''}{f.forest_name}</option>
                 ))}
               </select>

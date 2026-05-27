@@ -139,7 +139,7 @@ export default function FieldMiyawaki() {
         site_photos:   newSite,
         latitude:      gps?.lat ?? forest?.latitude ?? null,
         longitude:     gps?.lng ?? forest?.longitude ?? null,
-        status:        'ACTIVE',
+        status:        newTotal >= (forest?.trees_target || 0) ? 'COMPLETE' : 'ACTIVE',
         notes:         notes || forest?.notes || null,
       }).eq('id', forestId)
 
@@ -231,6 +231,14 @@ export default function FieldMiyawaki() {
           </div>
         )}
 
+        {/* Show complete message or submission form */}
+        {((forest.trees_planted || 0) >= (forest.trees_target || 0) || forest.status === 'COMPLETE') ? (
+          <div style={{ background:'white', borderRadius:'16px', padding:'2rem', border:'1px solid #e5e7eb', textAlign:'center' }}>
+            <div style={{ fontSize:'2.5rem', marginBottom:'0.75rem' }}>🎉</div>
+            <div style={{ fontSize:'18px', fontWeight:700, color:'#7C3AED', marginBottom:'0.5rem' }}>Forest Complete!</div>
+            <div style={{ fontSize:'14px', color:'#6B7280' }}>{forest.trees_planted}/{forest.trees_target} trees planted successfully.</div>
+          </div>
+        ) : (<>
         {/* Trees planted TODAY */}
         <div style={{ background:'white', borderRadius:'16px', padding:'1rem', border:'1px solid #e5e7eb' }}>
           <div style={{ fontSize:'14px', fontWeight:700, color:'#1A1A1A', marginBottom:'2px' }}>🌳 Trees Planted Today</div>
@@ -308,6 +316,7 @@ export default function FieldMiyawaki() {
           style={{ width:'100%', padding:'1.125rem', background:'#7C3AED', color:'white', border:'none', borderRadius:'14px', fontSize:'16px', fontWeight:700, cursor:'pointer', minHeight:'60px', marginBottom:'1rem' }}>
           🏙️ Submit Today's Update
         </button>
+        </>)}
       </div>
     </div>
   )
