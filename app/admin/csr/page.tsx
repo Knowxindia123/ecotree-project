@@ -16,29 +16,29 @@ interface Worker { id: number; name: string }
 interface Site   { id: number; name: string }
 
 export default function AdminCSR() {
-  const [partners,  setPartners]  = useState<CSRPartner[]>([])
-  const [pending,   setPending]   = useState<CSRPartner[]>([])
-  const [workers,   setWorkers]   = useState<Worker[]>([])
-  const [sites,     setSites]     = useState<Site[]>([])
-  const [loading,   setLoading]   = useState(true)
-  const [showForm,  setShowForm]  = useState(false)
-  const [saving,    setSaving]    = useState(false)
-  const [actionId,  setActionId]  = useState<number | null>(null)
-  const [success,   setSuccess]   = useState('')
-  const [error,     setError]     = useState('')
+  const [partners,   setPartners]   = useState<CSRPartner[]>([])
+  const [completed,  setCompleted]  = useState<CSRPartner[]>([])
+  const [pending,    setPending]    = useState<CSRPartner[]>([])
+  const [workers,    setWorkers]    = useState<Worker[]>([])
+  const [sites,      setSites]      = useState<Site[]>([])
+  const [loading,    setLoading]    = useState(true)
+  const [showForm,   setShowForm]   = useState(false)
+  const [saving,     setSaving]     = useState(false)
+  const [actionId,   setActionId]   = useState<number | null>(null)
+  const [success,    setSuccess]    = useState('')
+  const [error,      setError]      = useState('')
 
   const [assignForm, setAssignForm] = useState({
     partner_id: '', worker_id: '', site_id: '', start_date: '', due_date: '', notes: ''
   })
   const [showAssignForm, setShowAssignForm] = useState(false)
 
-  // Site creation — separate state to avoid remount issues
-  const [showSiteForm,  setShowSiteForm]  = useState(false)
-  const [siteName,      setSiteName]      = useState('')
-  const [siteCity,      setSiteCity]      = useState('Bangalore')
-  const [siteState,     setSiteState]     = useState('Karnataka')
-  const [siteDesc,      setSiteDesc]      = useState('')
-  const [creatingSite,  setCreatingSite]  = useState(false)
+  const [showSiteForm, setShowSiteForm] = useState(false)
+  const [siteName,     setSiteName]     = useState('')
+  const [siteCity,     setSiteCity]     = useState('Bangalore')
+  const [siteState,    setSiteState]    = useState('Karnataka')
+  const [siteDesc,     setSiteDesc]     = useState('')
+  const [creatingSite, setCreatingSite] = useState(false)
 
   const [form, setForm] = useState({
     company_name: '', contact_name: '', contact_email: '',
@@ -56,7 +56,8 @@ export default function AdminCSR() {
     ])
     const all = partnersRes.data || []
     setPending(all.filter(p => !p.is_active || p.status === 'PENDING'))
-    setPartners(all.filter(p => p.is_active && p.status !== 'PENDING'))
+    setCompleted(all.filter(p => p.status === 'COMPLETED'))
+    setPartners(all.filter(p => p.is_active && p.status !== 'PENDING' && p.status !== 'COMPLETED'))
     setWorkers(workersRes.data || [])
     setSites(sitesRes.data || [])
     setLoading(false)
@@ -177,12 +178,46 @@ export default function AdminCSR() {
   const lbl = { display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' } as React.CSSProperties
   const assignablePartners = partners.filter(p => p.payment_status === 'PAID' && p.status === 'ACTIVE')
 
+  // Reusable partner table rows
+  const PartnerRow = ({ p }: { p: CSRPartner }) => {
+    const pay    = paymentBadge(p)
+    const stat   = statusBadge(p.status)
+    const worker = workers.find(w => w.id === p.worker_id)
+    const site   = sites.find(s => s.id === p.site_id)
+    return (
+      <tr key={p.id} style={{ borderTop: '1px solid #f3f4f6' }}>
+        <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 500, color: '#1A1A1A', whiteSpace: 'nowrap' }}>{p.company_name}</td>
+        <td style={{ padding: '12px 16px' }}>
+          <div style={{ fontSize: '13px', color: '#374151' }}>{p.contact_name || '—'}</div>
+          <div style={{ fontSize: '12px', color: '#9ca3af' }}>{p.contact_email || ''}</div>
+        </td>
+        <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 600, color: '#2C5F2D' }}>{p.trees_assigned || p.tree_count || 0}</td>
+        <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151' }}>{p.trees_verified}</td>
+        <td style={{ padding: '12px 16px' }}>
+          <span style={{ background: '#dcfce7', color: '#166534', fontSize: '12px', padding: '3px 8px', borderRadius: '6px', fontWeight: 500 }}>{survivalRate(p)}</span>
+        </td>
+        <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151', whiteSpace: 'nowrap' }}>{p.budget || '—'}</td>
+        <td style={{ padding: '12px 16px' }}>
+          <span style={{ background: pay.bg, color: pay.color, fontSize: '12px', padding: '3px 8px', borderRadius: '6px', fontWeight: 500 }}>{pay.label}</span>
+        </td>
+        <td style={{ padding: '12px 16px' }}>
+          <span style={{ background: stat.bg, color: stat.color, fontSize: '12px', padding: '3px 8px', borderRadius: '6px', fontWeight: 500 }}>{stat.label}</span>
+        </td>
+        <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151' }}>
+          {worker ? <div><div style={{ fontWeight: 500 }}>👷 {worker.name}</div>{site && <div style={{ fontSize: '12px', color: '#9ca3af' }}>📍 {site.name}</div>}</div> : '—'}
+        </td>
+      </tr>
+    )
+  }
+
+  const tableHeaders = ['Company','Contact','Trees','Verified','Survival','Budget','Payment','Status','Assigned To']
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1A1A1A', marginBottom: '4px' }}>CSR Partners</h1>
-          <p style={{ fontSize: '14px', color: '#6B7280' }}>{partners.length} active · {pending.length} pending</p>
+          <p style={{ fontSize: '14px', color: '#6B7280' }}>{partners.length} active · {completed.length} completed · {pending.length} pending</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
           {assignablePartners.length > 0 && (
@@ -221,8 +256,6 @@ export default function AdminCSR() {
                   {workers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </select>
               </div>
-
-              {/* SITE — inline, no subcomponent */}
               <div>
                 <label style={lbl}>Planting Site *</label>
                 {sites.length === 0 && !showSiteForm ? (
@@ -246,17 +279,12 @@ export default function AdminCSR() {
                   <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:'8px', padding:'12px', marginTop:'8px' }}>
                     <div style={{ fontSize:'13px', fontWeight:600, color:'#166534', marginBottom:'8px' }}>Create new site</div>
                     <div style={{ display:'flex', flexDirection:'column', gap:'8px', marginBottom:'8px' }}>
-                      <input type="text" placeholder="Site name *" value={siteName}
-                        onChange={e => setSiteName(e.target.value)}
-                        autoFocus style={{ ...inp }} />
+                      <input type="text" placeholder="Site name *" value={siteName} onChange={e => setSiteName(e.target.value)} autoFocus style={{ ...inp }} />
                       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
-                        <input type="text" placeholder="City" value={siteCity}
-                          onChange={e => setSiteCity(e.target.value)} style={{ ...inp }} />
-                        <input type="text" placeholder="State" value={siteState}
-                          onChange={e => setSiteState(e.target.value)} style={{ ...inp }} />
+                        <input type="text" placeholder="City" value={siteCity} onChange={e => setSiteCity(e.target.value)} style={{ ...inp }} />
+                        <input type="text" placeholder="State" value={siteState} onChange={e => setSiteState(e.target.value)} style={{ ...inp }} />
                       </div>
-                      <input type="text" placeholder="Description (optional)" value={siteDesc}
-                        onChange={e => setSiteDesc(e.target.value)} style={{ ...inp }} />
+                      <input type="text" placeholder="Description (optional)" value={siteDesc} onChange={e => setSiteDesc(e.target.value)} style={{ ...inp }} />
                     </div>
                     <button type="button" onClick={handleCreateSite} disabled={creatingSite || !siteName.trim()}
                       style={{ padding:'6px 16px', background: creatingSite || !siteName.trim() ? '#9ca3af' : '#2C5F2D', color:'white', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
@@ -265,7 +293,6 @@ export default function AdminCSR() {
                   </div>
                 )}
               </div>
-
               <div>
                 <label style={lbl}>Start Date</label>
                 <input type="date" value={assignForm.start_date} onChange={e => setAssignForm({...assignForm, start_date: e.target.value})} style={inp} />
@@ -281,9 +308,7 @@ export default function AdminCSR() {
                 {saving ? 'Assigning...' : '👷 Assign Batch →'}
               </button>
               <button type="button" onClick={() => setShowAssignForm(false)}
-                style={{ padding: '10px 20px', background: 'transparent', color: '#6B7280', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', cursor: 'pointer' }}>
-                Cancel
-              </button>
+                style={{ padding: '10px 20px', background: 'transparent', color: '#6B7280', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', cursor: 'pointer' }}>Cancel</button>
             </div>
           </form>
         </div>
@@ -382,56 +407,55 @@ export default function AdminCSR() {
       )}
 
       {loading ? <div style={{ color: '#6B7280', fontSize: '14px' }}>Loading...</div> : (
-        <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden' }}>
-          <div style={{ padding: '0.875rem 1.25rem', borderBottom: '1px solid #e5e7eb' }}>
-            <span style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A' }}>Active Partners</span>
+        <>
+          {/* ACTIVE PARTNERS */}
+          <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden', marginBottom: '1.5rem' }}>
+            <div style={{ padding: '0.875rem 1.25rem', borderBottom: '1px solid #e5e7eb', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <span style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A' }}>Active Partners</span>
+              <span style={{ fontSize: '13px', color: '#6B7280' }}>{partners.length} partners</span>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: '#f9fafb' }}>
+                    {tableHeaders.map(h => (
+                      <th key={h} style={{ padding: '10px 16px', fontSize: '12px', color: '#6B7280', fontWeight: 500, textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {partners.length === 0 ? (
+                    <tr><td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af', fontSize: '14px' }}>No active CSR partners yet</td></tr>
+                  ) : partners.map(p => <PartnerRow key={p.id} p={p} />)}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: '#f9fafb' }}>
-                  {['Company','Contact','Trees','Verified','Survival','Budget','Payment','Status','Assigned To'].map(h => (
-                    <th key={h} style={{ padding: '10px 16px', fontSize: '12px', color: '#6B7280', fontWeight: 500, textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {partners.length === 0 ? (
-                  <tr><td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af', fontSize: '14px' }}>No active CSR partners yet</td></tr>
-                ) : partners.map(p => {
-                  const pay  = paymentBadge(p)
-                  const stat = statusBadge(p.status)
-                  const worker = workers.find(w => w.id === p.worker_id)
-                  const site   = sites.find(s => s.id === p.site_id)
-                  return (
-                    <tr key={p.id} style={{ borderTop: '1px solid #f3f4f6' }}>
-                      <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 500, color: '#1A1A1A', whiteSpace: 'nowrap' }}>{p.company_name}</td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontSize: '13px', color: '#374151' }}>{p.contact_name || '—'}</div>
-                        <div style={{ fontSize: '12px', color: '#9ca3af' }}>{p.contact_email || ''}</div>
-                      </td>
-                      <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 600, color: '#2C5F2D' }}>{p.trees_assigned || p.tree_count || 0}</td>
-                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151' }}>{p.trees_verified}</td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ background: '#dcfce7', color: '#166534', fontSize: '12px', padding: '3px 8px', borderRadius: '6px', fontWeight: 500 }}>{survivalRate(p)}</span>
-                      </td>
-                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151', whiteSpace: 'nowrap' }}>{p.budget || '—'}</td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ background: pay.bg, color: pay.color, fontSize: '12px', padding: '3px 8px', borderRadius: '6px', fontWeight: 500 }}>{pay.label}</span>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ background: stat.bg, color: stat.color, fontSize: '12px', padding: '3px 8px', borderRadius: '6px', fontWeight: 500 }}>{stat.label}</span>
-                      </td>
-                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151' }}>
-                        {worker ? <div><div style={{ fontWeight: 500 }}>👷 {worker.name}</div>{site && <div style={{ fontSize: '12px', color: '#9ca3af' }}>📍 {site.name}</div>}</div> : '—'}
-                      </td>
+
+          {/* COMPLETED PARTNERS */}
+          {completed.length > 0 && (
+            <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #86efac', overflow: 'hidden' }}>
+              <div style={{ padding: '0.875rem 1.25rem', borderBottom: '1px solid #86efac', background: '#f0fdf4', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span style={{ fontSize: '14px', fontWeight: 600, color: '#166534' }}>✅ Completed Projects</span>
+                <span style={{ fontSize: '13px', color: '#166534' }}>{completed.length} completed</span>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: '#f0fdf4' }}>
+                      {tableHeaders.map(h => (
+                        <th key={h} style={{ padding: '10px 16px', fontSize: '12px', color: '#166534', fontWeight: 500, textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
                     </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  </thead>
+                  <tbody>
+                    {completed.map(p => <PartnerRow key={p.id} p={p} />)}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <style>{`
