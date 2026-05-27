@@ -16,7 +16,7 @@ interface CsrPartner {
   tree_count: number | null; trees_planted: number; trees_verified: number; trees_assigned: number
   project_type: string | null; budget: string | null; start_date: string | null
   status: string | null; progress_status: string | null
-  before_photos: string[] | null; after_photos: string[] | null; site_photos: string[] | null
+  before_photos: string[] | null; after_photos: string[] | null; site_photos: string[] | null; all_before_photos: string[] | null; all_after_photos: string[] | null; all_site_photos: string[] | null
   latitude: number | null; longitude: number | null; notes: string | null
   sites: { name: string; city: string } | null
 }
@@ -96,7 +96,7 @@ export default function CsrDashboard() {
   const pct = partner.tree_count ? Math.round(((partner.trees_planted||0)/partner.tree_count)*100) : 0
   const co2 = (partner.trees_planted||0)*22
   const hasGPS = !!(partner.latitude && partner.longitude)
-  const allPhotos = [...(partner.before_photos||[]),...(partner.after_photos||[]),...(partner.site_photos||[])]
+  const allPhotos = [...(partner.all_before_photos||partner.before_photos||[]),...(partner.all_after_photos||partner.after_photos||[]),...(partner.all_site_photos||partner.site_photos||[])]
 
   return (
     <>
@@ -201,9 +201,9 @@ export default function CsrDashboard() {
               <p className="ce">Plantation Photos</p>
               <h2 className="ch2">Before and after your trees</h2>
               <p style={{fontSize:'.95rem',color:'#6B7280',marginBottom:'1.5rem'}}>Tap any photo to view full screen.</p>
-              {(partner.before_photos||[]).length>0&&<div style={{marginBottom:'1.5rem'}}><div style={{fontSize:'12px',fontWeight:600,color:'#6B7280',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'8px'}}>Before planting ({(partner.before_photos||[]).length})</div><div className="pg">{(partner.before_photos||[]).map((url,i)=><div key={i} className="pt" onClick={()=>setPhotoPopup({url,label:'Before - '+partner.company_name})}><img src={url} alt="" loading="lazy"/><div className="ptz">expand</div></div>)}</div></div>}
-              {(partner.after_photos||[]).length>0&&<div style={{marginBottom:'1.5rem'}}><div style={{fontSize:'12px',fontWeight:600,color:'#166534',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'8px'}}>After planting ({(partner.after_photos||[]).length})</div><div className="pg">{(partner.after_photos||[]).map((url,i)=><div key={i} className="pt" onClick={()=>setPhotoPopup({url,label:'After - '+partner.company_name})}><img src={url} alt="" loading="lazy"/><div className="ptz">expand</div></div>)}</div></div>}
-              {(partner.site_photos||[]).length>0&&<div><div style={{fontSize:'12px',fontWeight:600,color:'#6B7280',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'8px'}}>Site overview ({(partner.site_photos||[]).length})</div><div className="pg">{(partner.site_photos||[]).map((url,i)=><div key={i} className="pt" onClick={()=>setPhotoPopup({url,label:'Site - '+(partner.sites?.name||'Site')})}><img src={url} alt="" loading="lazy"/><div className="ptz">expand</div></div>)}</div></div>}
+              {(partner.all_before_photos||partner.before_photos||[]).length>0&&<div style={{marginBottom:'1.5rem'}}><div style={{fontSize:'12px',fontWeight:600,color:'#6B7280',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'8px'}}>Before planting ({(partner.all_before_photos||partner.before_photos||[]).length})</div><div className="pg">{(partner.all_before_photos||partner.before_photos||[]).map((url,i)=><div key={i} className="pt" onClick={()=>setPhotoPopup({url,label:'Before - '+partner.company_name})}><img src={url} alt="" loading="lazy"/><div className="ptz">expand</div></div>)}</div></div>}
+              {(partner.all_after_photos||partner.after_photos||[]).length>0&&<div style={{marginBottom:'1.5rem'}}><div style={{fontSize:'12px',fontWeight:600,color:'#166534',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'8px'}}>After planting ({(partner.all_after_photos||partner.after_photos||[]).length})</div><div className="pg">{(partner.all_after_photos||partner.after_photos||[]).map((url,i)=><div key={i} className="pt" onClick={()=>setPhotoPopup({url,label:'After - '+partner.company_name})}><img src={url} alt="" loading="lazy"/><div className="ptz">expand</div></div>)}</div></div>}
+              {(partner.all_site_photos||partner.site_photos||[]).length>0&&<div><div style={{fontSize:'12px',fontWeight:600,color:'#6B7280',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'8px'}}>Site overview ({(partner.all_site_photos||partner.site_photos||[]).length})</div><div className="pg">{(partner.all_site_photos||partner.site_photos||[]).map((url,i)=><div key={i} className="pt" onClick={()=>setPhotoPopup({url,label:'Site - '+(partner.sites?.name||'Site')})}><img src={url} alt="" loading="lazy"/><div className="ptz">expand</div></div>)}</div></div>}
             </div>
           </section>
         )}

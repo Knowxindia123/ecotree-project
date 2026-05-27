@@ -109,7 +109,7 @@ export default function AdminReview() {
     const { data: csrData } = await supabase
       .from('csr_partners')
       .select('id, company_name, tree_count, trees_planted, project_type, before_photos, after_photos, site_photos, notes, progress_status, status, contact_email, contact_name, updated_at, site_id, worker_id')
-      .eq('progress_status', 'IN_PROGRESS').order('updated_at', { ascending: true })
+      .in('progress_status', ['IN_PROGRESS', 'COMPLETED']).order('updated_at', { ascending: true })
     if (csrData?.length) {
       const siteIds   = Array.from(new Set(csrData.map((c: any) => c.site_id).filter(Boolean)))
       const workerIds = Array.from(new Set(csrData.map((c: any) => c.worker_id).filter(Boolean)))
