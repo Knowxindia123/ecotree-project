@@ -123,12 +123,13 @@ export default function AdminMiyawaki() {
   async function handleCreateForest(e: React.FormEvent) {
     e.preventDefault()
     if (!form.forest_name.trim()) { setError('Forest name is required'); return }
+    if (!form.trees_target || Number(form.trees_target) < 1) { setError('Trees target is required'); return }
     setSaving(true); setError('')
 
     // Generate forest code
-    const { data: countData } = await supabase
-      .from('miyawaki_forests').select('id', { count: 'exact', head: true })
-    const seq = String((countData as any || 0) + 1).padStart(3, '0')
+    const { count: forestCount } = await supabase
+      .from('miyawaki_forests').select('*', { count: 'exact', head: true })
+    const seq = String((forestCount || 0) + 1).padStart(3, '0')
     const forest_code = `MF-BLR-${new Date().getFullYear()}-${seq}`
 
     const { data: newForest, error: err } = await supabase.from('miyawaki_forests').insert({

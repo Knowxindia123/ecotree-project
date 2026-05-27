@@ -97,8 +97,9 @@ export default function FieldMiyawaki() {
     const todayCount = Number(treesToday)
     if (!treesToday || todayCount < 1) { setError('Please enter number of trees planted today'); return }
 
-    // Validate: total can't exceed target
-    const currentTotal = forest?.trees_planted || 0
+    // Validate: total can't exceed target — fetch fresh from DB
+    const { data: freshForest } = await supabase.from('miyawaki_forests').select('trees_planted, trees_target').eq('id', forestId).single()
+    const currentTotal = freshForest?.trees_planted || forest?.trees_planted || 0
     const newTotal = currentTotal + todayCount
     if (forest?.trees_target && newTotal > forest.trees_target) {
       setError(`Cannot exceed target. Current: ${currentTotal}, Today: ${todayCount}, Target: ${forest.trees_target}`)
@@ -232,7 +233,7 @@ export default function FieldMiyawaki() {
         )}
 
         {/* Show complete message or submission form */}
-        {((forest.trees_planted || 0) >= (forest.trees_target || 0) || forest.status === 'COMPLETE') ? (
+        {(forest.status === 'COMPLETE' || ((forest.trees_target || 0) > 0 && (forest.trees_planted || 0) >= (forest.trees_target || 0))) ? (
           <div style={{ background:'white', borderRadius:'16px', padding:'2rem', border:'1px solid #e5e7eb', textAlign:'center' }}>
             <div style={{ fontSize:'2.5rem', marginBottom:'0.75rem' }}>🎉</div>
             <div style={{ fontSize:'18px', fontWeight:700, color:'#7C3AED', marginBottom:'0.5rem' }}>Forest Complete!</div>
