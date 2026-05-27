@@ -203,9 +203,18 @@ export default function AdminReview() {
 
   async function handleCsrApprove(batch: CsrBatchReview) {
     setProcessing(true)
+    const { data: existing } = await supabase
+      .from('csr_partners').select('all_before_photos, all_after_photos, all_site_photos').eq('id', batch.id).single()
+    const allBefore = [...(existing?.all_before_photos || []), ...(batch.before_photos || [])]
+    const allAfter  = [...(existing?.all_after_photos  || []), ...(batch.after_photos  || [])]
+    const allSite   = [...(existing?.all_site_photos   || []), ...(batch.site_photos   || [])]
     const { error } = await supabase.from('csr_partners').update({
-      progress_status: 'VERIFIED', trees_verified: batch.trees_planted,
-      status: batch.trees_planted >= (batch.tree_count || 0) ? 'COMPLETED' : 'ASSIGNED',
+      progress_status:   'VERIFIED',
+      trees_verified:    batch.trees_planted,
+      status:            batch.trees_planted >= (batch.tree_count || 0) ? 'COMPLETED' : 'ASSIGNED',
+      all_before_photos: allBefore,
+      all_after_photos:  allAfter,
+      all_site_photos:   allSite,
     }).eq('id', batch.id)
     if (!error && batch.contact_email) {
       await fetch('/api/create-donor', {
