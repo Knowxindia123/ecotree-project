@@ -29,6 +29,7 @@ export default function CommunityDashboard() {
   const [totalDonors,  setTotalDonors]  = useState(0)
   const [sitePins,     setSitePins]     = useState<SitePin[]>([])
   const [sitePhotos,   setSitePhotos]   = useState<string[]>([])
+  const [certId,       setCertId]       = useState('')
 
   useEffect(() => { init() }, [])
 
@@ -56,6 +57,7 @@ export default function CommunityDashboard() {
     }
 
     if (!donorData) { window.location.replace('/my-tree/login'); return }
+
     // Sum all community donations for this email
     const { data: allCommunityRows } = await supabase
       .from('donors').select('total_donated')
@@ -63,6 +65,15 @@ export default function CommunityDashboard() {
       .in('tier', ['100', '250'])
     const totalCommunityDonated = (allCommunityRows || []).reduce((s: number, d: any) => s + Number(d.total_donated || 0), 0)
     setDonor({ ...donorData, total_donated: totalCommunityDonated })
+
+    // Fetch cert_id from donations table for this donor
+    const { data: donorDonations } = await supabase
+      .from('donations').select('cert_id')
+      .eq('donor_id', donorData.id)
+      .in('tree_tier_id', ['community_100', 'community_250'])
+      .order('created_at', { ascending: true })
+      .limit(1).maybeSingle()
+    setCertId(donorDonations?.cert_id || `COMM-${donorData.id}-${new Date().getFullYear()}`)
 
     // Community stats — all ₹100/₹250 donors
     const { count: donorCount } = await supabase
@@ -116,9 +127,9 @@ export default function CommunityDashboard() {
     doc.text('has contributed to EcoTree\'s Community Forest Initiative',W/2,96,{align:'center'})
     doc.text('Bangalore, Karnataka, India',W/2,104,{align:'center'})
     const stats = [
-      { val: 'Community', label: 'Contributor', x: 55 },
-      { val: String(totalTrees), label: 'Community Trees', x: 120 },
-      { val: (totalTrees*5)+'kg', label: 'CO2 Offset/yr', x: 185 },
+      { val: '₹'+donor.total_donated, label: 'Contribution', x: 55 },
+      { val: String(totalDonors), label: 'Contributors', x: 120 },
+      { val: (totalTrees*5)+'kg', label: 'CO₂ Impact/yr', x: 185 },
       { val: '80G', label: 'Tax Benefit', x: 240 },
     ]
     stats.forEach(s => {
@@ -126,19 +137,21 @@ export default function CommunityDashboard() {
       doc.setFontSize(11); doc.setTextColor(255,255,255); doc.text(s.val,s.x+27.5,121,{align:'center'})
       doc.setFontSize(7); doc.setTextColor(151,188,98); doc.text(s.label,s.x+27.5,129,{align:'center'})
     })
+    doc.setFontSize(8); doc.setTextColor(151,188,98)
+    doc.text(`Contribution ID: ${certId}`,W/2,148,{align:'center'})
     doc.setFontSize(7); doc.setTextColor(151,188,98); doc.text('ecotrees.org',W/2,158,{align:'center'})
     doc.save('EcoTree-Community-Certificate-' + donor.name.replace(/\s/g,'-') + '.pdf')
   }
 
   function shareWA() {
     if (!donor) return
-    const t = encodeURIComponent(`I just joined EcoTree's Community Forest Initiative in Bangalore! ${totalTrees} trees and counting. ecotrees.org/donate`)
+    const t = encodeURIComponent(`I just joined EcoTree's Community Forest Initiative in Bangalore! ${totalDonors} contributors and growing. ecotrees.org/donate`)
     window.open('https://wa.me/?text='+t,'_blank')
   }
   function shareLI() { window.open('https://www.linkedin.com/sharing/share-offsite/?url='+encodeURIComponent('https://ecotrees.org/donate'),'_blank') }
   function copyImpact() {
     if (!donor) return
-    navigator.clipboard.writeText(`${donor.name} joined EcoTree's Community Forest Initiative!\n${totalTrees} community trees planted in Bangalore\necotrees.org/donate`)
+    navigator.clipboard.writeText(`${donor.name} joined EcoTree's Community Forest Initiative!\n${totalDonors} contributors planting trees together in Bangalore\necotrees.org/donate`)
     setCopied(true); setTimeout(()=>setCopied(false),2000)
   }
 
@@ -218,10 +231,10 @@ export default function CommunityDashboard() {
         <section className="cd-cc">
           <div className="cd-ci">
             {[
-              {icon:'💚',val:'₹'+donor.total_donated,label:'Your contribution',sub:'Community donor'},
-              {icon:'🌳',val:totalTrees||0,label:'Community trees',sub:'Total planted'},
-              {icon:'🌍',val:co2+'kg',label:'CO₂ offset/yr',sub:'~5kg per tree'},
-              {icon:'👥',val:totalDonors||0,label:'Contributors',sub:'Including you'},
+              {icon:'💚', val:'₹'+donor.total_donated, label:'Your contribution',    sub:'Community donor'},
+              {icon:'👥', val:totalDonors||0,           label:'Contributors',         sub:'Growing together'},
+              {icon:'🌍', val:co2+'kg',                 label:'Community CO₂ impact', sub:'Collective offset'},
+              {icon:'🌳', val:totalTrees||0,            label:'Trees planted',         sub:'By our community'},
             ].map(c=>(
               <div className="cd-cb" key={c.label}>
                 <span style={{fontSize:'1.5rem'}}>{c.icon}</span>
@@ -243,15 +256,16 @@ export default function CommunityDashboard() {
                 Your contribution supports EcoTree's community plantation across Bangalore. {totalDonors} contributors and growing.
               </p>
               <div style={{background:'#f0fdf4',border:'1px solid #86efac',borderRadius:'10px',padding:'1rem',marginBottom:'1rem'}}>
-                <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'1rem',textAlign:'center'}}>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'1rem',textAlign:'center'}}>
                   {[
-                    {label:'Contributor',value:donor.name},
-                    {label:'Tier',value:'Community Forest'},
-                    {label:'Date',value:new Date(donor.created_at).toLocaleDateString('en-IN',{month:'short',year:'numeric'})},
+                    {label:'Contributor',    value:donor.name},
+                    {label:'Tier',           value:'Community Forest'},
+                    {label:'Date',           value:new Date(donor.created_at).toLocaleDateString('en-IN',{month:'short',year:'numeric'})},
+                    {label:'Contribution ID',value:certId},
                   ].map(d=>(
                     <div key={d.label}>
                       <div style={{fontSize:'11px',color:'#9ca3af',textTransform:'uppercase',letterSpacing:'.04em',marginBottom:'3px'}}>{d.label}</div>
-                      <div style={{fontSize:'14px',fontWeight:600,color:'#1A3C34'}}>{d.value}</div>
+                      <div style={{fontSize:'13px',fontWeight:600,color:'#1A3C34',wordBreak:'break-all'}}>{d.value}</div>
                     </div>
                   ))}
                 </div>
@@ -322,7 +336,9 @@ export default function CommunityDashboard() {
             <div style={{background:'#f0fdf4',border:'1px solid #86efac',borderRadius:'16px',padding:'2rem',textAlign:'center'}}>
               <div style={{fontFamily:'Fraunces,Georgia,serif',fontSize:'3rem',fontWeight:700,color:'#1A3C34',marginBottom:'.5rem'}}>{totalDonors}</div>
               <div style={{fontSize:'16px',fontWeight:600,color:'#2C5F2D',marginBottom:'.5rem'}}>community contributors</div>
-              <div style={{fontSize:'14px',color:'#6B7280'}}>including you and {Math.max(0,totalDonors-1)} others · together planting {totalTrees} trees</div>
+              <div style={{fontSize:'14px',color:'#6B7280'}}>
+                including you and {Math.max(0,totalDonors-1)} others · collectively funding {totalTrees} tree{totalTrees!==1?'s':''} across Bangalore
+              </div>
             </div>
           </div>
         </section>
@@ -336,7 +352,7 @@ export default function CommunityDashboard() {
               <div style={{background:'rgba(255,255,255,.08)',border:'1px solid rgba(255,255,255,.12)',borderRadius:'14px',padding:'1.25rem 1.5rem',flex:1,minWidth:'220px'}}>
                 <div style={{fontSize:'.9rem',color:'white',lineHeight:1.7,fontWeight:500}}>
                   🌿 I joined EcoTree's Community Forest Initiative!<br/>
-                  {totalTrees} trees planted in Bangalore<br/>
+                  {totalDonors} contributors funding trees in Bangalore<br/>
                   💚 ecotrees.org/donate
                 </div>
                 <div style={{fontSize:'.75rem',color:'rgba(255,255,255,.5)',marginTop:'.5rem'}}>#CommunityForest #EcoTree #Bangalore #GreenCity</div>
