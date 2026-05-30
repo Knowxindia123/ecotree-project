@@ -54,9 +54,9 @@ export default function CheckoutPage() {
       setSel(s)
       // Pre-fill recipient fields from sessionStorage for gift mode
       if (s.mode === 'gift') {
-        if (s.recipientName)  setForm(f=>({...f, recipientName:  s.recipientName}))
-        if (s.recipientEmail) setForm(f=>({...f, recipientEmail: s.recipientEmail}))
-        if (s.giftMessage)    setForm(f=>({...f, giftMessage:    s.giftMessage}))
+        if (s.recipientName)  setForm(f=>({...f, recipientName:  s.recipientName  ?? ''}))
+        if (s.recipientEmail) setForm(f=>({...f, recipientEmail: s.recipientEmail ?? ''}))
+        if (s.giftMessage)    setForm(f=>({...f, giftMessage:    s.giftMessage    ?? ''}))
       }
     } catch { router.replace('/donate') }
     setReady(true)
