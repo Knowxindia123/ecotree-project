@@ -110,7 +110,7 @@ export default function Navbar() {
         </ul>
         <div className="navbar__mobile-actions">
           <Link href="/donate"      className="btn-mob-plant" onClick={() => setMenuOpen(false)}>🌱 Plant a Tree</Link>
-          <Link href="/csr-partner" className="btn-mob-csr"   onClick={() => setMenuOpen(false)}>🤝 CSR Partner</Link>
+          <Link href="/csr-ngo" className="btn-mob-csr" onClick={() => setMenuOpen(false)}>🤝 CSR / NGO Partner</Link>
         </div>
       </div>
 
