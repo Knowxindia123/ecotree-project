@@ -63,6 +63,13 @@ export default function DonatePage() {
   const [spIdx,      setSpIdx]      = useState(0)
   const [carIdx,     setCarIdx]     = useState(0)
   const [spErr,      setSpErr]      = useState(false)
+
+  // Gift-specific state
+  const [giftAmt,           setGiftAmt]           = useState(500)
+  const [giftRecipientName, setGiftRecipientName] = useState('')
+  const [giftRecipientEmail,setGiftRecipientEmail]= useState('')
+  const [giftMessage,       setGiftMessage]       = useState('')
+  const [giftErr,           setGiftErr]           = useState<{recipientName?:string;recipientEmail?:string}>({})
   const PER = typeof window !== 'undefined' && window.innerWidth < 600 ? 2 : 4
 
   const isComm  = tier.id === 'community_100' || tier.id === 'community_250'
@@ -121,6 +128,40 @@ export default function DonatePage() {
   const pickSp = (i: number) => { setSpIdx(i); setSpecies(SPECIES_DATA[i].name); setSpErr(false) }
 
   const handleContinue = () => {
+
+    // ── GIFT MODE ──
+    if (mode === 'gift') {
+      const e: {recipientName?:string;recipientEmail?:string} = {}
+      if (!giftRecipientName.trim()) e.recipientName = 'required'
+      if (!giftRecipientEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(giftRecipientEmail)) e.recipientEmail = 'required'
+      if (Object.keys(e).length > 0) { setGiftErr(e); return }
+      setGiftErr({})
+
+      const giftTierMap: Record<number,string> = {100:'community_100',250:'community_250',500:'joint_500',1000:'individual_1000'}
+      const giftTier = TIERS.find(t=>t.id===(giftTierMap[giftAmt]||'joint_500')) || TIERS[2]
+      const certTitles: Record<string,string> = {
+        birthday:'A tree planted in your honour', anniversary:'A living symbol of your love',
+        memory:'A living tribute to their memory', festival:'A gift that grows with time',
+        baby:'A tree that grows with your child', corporate:"Planted in your organisation's name",
+        custom:'A living gift from the heart',
+      }
+      sessionStorage.setItem('ecotree_selection', JSON.stringify({
+        tierId: giftTier.id, tierName: giftTier.name, tierIcon: giftTier.icon,
+        tierImg: giftTier.img, tierFallback: giftTier.fallback,
+        tierBadge: giftTier.badge, badgeColor: giftTier.badgeColor,
+        tierCo2: giftTier.co2, tierWater: giftTier.water,
+        tierDashboard: giftTier.dashboard, tierWhat: giftTier.what,
+        species: '', speciesTitle: '', qty: 1, mode: 'gift', commLevel: 100,
+        occId: occ.id, occIcon: occ.icon, occLabel: occ.label, occPrice: giftAmt,
+        total: giftAmt,
+        recipientName: giftRecipientName, recipientEmail: giftRecipientEmail,
+        giftMessage, certificateTitle: certTitles[occ.id] || 'A living gift from the heart',
+      }))
+      router.push('/donate/checkout')
+      return
+    }
+
+    // ── PLANT MODE ──
     if (isIndiv && !species) {
       setSpErr(true)
       if (detailRef.current) {
@@ -141,6 +182,7 @@ export default function DonatePage() {
       qty, mode, commLevel,
       occId: occ.id, occIcon: occ.icon, occLabel: occ.label, occPrice: occ.price,
       total,
+      recipientName: '', recipientEmail: '', giftMessage: '', certificateTitle: '',
     }))
     router.push('/donate/checkout')
   }
@@ -505,42 +547,138 @@ export default function DonatePage() {
 
             </div>
           ) : (
-            /* ══ GIFT MODE ══ */
-            <div ref={detailRef}>
-              <div className="dp-card-eyebrow" style={{marginBottom:'0.85rem'}}>Choose the occasion</div>
-              <div className="dp-occ-grid">
-                {OCCASIONS.map(o=>(
-                  <button key={o.id} onClick={()=>setOcc(o)} className={`dp-occ-card${occ.id===o.id?' dp-occ-card--on':''}`}>
-                    <div className="dp-occ-icon">{o.icon}</div>
-                    <div className="dp-occ-label">{o.label}</div>
-                    <div className="dp-occ-price">₹{o.price}</div>
-                    {occ.id===o.id && <div className="dp-occ-chk">✓</div>}
+            /* ══ GIFT MODE — Amazon style ══ */
+            <div ref={detailRef} className="dp-gift-amazon-layout">
+
+              {/* LEFT — single gift image */}
+              <div className="dp-gift-left">
+                <div className="dp-gift-img">
+                  <Img
+                    src="/gift-hero.webp"
+                    fallback="https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=800&q=80"
+                    alt="Gift a Living Tree"
+                    style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}
+                  />
+                  <div className="dp-amazon-img-ov"/>
+                  <div className="dp-amazon-img-caption">
+                    <div className="dp-amazon-img-eyebrow">EcoTree Gift</div>
+                    <div className="dp-amazon-img-name">Gift a Living Tree</div>
+                    <div className="dp-amazon-img-title">Plant a memory that grows forever</div>
+                  </div>
+                </div>
+
+                {/* Impact band below image */}
+                <div className="dp-impact-band" style={{marginTop:'0.75rem'}}>
+                  {[{icon:'🌱',val:'Real',lbl:'Living tree'},{icon:'📜',val:'Cert',lbl:'Personalised'},{icon:'📍',val:'GPS',lbl:'Tracked'}].map(m=>(
+                    <div key={m.lbl} className="dp-impact-item">
+                      <span className="dp-impact-icon">{m.icon}</span>
+                      <span className="dp-impact-val">{m.val}</span>
+                      <span className="dp-impact-lbl">{m.lbl}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* RIGHT — occasion + amount + recipient + CTA */}
+              <div className="dp-gift-right">
+
+                {/* STEP 1 — OCCASION */}
+                <div className="dp-card" style={{marginBottom:'0.75rem'}}>
+                  <div className="dp-card-eyebrow" style={{marginBottom:'0.6rem'}}>
+                    Step 1 — Choose occasion
+                  </div>
+                  <div className="dp-occ-grid-new">
+                    {OCCASIONS.map(o=>(
+                      <button key={o.id} onClick={()=>setOcc(o)} className={`dp-occ-card-new${occ.id===o.id?' dp-occ-card-new--on':''}`}>
+                        <span className="dp-occ-icon-new">{o.icon}</span>
+                        <span className="dp-occ-label-new">{o.label}</span>
+                        {occ.id===o.id && <span className="dp-occ-chk-new">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* STEP 2 — AMOUNT */}
+                <div className="dp-card" style={{marginBottom:'0.75rem'}}>
+                  <div className="dp-card-eyebrow" style={{marginBottom:'0.6rem'}}>
+                    Step 2 — Choose amount
+                  </div>
+                  <div className="dp-gift-amounts">
+                    {[
+                      {amt:100,  label:'₹100',  sub:'Community',  tierId:'community_100'},
+                      {amt:250,  label:'₹250',  sub:'Community+', tierId:'community_250'},
+                      {amt:500,  label:'₹500',  sub:'Shared Tree', tierId:'joint_500'},
+                      {amt:1000, label:'₹1,000',sub:'Individual ★', tierId:'individual_1000'},
+                    ].map(a=>(
+                      <button
+                        key={a.amt}
+                        onClick={()=>{
+                          setGiftAmt(a.amt)
+                          setTier(TIERS.find(t=>t.id===a.tierId)||TIERS[0])
+                        }}
+                        className={`dp-gift-amt-btn${giftAmt===a.amt?' dp-gift-amt-btn--on':''}`}
+                      >
+                        <span className="dp-gift-amt-price">{a.label}</span>
+                        <span className="dp-gift-amt-sub">{a.sub}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* STEP 3 — RECIPIENT */}
+                <div className="dp-card" style={{marginBottom:'0.75rem'}}>
+                  <div className="dp-card-eyebrow" style={{marginBottom:'0.6rem'}}>
+                    Step 3 — Recipient details
+                  </div>
+                  <div className="dp-gift-row" style={{marginBottom:'0.55rem'}}>
+                    <div className="dp-gift-field">
+                      <label className="dp-gift-label">Recipient name *</label>
+                      <input
+                        type="text"
+                        placeholder="Who is this gift for?"
+                        value={giftRecipientName}
+                        onChange={e=>setGiftRecipientName(e.target.value)}
+                        className={`dp-gift-input${giftErr.recipientName?' dp-gift-input--err':''}`}
+                      />
+                      {giftErr.recipientName && <div className="dp-err-inline" style={{marginTop:'3px'}}>⚠️ Required</div>}
+                    </div>
+                    <div className="dp-gift-field">
+                      <label className="dp-gift-label">Recipient email *</label>
+                      <input
+                        type="email"
+                        placeholder="Their email for certificate"
+                        value={giftRecipientEmail}
+                        onChange={e=>setGiftRecipientEmail(e.target.value)}
+                        className={`dp-gift-input${giftErr.recipientEmail?' dp-gift-input--err':''}`}
+                      />
+                      {giftErr.recipientEmail && <div className="dp-err-inline" style={{marginTop:'3px'}}>⚠️ Valid email required</div>}
+                    </div>
+                  </div>
+                  <div className="dp-gift-field">
+                    <label className="dp-gift-label">Personal message <span className="dp-opt">(optional)</span></label>
+                    <textarea
+                      rows={2}
+                      placeholder="Add a personal message..."
+                      value={giftMessage}
+                      onChange={e=>setGiftMessage(e.target.value)}
+                      className="dp-gift-input"
+                      style={{resize:'vertical',minHeight:'60px'}}
+                    />
+                  </div>
+                </div>
+
+                {/* CTA */}
+                <div className="dp-cta-row">
+                  <div className="dp-cta-price">
+                    <div className="dp-cta-price-lbl">Gift total</div>
+                    <div className="dp-cta-price-val">₹{giftAmt.toLocaleString('en-IN')}</div>
+                  </div>
+                  <button onClick={handleContinue} className="dp-cta-btn dp-cta-btn--gift">
+                    🎁 Continue →
                   </button>
-                ))}
-              </div>
-              <div className="dp-gift-fields">
-                <div className="dp-card-eyebrow" style={{marginBottom:'0.75rem',marginTop:'1.5rem'}}>Recipient details</div>
-                <div className="dp-gift-row">
-                  <div className="dp-gift-field">
-                    <label>Recipient name *</label>
-                    <input type="text" placeholder="Who is this gift for?"/>
-                  </div>
-                  <div className="dp-gift-field">
-                    <label>Recipient email *</label>
-                    <input type="email" placeholder="Their email for certificate"/>
-                  </div>
                 </div>
-                <div className="dp-gift-field">
-                  <label>Personal message <span className="dp-opt">(optional)</span></label>
-                  <textarea rows={2} placeholder="Add a personal message..."/>
-                </div>
-              </div>
-              <div className="dp-cta-row" style={{marginTop:'1.25rem'}}>
-                <div className="dp-cta-price">
-                  <div className="dp-cta-price-lbl">Gift amount</div>
-                  <div className="dp-cta-price-val">₹{occ.price}</div>
-                </div>
-                <button onClick={handleContinue} className="dp-cta-btn dp-cta-btn--gift">🎁 Continue to Gift Details →</button>
+                <div className="dp-cta-hint">Next: Add your details &amp; complete payment</div>
+
               </div>
             </div>
           )}
@@ -681,6 +819,37 @@ export default function DonatePage() {
 
         /* ── MAIN ── */
         .dp-main{padding:1.5rem 0 5rem;}
+
+        /* ── GIFT AMAZON LAYOUT ── */
+        .dp-gift-amazon-layout{display:grid;grid-template-columns:380px 1fr;gap:1.75rem;align-items:start;}
+        .dp-gift-left{}
+        .dp-gift-right{}
+        .dp-gift-img{border-radius:var(--r);overflow:hidden;position:relative;aspect-ratio:4/3;box-shadow:0 4px 20px rgba(27,67,50,0.12);background:#f0ede8;}
+
+        /* Occasion grid — compact 4-col */
+        .dp-occ-grid-new{display:grid;grid-template-columns:repeat(4,1fr);gap:0.4rem;}
+        .dp-occ-card-new{position:relative;border:1.5px solid #E2E8E4;border-radius:10px;padding:0.55rem 0.3rem;cursor:pointer;text-align:center;background:#fff;transition:all 0.18s;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:0.15rem;}
+        .dp-occ-card-new:hover{border-color:var(--ga);background:var(--mt);}
+        .dp-occ-card-new--on{border-color:#7C3AED;background:#F7F0FF;box-shadow:0 2px 8px rgba(124,58,237,0.15);}
+        .dp-occ-icon-new{font-size:1.2rem;line-height:1;}
+        .dp-occ-label-new{font-size:0.65rem;font-weight:700;color:var(--tb);line-height:1.2;}
+        .dp-occ-card-new--on .dp-occ-label-new{color:#7C3AED;}
+        .dp-occ-chk-new{position:absolute;top:3px;right:3px;width:13px;height:13px;background:#7C3AED;color:#fff;border-radius:50%;font-size:0.5rem;display:flex;align-items:center;justify-content:center;font-weight:700;}
+
+        /* Amount pills */
+        .dp-gift-amounts{display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;}
+        .dp-gift-amt-btn{border:2px solid #E2E8E4;border-radius:10px;padding:0.6rem 0.4rem;cursor:pointer;text-align:center;background:#fff;font-family:inherit;transition:all 0.18s;display:flex;flex-direction:column;align-items:center;gap:0.12rem;}
+        .dp-gift-amt-btn:hover{border-color:var(--ga);}
+        .dp-gift-amt-btn--on{border-color:#7C3AED;background:#F7F0FF;box-shadow:0 2px 8px rgba(124,58,237,0.15);}
+        .dp-gift-amt-price{font-size:0.92rem;font-weight:900;color:var(--gd);}
+        .dp-gift-amt-btn--on .dp-gift-amt-price{color:#7C3AED;}
+        .dp-gift-amt-sub{font-size:0.58rem;font-weight:600;color:var(--tm);}
+
+        /* Gift form fields */
+        .dp-gift-label{display:block;font-size:0.82rem;font-weight:700;color:var(--tb);margin-bottom:0.28rem;}
+        .dp-gift-input{width:100%;padding:0.65rem 0.85rem;border:1.5px solid #E2E8E4;border-radius:9px;font-size:0.9rem;color:var(--td);background:#fff;outline:none;font-family:inherit;transition:border-color 0.15s;}
+        .dp-gift-input:focus{border-color:#7C3AED;box-shadow:0 0 0 3px rgba(124,58,237,0.1);}
+        .dp-gift-input--err{border-color:#dc2626 !important;}
 
         /* ── TIER AMAZON LAYOUT (community/joint/miyawaki) ── */
         .dp-tier-amazon-layout{display:grid;grid-template-columns:380px 1fr;gap:1.75rem;align-items:start;}
@@ -997,8 +1166,10 @@ export default function DonatePage() {
           .dp-layout{grid-template-columns:1fr;}
           .dp-amazon-layout{grid-template-columns:1fr;}
           .dp-tier-amazon-layout{grid-template-columns:1fr;}
+          .dp-gift-amazon-layout{grid-template-columns:1fr;}
           .dp-amazon-img{aspect-ratio:unset;height:200px;}
           .dp-tier-amazon-img{aspect-ratio:unset;height:200px;}
+          .dp-gift-img{aspect-ratio:unset;height:180px;}
           .dp-indiv-main{grid-template-columns:1fr;}
           .dp-indiv-img{aspect-ratio:unset;height:200px;}
           .dp-trust-strip-inner{grid-template-columns:repeat(2,1fr);}
