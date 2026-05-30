@@ -64,7 +64,7 @@ export default function Navbar() {
           {/* Desktop CTAs */}
           <div className="navbar__actions">
             <Link href="/donate"      className="btn-nav-plant">🌱 Plant a Tree</Link>
-            <Link href="/csr-partner" className="btn-nav-csr">🤝 CSR Partner</Link>
+            <Link href="/csr-ngo" className="btn-nav-csr">🤝 CSR / NGO Partner</Link>
           </div>
 
           {/* Hamburger */}
