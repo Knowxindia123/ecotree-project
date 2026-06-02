@@ -245,29 +245,17 @@ export default function CsrDashboard() {
     doc.setTextColor(151, 188, 98)
     doc.text('SCAN TO VERIFY IMPACT', 272, 112, { align: 'center' })
 
-    // QR visual grid
-    const qx = 259, qy = 118, qs = 22
-    doc.setFillColor(26, 60, 52)
-    doc.rect(qx, qy, qs, qs, 'F')
-    doc.setFillColor(240, 248, 240)
-    doc.rect(qx+1, qy+1, 6, 6, 'F')
-    doc.rect(qx+qs-7, qy+1, 6, 6, 'F')
-    doc.rect(qx+1, qy+qs-7, 6, 6, 'F')
-    doc.setFillColor(26, 60, 52)
-    doc.rect(qx+2, qy+2, 4, 4, 'F')
-    doc.rect(qx+qs-6, qy+2, 4, 4, 'F')
-    doc.rect(qx+2, qy+qs-6, 4, 4, 'F')
-    doc.setFillColor(240, 248, 240)
-    for (let r = 0; r < 4; r++) {
-      for (let c = 0; c < 4; c++) {
-        if ((r + c) % 2 === 0) {
-          doc.rect(qx+8+(c*3.5), qy+8+(r*3.5), 2, 2, 'F')
-        }
-      }
-    }
+    // REAL SCANNABLE QR CODE
+    const QRCode = await import('qrcode')
+    const qrDataUrl = await QRCode.toDataURL('https://ecotrees.org/csr-dashboard', {
+      width: 200,
+      margin: 1,
+      color: { dark: '#1A3C34', light: '#F0F8F0' },
+    })
+    doc.addImage(qrDataUrl, 'PNG', 257, 117, 30, 30)
     doc.setFontSize(5)
     doc.setTextColor(100, 140, 100)
-    doc.text('ecotrees.org/verify', 272, 143, { align: 'center' })
+    doc.text('ecotrees.org/csr-dashboard', 272, 150, { align: 'center' })
 
     const features = [
       'GPS Verified Locations',
