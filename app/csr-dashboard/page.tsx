@@ -154,14 +154,16 @@ export default function CsrDashboard() {
     doc.line(80, 86, W - 80, 86)
     doc.setLineDashPattern([], 0)
 
-    // Recognition text
-    doc.setFontSize(9)
-    doc.setTextColor(80, 80, 80)
+    // Recognition text — larger, black, premium
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    doc.setTextColor(26, 26, 26)
     doc.text('In recognition of your commitment towards environmental sustainability,', W / 2, 93, { align:'center' })
-    doc.text('urban greening and climate action through support for our', W / 2, 99, { align:'center' })
-    doc.setFontSize(9.5)
+    doc.text('urban greening and climate action through support for our', W / 2, 101, { align:'center' })
+    doc.setFontSize(12.5)
     doc.setTextColor(44, 95, 45)
-    doc.text('Tree Plantation & Ecological Restoration Initiative.', W / 2, 105, { align:'center' })
+    doc.text('Tree Plantation & Ecological Restoration Initiative.', W / 2, 109, { align:'center' })
+    doc.setFont('helvetica', 'normal')
 
     // 3 STAT BOXES
     const stats = [
@@ -234,47 +236,17 @@ export default function CsrDashboard() {
       doc.text(': ' + d.val, 194, y)
     })
 
-    // QR CODE PANEL
-    doc.setFillColor(240, 248, 240)
-    doc.setDrawColor(44, 95, 45)
-    doc.setLineWidth(0.5)
-    doc.roundedRect(254, 107, 36, 80, 2, 2, 'FD')
-    doc.setFillColor(26, 60, 52)
-    doc.roundedRect(254, 107, 36, 8, 1, 1, 'F')
-    doc.setFontSize(5.5)
-    doc.setTextColor(151, 188, 98)
-    doc.text('SCAN TO VERIFY IMPACT', 272, 112, { align: 'center' })
-
-    // REAL SCANNABLE QR CODE
+    // QR CODE — bottom right corner, clean and small
     const QRCode = await import('qrcode')
     const qrDataUrl = await QRCode.toDataURL('https://ecotrees.org/csr-dashboard', {
       width: 200,
       margin: 1,
-      color: { dark: '#1A3C34', light: '#F0F8F0' },
+      color: { dark: '#1A3C34', light: '#FFFFFF' },
     })
-    doc.addImage(qrDataUrl, 'PNG', 257, 117, 30, 30)
-    doc.setFontSize(5)
-    doc.setTextColor(100, 140, 100)
-    doc.text('ecotrees.org/csr-dashboard', 272, 150, { align: 'center' })
-
-    const features = [
-      'GPS Verified Locations',
-      'Geo-tagged Photographs',
-      'Tree Registry',
-      'Growth Tracking Reports',
-      'Carbon Impact Metrics',
-      'Downloadable CSR Reports',
-    ]
-    doc.setFontSize(6.5)
-    features.forEach((f, i) => {
-      doc.setTextColor(44, 95, 45)
-      doc.text('•', 257, 150 + i * 6.5)
-      doc.setTextColor(50, 50, 50)
-      doc.text(f, 261, 150 + i * 6.5)
-    })
-    doc.setFontSize(5.5)
-    doc.setTextColor(100, 140, 100)
-    doc.text('Transparency. Accountability. Impact.', 272, 185, { align: 'center' })
+    doc.addImage(qrDataUrl, 'PNG', W - 46, H - 50, 28, 28)
+    doc.setFontSize(6)
+    doc.setTextColor(80, 80, 80)
+    doc.text('View live dashboard', W - 32, H - 19, { align: 'center' })
 
     // BOTTOM GREEN BAR
     doc.setFillColor(44, 95, 45)
