@@ -54,26 +54,274 @@ export default function CsrDashboard() {
 
   async function downloadCertificate() {
     if (!partner) return
+
     const { jsPDF } = await import('jspdf')
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
-    const W = 297
-    doc.setFillColor(26,60,52); doc.rect(0,0,W,210,'F')
-    doc.setDrawColor(151,188,98); doc.setLineWidth(1.5); doc.rect(8,8,W-16,194)
-    doc.setFontSize(10); doc.setTextColor(151,188,98); doc.text('ECOTREE IMPACT FOUNDATION',W/2,28,{align:'center'})
-    doc.setFontSize(22); doc.setTextColor(151,188,98); doc.text('CSR Impact Certificate',W/2,56,{align:'center'})
-    doc.setFontSize(20); doc.setTextColor(255,255,255); doc.text(partner.company_name,W/2,82,{align:'center'})
-    doc.setFontSize(10); doc.setTextColor(200,200,200)
-    doc.text('has planted ' + partner.trees_planted + ' trees through EcoTree Impact Foundation',W/2,94,{align:'center'})
-    doc.text('at ' + (partner.sites?.name||'Bangalore') + ', Karnataka, India',W/2,102,{align:'center'})
-    const c2 = (partner.trees_planted||0)*22
-    const stats = [{val:String(partner.trees_planted||0),label:'Trees Planted',x:55},{val:c2+'kg',label:'CO2 Offset/yr',x:120},{val:String(partner.trees_verified||0),label:'AI Verified',x:185},{val:'80G',label:'Tax Benefit',x:240}]
-    stats.forEach(s => {
-      doc.setFillColor(44,95,45); doc.roundedRect(s.x,112,55,22,2,2,'F')
-      doc.setFontSize(13); doc.setTextColor(255,255,255); doc.text(s.val,s.x+27.5,121,{align:'center'})
-      doc.setFontSize(7); doc.setTextColor(151,188,98); doc.text(s.label,s.x+27.5,129,{align:'center'})
+
+    const W = 297, H = 210
+    const co2Val = (partner.trees_planted || 0) * 22
+    const o2Val  = (partner.trees_planted || 0) * 118
+    const certId = `ETIF-${new Date().getFullYear()}-${String(partner.id).padStart(3,'0')}`
+    const issueDate = new Date().toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' })
+    const plantDate = partner.start_date
+      ? new Date(partner.start_date).toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' })
+      : issueDate
+    const location  = partner.sites?.name || 'Bangalore'
+    const city      = partner.sites?.city || 'Bengaluru'
+    const gpsLat    = partner.latitude  ? partner.latitude.toFixed(4)  + '° N' : '12.9716° N'
+    const gpsLng    = partner.longitude ? partner.longitude.toFixed(4) + '° E' : '77.5946° E'
+    const species   = 'Neem, Peepal, Banyan'
+
+    // BACKGROUND
+    doc.setFillColor(252, 251, 247)
+    doc.rect(0, 0, W, H, 'F')
+
+    // OUTER GOLD BORDER
+    doc.setDrawColor(180, 140, 60)
+    doc.setLineWidth(2)
+    doc.rect(6, 6, W - 12, H - 12)
+
+    // INNER GOLD BORDER
+    doc.setDrawColor(200, 168, 76)
+    doc.setLineWidth(0.5)
+    doc.rect(10, 10, W - 20, H - 20)
+
+    // Corner ornaments
+    const corners: [number, number][] = [[14,17],[W-14,17],[14,H-12],[W-14,H-12]]
+    doc.setTextColor(200, 168, 76)
+    doc.setFontSize(14)
+    corners.forEach(([x,y]) => doc.text('*', x, y, { align:'center' }))
+
+    // TOP BAR — EcoTree logo
+    doc.setFillColor(44, 95, 45)
+    doc.roundedRect(14, 14, 48, 22, 2, 2, 'F')
+    doc.setFontSize(9)
+    doc.setTextColor(255, 255, 255)
+    doc.text('ECO TREE', 38, 22, { align: 'center' })
+    doc.setFontSize(6.5)
+    doc.setTextColor(151, 188, 98)
+    doc.text('IMPACT FOUNDATION', 38, 28, { align: 'center' })
+    doc.setFontSize(5.5)
+    doc.setTextColor(200, 220, 180)
+    doc.text('PLANT  |  PROTECT  |  PRESERVE', 38, 33, { align: 'center' })
+
+    // Certificate ID + Date
+    doc.setFontSize(9)
+    doc.setTextColor(100, 80, 30)
+    doc.text('Certificate ID:  ' + certId, W / 2 - 30, 22)
+    doc.text('Date of Issue:  ' + issueDate, W / 2 - 30, 30)
+
+    // Company name box (right)
+    doc.setFillColor(240, 248, 240)
+    doc.setDrawColor(180, 140, 60)
+    doc.setLineWidth(0.5)
+    doc.roundedRect(W - 68, 13, 56, 24, 2, 2, 'FD')
+    doc.setFontSize(8)
+    doc.setTextColor(44, 95, 45)
+    const shortName = partner.company_name.length > 20
+      ? partner.company_name.substring(0, 18) + '...'
+      : partner.company_name
+    doc.text(shortName, W - 40, 22, { align: 'center' })
+    doc.setFontSize(6.5)
+    doc.setTextColor(100, 140, 100)
+    doc.text('CSR PARTNER', W - 40, 30, { align: 'center' })
+
+    // GOLD DIVIDER
+    doc.setDrawColor(200, 168, 76)
+    doc.setLineWidth(0.8)
+    doc.line(14, 40, W - 14, 40)
+
+    // TITLE
+    doc.setFontSize(18)
+    doc.setTextColor(26, 60, 52)
+    doc.text('VERIFIED ENVIRONMENTAL IMPACT CERTIFICATE', W / 2, 53, { align: 'center' })
+    doc.setFontSize(10)
+    doc.setTextColor(151, 188, 98)
+    doc.text('- * -', W / 2, 62, { align: 'center' })
+
+    // RECIPIENT
+    doc.setFontSize(10)
+    doc.setTextColor(100, 100, 100)
+    doc.text('Presented To', W / 2, 71, { align: 'center' })
+    doc.setFontSize(22)
+    doc.setTextColor(26, 60, 52)
+    doc.text(partner.company_name.toUpperCase(), W / 2, 82, { align: 'center' })
+
+    // Dashed underline
+    doc.setDrawColor(200, 168, 76)
+    doc.setLineWidth(0.4)
+    doc.setLineDashPattern([1, 1.5], 0)
+    doc.line(80, 86, W - 80, 86)
+    doc.setLineDashPattern([], 0)
+
+    // Recognition text
+    doc.setFontSize(9)
+    doc.setTextColor(80, 80, 80)
+    doc.text('In recognition of your commitment towards environmental sustainability,', W / 2, 93, { align:'center' })
+    doc.text('urban greening and climate action through support for our', W / 2, 99, { align:'center' })
+    doc.setFontSize(9.5)
+    doc.setTextColor(44, 95, 45)
+    doc.text('Tree Plantation & Ecological Restoration Initiative.', W / 2, 105, { align:'center' })
+
+    // 3 STAT BOXES
+    const stats = [
+      { val: String(partner.trees_planted || 0), unit: '',        label:'TREES PLANTED',    x:30  },
+      { val: String(co2Val),                     unit: ' KG/YR',  label:'CO2 OFFSET',       x:112 },
+      { val: String(Math.round(o2Val / 1000)),   unit: ' TONS/YR',label:'OXYGEN GENERATED', x:194 },
+    ]
+    doc.setFillColor(245, 252, 245)
+    doc.setDrawColor(200, 220, 180)
+    doc.setLineWidth(0.5)
+    doc.roundedRect(28, 110, 220, 28, 3, 3, 'FD')
+    stats.forEach((s, i) => {
+      if (i > 0) {
+        doc.setDrawColor(200, 220, 180)
+        doc.setLineWidth(0.4)
+        doc.line(s.x - 2, 113, s.x - 2, 135)
+      }
+      doc.setFillColor(44, 95, 45)
+      doc.circle(s.x + 12, 124, 9, 'F')
+      doc.setFontSize(16)
+      doc.setTextColor(26, 60, 52)
+      doc.text(s.val, s.x + 40, 121, { align: 'center' })
+      if (s.unit) {
+        doc.setFontSize(7)
+        doc.setTextColor(80, 80, 80)
+        doc.text(s.unit, s.x + 55, 121)
+      }
+      doc.setFontSize(6.5)
+      doc.setTextColor(100, 140, 100)
+      doc.text(s.label, s.x + 40, 128, { align: 'center' })
     })
-    doc.setFontSize(7); doc.setTextColor(151,188,98); doc.text('ecotrees.org',W/2,158,{align:'center'})
-    doc.save('EcoTree-CSR-' + partner.company_name.replace(/\s/g,'-') + '-' + partner.id + '.pdf')
+
+    // GOLD DIVIDER
+    doc.setDrawColor(200, 168, 76)
+    doc.setLineWidth(0.5)
+    doc.line(28, 143, 248, 143)
+
+    // PROJECT DETAILS
+    doc.setFontSize(9)
+    doc.setTextColor(44, 95, 45)
+    doc.text('PROJECT DETAILS', 138, 151, { align: 'center' })
+    doc.setDrawColor(200, 168, 76)
+    doc.setLineWidth(0.4)
+    doc.line(28, 154, 248, 154)
+
+    const leftDetails = [
+      { label:'Project Name',    val: partner.project_type || 'Green Bengaluru Initiative' },
+      { label:'Location',        val: location + ', ' + city },
+      { label:'GPS Coordinates', val: gpsLat + ', ' + gpsLng },
+    ]
+    const rightDetails = [
+      { label:'Plantation Date', val: plantDate },
+      { label:'Species Planted', val: species },
+      { label:'Monitoring',      val: '3 Years' },
+    ]
+    leftDetails.forEach((d, i) => {
+      const y = 161 + i * 8
+      doc.setFontSize(7.5)
+      doc.setTextColor(100, 140, 100)
+      doc.text(d.label, 32, y)
+      doc.setTextColor(50, 50, 50)
+      doc.text(': ' + d.val, 82, y)
+    })
+    rightDetails.forEach((d, i) => {
+      const y = 161 + i * 8
+      doc.setFontSize(7.5)
+      doc.setTextColor(100, 140, 100)
+      doc.text(d.label, 148, y)
+      doc.setTextColor(50, 50, 50)
+      doc.text(': ' + d.val, 194, y)
+    })
+
+    // QR CODE PANEL
+    doc.setFillColor(240, 248, 240)
+    doc.setDrawColor(44, 95, 45)
+    doc.setLineWidth(0.5)
+    doc.roundedRect(254, 107, 36, 80, 2, 2, 'FD')
+    doc.setFillColor(26, 60, 52)
+    doc.roundedRect(254, 107, 36, 8, 1, 1, 'F')
+    doc.setFontSize(5.5)
+    doc.setTextColor(151, 188, 98)
+    doc.text('SCAN TO VERIFY IMPACT', 272, 112, { align: 'center' })
+
+    // QR visual grid
+    const qx = 259, qy = 118, qs = 22
+    doc.setFillColor(26, 60, 52)
+    doc.rect(qx, qy, qs, qs, 'F')
+    doc.setFillColor(240, 248, 240)
+    doc.rect(qx+1, qy+1, 6, 6, 'F')
+    doc.rect(qx+qs-7, qy+1, 6, 6, 'F')
+    doc.rect(qx+1, qy+qs-7, 6, 6, 'F')
+    doc.setFillColor(26, 60, 52)
+    doc.rect(qx+2, qy+2, 4, 4, 'F')
+    doc.rect(qx+qs-6, qy+2, 4, 4, 'F')
+    doc.rect(qx+2, qy+qs-6, 4, 4, 'F')
+    doc.setFillColor(240, 248, 240)
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        if ((r + c) % 2 === 0) {
+          doc.rect(qx+8+(c*3.5), qy+8+(r*3.5), 2, 2, 'F')
+        }
+      }
+    }
+    doc.setFontSize(5)
+    doc.setTextColor(100, 140, 100)
+    doc.text('ecotrees.org/verify', 272, 143, { align: 'center' })
+
+    const features = [
+      'GPS Verified Locations',
+      'Geo-tagged Photographs',
+      'Tree Registry',
+      'Growth Tracking Reports',
+      'Carbon Impact Metrics',
+      'Downloadable CSR Reports',
+    ]
+    doc.setFontSize(6.5)
+    features.forEach((f, i) => {
+      doc.setTextColor(44, 95, 45)
+      doc.text('•', 257, 150 + i * 6.5)
+      doc.setTextColor(50, 50, 50)
+      doc.text(f, 261, 150 + i * 6.5)
+    })
+    doc.setFontSize(5.5)
+    doc.setTextColor(100, 140, 100)
+    doc.text('Transparency. Accountability. Impact.', 272, 185, { align: 'center' })
+
+    // BOTTOM GREEN BAR
+    doc.setFillColor(44, 95, 45)
+    doc.rect(0, H - 24, W, 24, 'F')
+
+    // Quote
+    doc.setFontSize(9)
+    doc.setTextColor(255, 255, 255)
+    doc.text('"The best time to plant a tree was 20 years ago.', 18, H - 15)
+    doc.setFontSize(9)
+    doc.setTextColor(151, 188, 98)
+    doc.text('The second best time is now."', 18, H - 8)
+
+    // Signature
+    doc.setFont('helvetica', 'bolditalic')
+    doc.setFontSize(13)
+    doc.setTextColor(255, 255, 255)
+    doc.text('Bhimsen G', W - 64, H - 14)
+    doc.setFont('helvetica', 'normal')
+    doc.setDrawColor(151, 188, 98)
+    doc.setLineWidth(0.5)
+    doc.line(W - 80, H - 10, W - 22, H - 10)
+    doc.setFontSize(7)
+    doc.setTextColor(151, 188, 98)
+    doc.text('Founder & Director  |  Eco Tree Impact Foundation', W - 52, H - 5, { align: 'center' })
+
+    // 80G badge
+    doc.setFillColor(151, 188, 98)
+    doc.roundedRect(W / 2 - 35, H - 22, 70, 10, 2, 2, 'F')
+    doc.setFontSize(7)
+    doc.setTextColor(26, 60, 52)
+    doc.text('80G Approved  |  Section 8  |  BRSR Ready', W / 2, H - 15, { align: 'center' })
+
+    // SAVE
+    doc.save('EcoTree-Certificate-' + certId + '-' + partner.company_name.replace(/\s+/g, '-') + '.pdf')
   }
 
   function shareWA() {
